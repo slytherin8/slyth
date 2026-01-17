@@ -133,20 +133,19 @@ router.get("/employees", auth, adminOnly, async (req, res) => {
 });
 
 // ✅ GET COMPANY DETAILS (Admin)
-router.get("/company", auth, async (req, res) => {
+router.get("/company", authMiddleware, async (req, res) => {
   try {
-    const company = await Company.findById(req.user.companyId)
-      .select("name logo");
+    const company = await Company.findById(req.user.companyId);
+    if (!company) return res.status(404).json({ message: "Company not found" });
 
-    if (!company) {
-      return res.status(404).json({ message: "Company not found" });
-    }
-
-    res.json(company);
+    res.json({
+      name: company.companyName,
+      logo: company.logo
+    });
   } catch (err) {
-    console.error("FETCH COMPANY ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Company fetch failed" });
   }
 });
+
 
 module.exports = router;
