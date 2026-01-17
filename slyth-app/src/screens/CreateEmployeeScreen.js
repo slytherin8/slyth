@@ -10,7 +10,10 @@ import {
 import { useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API = "http://10.249.80.219:5000";
+const API = "http://localhost:5000";
+
+
+
 
 export default function CreateEmployeeScreen({ navigation }) {
   const [name, setName] = useState("");
