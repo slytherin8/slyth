@@ -2,20 +2,22 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   FlatList,
-  Image
+  Image,
+  TouchableOpacity
 } from "react-native";
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API = "http://10.249.80.219:5000";
+const API = "http://localhost:5000";
 
 export default function AdminDashboard({ navigation }) {
   const [employees, setEmployees] = useState([]);
+  const [company, setCompany] = useState({});
 
   useEffect(() => {
     fetchEmployees();
+    fetchCompany();
   }, []);
 
   const fetchEmployees = async () => {
@@ -24,31 +26,60 @@ export default function AdminDashboard({ navigation }) {
 
     try {
       const res = await fetch(`${API}/api/auth/employees`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       const data = await res.json();
+      console.log("EMPLOYEES:", data);
       setEmployees(data);
-    } catch (error) {
-      console.log("Failed to fetch employees");
+    } catch (e) {
+      console.log("EMPLOYEE FETCH ERROR", e);
+    }
+  };
+
+  const fetchCompany = async () => {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API}/api/auth/company`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      setCompany(data);
+    } catch {
+      setCompany({});
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* 🔙 BACK BUTTON */}
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      {/* 🔝 TOP BAR */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Image
+            source={require("../../assets/images/back.png")}
+            style={{ width: 22, height: 22 }}
+          />
+        </TouchableOpacity>
+
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {company?.logo && (
+            <Image source={{ uri: company.logo }} style={styles.companyLogo} />
+          )}
+          <Text style={styles.companyName}>
+            {company?.name || "Company"}
+          </Text>
+        </View>
+
         <Image
-          source={require("../../assets/images/back.png")} // replace if needed
-          style={styles.backIcon}
+          source={require("../../assets/images/profile.png")}
+          style={styles.profileIcon}
         />
-      </TouchableOpacity>
+      </View>
 
-      <Text style={styles.title}>Admin Dashboard</Text>
-
-      {/* ➕ Create Employee */}
+      {/* ➕ CREATE EMPLOYEE */}
       <TouchableOpacity
         style={styles.createBtn}
         onPress={() => navigation.navigate("CreateEmployee")}
@@ -56,14 +87,14 @@ export default function AdminDashboard({ navigation }) {
         <Text style={styles.createBtnText}>+ Create Employee</Text>
       </TouchableOpacity>
 
-      {/* 👥 Employee List */}
+      {/* 👥 EMPLOYEES */}
       <Text style={styles.sectionTitle}>Employees</Text>
 
       <FlatList
         data={employees}
         keyExtractor={(item) => item._id}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No employees yet</Text>
+          <Text style={styles.empty}>No employees yet</Text>
         }
         renderItem={({ item }) => (
           <View style={styles.employeeCard}>
@@ -72,61 +103,69 @@ export default function AdminDashboard({ navigation }) {
           </View>
         )}
       />
+
+      {/* 🔽 BOTTOM NAV */}
+      <View style={styles.bottomNav}>
+        <Nav icon={require("../../assets/images/home.png")} label="Home" />
+        <Nav icon={require("../../assets/images/chat.png")} label="Chat" />
+        <Nav icon={require("../../assets/images/meet.png")} label="Meet" />
+        <Nav icon={require("../../assets/images/work.png")} label="Work" />
+        <Nav icon={require("../../assets/images/files.png")} label="Files" />
+      </View>
     </View>
   );
 }
 
+function Nav({ icon, label }) {
+  return (
+    <TouchableOpacity style={styles.navItem}>
+      <Image source={icon} style={styles.navIcon} />
+      <Text style={styles.navText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-    padding: 24
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    alignItems: "center"
   },
-  backIcon: {
-    width: 24,
-    height: 24,
-    marginBottom: 15
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 20
-  },
+  companyLogo: { width: 34, height: 34, borderRadius: 6, marginRight: 8 },
+  companyName: { fontSize: 20, fontWeight: "700" },
+  profileIcon: { width: 26, height: 26 },
+  sectionTitle: { fontSize: 18, fontWeight: "600", margin: 16 },
   createBtn: {
     backgroundColor: "#2563EB",
-    padding: 14,
-    borderRadius: 8,
-    marginBottom: 25
+    marginHorizontal: 16,
+    padding: 12,
+    borderRadius: 8
   },
   createBtnText: {
     color: "#fff",
     textAlign: "center",
     fontWeight: "600"
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10
-  },
   employeeCard: {
-    backgroundColor: "#FFFFFF",
-    padding: 14,
-    borderRadius: 8,
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
     marginBottom: 10,
-    borderWidth: 1,
+    padding: 14,
+    borderRadius: 8
+  },
+  employeeName: { fontSize: 16, fontWeight: "600" },
+  employeeEmail: { fontSize: 13, color: "#64748B" },
+  empty: { textAlign: "center", marginTop: 40, color: "#64748B" },
+  bottomNav: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 10,
+    borderTopWidth: 1,
     borderColor: "#E2E8F0"
   },
-  employeeName: {
-    fontSize: 16,
-    fontWeight: "600"
-  },
-  employeeEmail: {
-    fontSize: 13,
-    color: "#64748B"
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#64748B",
-    marginTop: 30
-  }
+  navItem: { alignItems: "center" },
+  navIcon: { width: 22, height: 22 },
+  navText: { fontSize: 10 }
 });
