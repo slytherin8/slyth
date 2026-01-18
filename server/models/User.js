@@ -18,7 +18,17 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: false
-  }
+  },
+  profile: {
+  name: { type: String },
+  jobRole: { type: String },
+  avatar: { type: String }
+},
+profileCompleted: {
+  type: Boolean,
+  default: false
+}
+
 });
 
 module.exports = mongoose.model("User", userSchema);
