@@ -9,8 +9,9 @@ import {
 } from "react-native";
 import { useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API } from "../constants/api";
 
-const API = "http://localhost:5000";
+
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -30,10 +31,8 @@ export default function LoginScreen({ navigation }) {
 
       await AsyncStorage.setItem("token", data.token);
       console.log("TOKEN SAVED:", data.token);
+   navigation.replace("ProfileSetup");
 
-      role === "admin"
-        ? navigation.replace("AdminDashboard")
-        : navigation.replace("EmployeeHome");
     } catch {
       Alert.alert("Server not reachable");
     }
