@@ -11,7 +11,8 @@ import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 
 
-const API = "http://localhost:5000";
+import { API } from "../constants/api";
+
 
 export default function AdminSignupScreen({ navigation }) {
   const [companyName, setCompanyName] = useState("");
