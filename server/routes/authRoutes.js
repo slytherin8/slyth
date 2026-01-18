@@ -6,11 +6,7 @@ const Company = require("../models/Company");
 const { auth, adminOnly } = require("../middleware/authMiddleware");
 
 const router = express.Router();
-
-/* 🔐 STRONG PASSWORD */
-const isStrongPassword = (password) => {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password);
-};
+console.log("✅ authRoutes loaded");
 
 /* =====================
    ADMIN SIGNUP
@@ -23,8 +19,8 @@ router.post("/admin-signup", async (req, res) => {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    const existing = await User.findOne({ email });
-    if (existing) {
+    const exists = await User.findOne({ email });
+    if (exists) {
       return res.status(400).json({ message: "Admin already exists" });
     }
 
@@ -36,10 +32,9 @@ router.post("/admin-signup", async (req, res) => {
       role: "admin"
     });
 
-    // ✅ SAVE LOGO IN COMPANY
     const company = await Company.create({
       name: companyName,
-      logo: logo || null,
+      logo,
       createdBy: admin._id
     });
 
@@ -48,20 +43,15 @@ router.post("/admin-signup", async (req, res) => {
 
     res.json({ message: "Company created successfully" });
   } catch (err) {
-    console.error("ADMIN SIGNUP ERROR:", err);
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
-
-
-
-
 
 /* =====================
    LOGIN (ADMIN + EMPLOYEE)
 ===================== */
 router.post("/login", async (req, res) => {
-    console.log("🔥 LOGIN HIT:", req.body);
   const { email, password, role } = req.body;
 
   const user = await User.findOne({ email, role });
@@ -74,24 +64,25 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
-  // ✅ mark employee active
   if (user.role === "employee") {
     user.isActive = true;
     await user.save();
   }
 
   const token = jwt.sign(
-    { id: user._id, role: user.role, companyId: user.companyId },
+    {
+      id: user._id,
+      role: user.role,
+      companyId: user.companyId
+    },
     process.env.JWT_SECRET
   );
 
   res.json({ token, role: user.role });
 });
 
-
-
 /* =====================
-   CREATE EMPLOYEE
+   CREATE EMPLOYEE (ADMIN)
 ===================== */
 router.post("/create-employee", auth, adminOnly, async (req, res) => {
   const { name, email, password } = req.body;
@@ -108,17 +99,16 @@ router.post("/create-employee", auth, adminOnly, async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
 
   await User.create({
-  name,
-  email,
-  password: hashed,
-  role: "employee",
-  companyId: req.user.companyId, // 🔴 THIS MUST EXIST
-  isActive: false
-});
+    name,
+    email,
+    password: hashed,
+    role: "employee",
+    companyId: req.user.companyId,
+    isActive: false
+  });
 
   res.json({ message: "Employee created" });
 });
-
 
 /* =====================
    GET EMPLOYEES (ADMIN)
@@ -127,23 +117,71 @@ router.get("/employees", auth, adminOnly, async (req, res) => {
   const employees = await User.find({
     companyId: req.user.companyId,
     role: "employee"
-  }).select("name email isActive");
+  }).select("name email isActive profile");
 
   res.json(employees);
 });
 
-// ✅ GET COMPANY DETAILS (Admin)
-router.get("/company", authMiddleware, async (req, res) => {
+/* =====================
+   GET COMPANY (ADMIN + EMPLOYEE)
+===================== */
+router.get("/company", auth, async (req, res) => {
   try {
     const company = await Company.findById(req.user.companyId);
-    if (!company) return res.status(404).json({ message: "Company not found" });
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
 
     res.json({
-      name: company.companyName,
+      name: company.name,
       logo: company.logo
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ message: "Company fetch failed" });
+  }
+});
+
+/* =====================
+   SAVE PROFILE
+===================== */
+router.post("/profile", auth, async (req, res) => {
+  try {
+    const { name, jobRole, avatar } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.profile = { name, jobRole, avatar };
+    user.profileCompleted = true;
+    await user.save();
+
+    res.json({
+      message: "Profile saved",
+      role: user.role
+    });
+  } catch {
+    res.status(500).json({ message: "Profile save failed" });
+  }
+});
+
+// 🔹 GET LOGGED-IN USER PROFILE
+// ✅ GET LOGGED IN USER PROFILE
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select(
+      "role profile profileCompleted"
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error("ME API ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch profile" });
   }
 });
 
