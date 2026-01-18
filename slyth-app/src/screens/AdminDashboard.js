@@ -5,11 +5,13 @@ import {
   FlatList,
   TouchableOpacity
 } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"; // ✅ FIXED
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppLayout from "../components/AppLayout";
 
-const API = "http://localhost:5000";
+import { API } from "../constants/api";
+
+
 
 export default function AdminDashboard({ navigation }) {
   const [employees, setEmployees] = useState([]);
@@ -34,8 +36,7 @@ export default function AdminDashboard({ navigation }) {
   };
 
   return (
-    <AppLayout navigation={navigation} role="admin">
-      {/* ➕ CREATE EMPLOYEE */}
+    <AppLayout navigation={navigation} role="admin" activeTab="home">
       <TouchableOpacity
         style={styles.createBtn}
         onPress={() => navigation.navigate("CreateEmployee")}
@@ -43,7 +44,6 @@ export default function AdminDashboard({ navigation }) {
         <Text style={styles.createBtnText}>+ Create Employee</Text>
       </TouchableOpacity>
 
-      {/* 👥 EMPLOYEES */}
       <Text style={styles.sectionTitle}>Employees</Text>
 
       <FlatList
@@ -69,7 +69,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     margin: 16
   },
-
   createBtn: {
     backgroundColor: "#2563EB",
     marginHorizontal: 16,
@@ -77,13 +76,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 10
   },
-
   createBtnText: {
     color: "#fff",
     textAlign: "center",
     fontWeight: "600"
   },
-
   employeeCard: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
@@ -91,17 +88,14 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 8
   },
-
   employeeName: {
     fontSize: 16,
     fontWeight: "600"
   },
-
   employeeEmail: {
     fontSize: 13,
     color: "#64748B"
   },
-
   empty: {
     textAlign: "center",
     marginTop: 40,
