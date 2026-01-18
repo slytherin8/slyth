@@ -14,6 +14,8 @@ import AdminMeetScreen from "./src/screens/AdminMeetScreen";
 import AdminWorkScreen from "./src/screens/AdminWorkScreen";
 import AdminFilesScreen from "./src/screens/AdminFilesScreen";
 import AdminProfileScreen from "./src/screens/AdminProfileScreen";
+import ProfileSetupScreen from "./src/screens/ProfileSetupScreen";
+import ProfileScreen from "./src/screens/ProfileScreen";
 
 // Employee pages
 import EmployeeChatScreen from "./src/screens/EmployeeChatScreen";
@@ -40,6 +42,11 @@ export default function App() {
         <Stack.Screen name="AdminWork" component={AdminWorkScreen} />
         <Stack.Screen name="AdminFiles" component={AdminFilesScreen} />
         <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
+        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+         <Stack.Screen
+  name="Profile"
+  component={ProfileScreen}
+/>
 
         {/* Employee */}
         <Stack.Screen name="EmployeeHome" component={EmployeeHome} />
