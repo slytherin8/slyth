@@ -8,7 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API = "http://localhost:5000";
+import { API } from "../constants/api";
 
 export default function AppLayout({
   navigation,
@@ -17,11 +17,14 @@ export default function AppLayout({
   role = "admin" // admin | employee
 }) {
   const [company, setCompany] = useState({});
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     fetchCompany();
+    fetchProfile();
   }, []);
 
+  /* 🔹 FETCH COMPANY */
   const fetchCompany = async () => {
     const token = await AsyncStorage.getItem("token");
     if (!token) return;
@@ -32,17 +35,40 @@ export default function AppLayout({
       });
       const data = await res.json();
       setCompany(data);
-    } catch {
+    } catch (err) {
+      console.log("COMPANY FETCH ERROR", err);
       setCompany({});
     }
   };
 
-  const go = (screen) => navigation.navigate(screen);
+  /* 🔹 FETCH LOGGED-IN USER PROFILE */
+  const fetchProfile = async () => {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setProfile(data.profile);
+    } catch (err) {
+      console.log("PROFILE FETCH ERROR", err);
+      setProfile(null);
+    }
+  };
+
+  const go = (screen) => {
+    if (navigation && screen) {
+      navigation.navigate(screen);
+    }
+  };
 
   return (
     <View style={styles.container}>
       {/* 🔝 TOP BAR */}
       <View style={styles.topBar}>
+        {/* 🔙 BACK */}
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image
             source={require("../../assets/images/back.png")}
@@ -50,19 +76,34 @@ export default function AppLayout({
           />
         </TouchableOpacity>
 
+        {/* 🏢 COMPANY */}
         <View style={styles.companyRow}>
-          {company?.logo && (
-            <Image source={{ uri: company.logo }} style={styles.companyLogo} />
-          )}
+          {company?.logo ? (
+            <Image
+              source={{ uri: company.logo }}
+              style={styles.companyLogo}
+            />
+          ) : null}
+
           <Text style={styles.companyName}>
             {company?.name || "Company"}
           </Text>
         </View>
 
-        <Image
-          source={require("../../assets/images/profile.png")}
-          style={styles.profileIcon}
-        />
+        {/* 👤 PROFILE */}
+        <TouchableOpacity onPress={() => go("Profile")}>
+          {profile?.avatar ? (
+            <Image
+              source={{ uri: profile.avatar }}
+              style={styles.profileIcon}
+            />
+          ) : (
+            <Image
+              source={require("../../assets/images/profile.png")}
+              style={styles.profileIcon}
+            />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* 🧩 PAGE CONTENT */}
@@ -78,6 +119,7 @@ export default function AppLayout({
             go(role === "admin" ? "AdminDashboard" : "EmployeeHome")
           }
         />
+
         <Nav
           label="Chat"
           icon={require("../../assets/images/chat.png")}
@@ -86,6 +128,7 @@ export default function AppLayout({
             go(role === "admin" ? "AdminChat" : "EmployeeChat")
           }
         />
+
         <Nav
           label="Meet"
           icon={require("../../assets/images/meet.png")}
@@ -94,6 +137,7 @@ export default function AppLayout({
             go(role === "admin" ? "AdminMeet" : "EmployeeMeet")
           }
         />
+
         <Nav
           label="Work"
           icon={require("../../assets/images/work.png")}
@@ -102,6 +146,7 @@ export default function AppLayout({
             go(role === "admin" ? "AdminWork" : "EmployeeWork")
           }
         />
+
         {role === "admin" && (
           <Nav
             label="Files"
@@ -121,9 +166,17 @@ function Nav({ icon, label, onPress, active }) {
     <TouchableOpacity style={styles.navItem} onPress={onPress}>
       <Image
         source={icon}
-        style={[styles.navIcon, active && { tintColor: "#2563EB" }]}
+        style={[
+          styles.navIcon,
+          active ? { tintColor: "#2563EB" } : null
+        ]}
       />
-      <Text style={[styles.navText, active && { color: "#2563EB" }]}>
+      <Text
+        style={[
+          styles.navText,
+          active ? { color: "#2563EB" } : null
+        ]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
@@ -131,7 +184,10 @@ function Nav({ icon, label, onPress, active }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F8FAFC"
+  },
 
   topBar: {
     flexDirection: "row",
@@ -140,7 +196,10 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
 
-  backIcon: { width: 22, height: 22 },
+  backIcon: {
+    width: 22,
+    height: 22
+  },
 
   companyRow: {
     flexDirection: "row",
@@ -160,8 +219,9 @@ const styles = StyleSheet.create({
   },
 
   profileIcon: {
-    width: 26,
-    height: 26
+    width: 28,
+    height: 28,
+    borderRadius: 14
   },
 
   bottomNav: {
@@ -172,7 +232,16 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0"
   },
 
-  navItem: { alignItems: "center" },
-  navIcon: { width: 22, height: 22 },
-  navText: { fontSize: 10 }
+  navItem: {
+    alignItems: "center"
+  },
+
+  navIcon: {
+    width: 22,
+    height: 22
+  },
+
+  navText: {
+    fontSize: 10
+  }
 });
