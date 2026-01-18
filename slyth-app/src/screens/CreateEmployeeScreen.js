@@ -10,7 +10,9 @@ import {
 import { useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API = "http://localhost:5000";
+import { API } from "../constants/api";
+
+
 
 
 
