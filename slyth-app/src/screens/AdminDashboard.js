@@ -3,10 +3,11 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity
+  TouchableOpacity,
+  ScrollView
 } from "react-native";
 import { useEffect, useState } from "react"; // ✅ FIXED
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "../utils/storage";
 import AppLayout from "../components/AppLayout";
 
 import { API } from "../constants/api";
@@ -37,28 +38,32 @@ export default function AdminDashboard({ navigation }) {
 
   return (
     <AppLayout navigation={navigation} role="admin" activeTab="home">
-      <TouchableOpacity
-        style={styles.createBtn}
-        onPress={() => navigation.navigate("CreateEmployee")}
-      >
-        <Text style={styles.createBtnText}>+ Create Employee</Text>
-      </TouchableOpacity>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <TouchableOpacity
+          style={styles.createBtn}
+          onPress={() => navigation.navigate("CreateEmployee")}
+        >
+          <Text style={styles.createBtnText}>+ Create Employee</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Employees</Text>
+        <Text style={styles.sectionTitle}>Employees</Text>
 
-      <FlatList
-        data={employees}
-        keyExtractor={(item) => item._id}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No employees yet</Text>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.employeeCard}>
-            <Text style={styles.employeeName}>{item.name}</Text>
-            <Text style={styles.employeeEmail}>{item.email}</Text>
-          </View>
-        )}
-      />
+        <FlatList
+          data={employees}
+          keyExtractor={(item) => item._id}
+          ListEmptyComponent={
+            <Text style={styles.empty}>No employees yet</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.employeeCard}>
+              <Text style={styles.employeeName}>{item.name}</Text>
+              <Text style={styles.employeeEmail}>{item.email}</Text>
+            </View>
+          )}
+          scrollEnabled={false} // Disable FlatList scroll since we're using ScrollView
+          nestedScrollEnabled={true} // Enable nested scrolling
+        />
+      </ScrollView>
     </AppLayout>
   );
 }
