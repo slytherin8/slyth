@@ -5,10 +5,11 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Alert
+  Alert,
+  ScrollView
 } from "react-native";
 import { useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "../utils/storage";
 import * as ImagePicker from "expo-image-picker";
 import { API } from "../constants/api";
 // ⚠️ PC IP, NOT localhost
@@ -74,48 +75,53 @@ export default function ProfileSetupScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Set up your profile</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Set up your profile</Text>
 
-      <TouchableOpacity onPress={pickImage} style={styles.avatarBox}>
-        {avatar ? (
-          <Image source={{ uri: avatar }} style={styles.avatar} />
-        ) : (
-          <Text>Select Photo</Text>
-        )}
-      </TouchableOpacity>
+        <TouchableOpacity onPress={pickImage} style={styles.avatarBox}>
+          {avatar ? (
+            <Image source={{ uri: avatar }} style={styles.avatar} />
+          ) : (
+            <Text>Select Photo</Text>
+          )}
+        </TouchableOpacity>
 
-      <TextInput
-        placeholder="Your Name"
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-      />
+        <TextInput
+          placeholder="Your Name"
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+        />
 
-      <TextInput
-        placeholder="Job Role (Frontend Developer)"
-        style={styles.input}
-        value={jobRole}
-        onChangeText={setJobRole}
-      />
+        <TextInput
+          placeholder="Job Role (Frontend Developer)"
+          style={styles.input}
+          value={jobRole}
+          onChangeText={setJobRole}
+        />
 
-      <TouchableOpacity style={styles.btn} onPress={saveProfile}>
-        <Text style={styles.btnText}>Save & Continue</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.btn} onPress={saveProfile}>
+          <Text style={styles.btnText}>Save & Continue</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity onPress={skipProfile}>
-        <Text style={styles.skip}>Skip</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity onPress={skipProfile}>
+          <Text style={styles.skip}>Skip</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F8FAFC"
+  },
+  content: {
     padding: 24,
     justifyContent: "center",
-    backgroundColor: "#F8FAFC"
+    minHeight: "100%"
   },
   title: {
     fontSize: 22,
