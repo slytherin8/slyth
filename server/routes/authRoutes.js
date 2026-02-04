@@ -171,17 +171,41 @@ router.post("/profile", auth, async (req, res) => {
 router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "role profile profileCompleted"
+      "role profile profileCompleted email"
     );
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Debug: Log the user info
+    console.log("ME API - User found:", {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      profileCompleted: user.profileCompleted
+    });
+
     res.json(user);
   } catch (err) {
     console.error("ME API ERROR:", err);
     res.status(500).json({ message: "Failed to fetch profile" });
+  }
+});
+
+/* =====================
+   TEST ADMIN ACCESS
+===================== */
+router.get("/test-admin", auth, adminOnly, async (req, res) => {
+  try {
+    console.log("TEST ADMIN - Request user:", req.user);
+    res.json({ 
+      message: "Admin access working!", 
+      user: req.user 
+    });
+  } catch (err) {
+    console.error("TEST ADMIN ERROR:", err);
+    res.status(500).json({ message: "Test failed" });
   }
 });
 
