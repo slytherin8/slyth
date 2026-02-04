@@ -6,7 +6,12 @@ import LoginScreen from "./src/screens/LoginScreen";
 import AdminSignupScreen from "./src/screens/AdminSignupScreen";
 import AdminDashboard from "./src/screens/AdminDashboard";
 import CreateEmployeeScreen from "./src/screens/CreateEmployeeScreen";
+import CreateGroupScreen from "./src/screens/CreateGroupScreen";
+import GroupChatScreen from "./src/screens/GroupChatScreen";
+import DebugAuthScreen from "./src/screens/DebugAuthScreen";
 import EmployeeHome from "./src/screens/EmployeeHome";
+import EditGroupScreen from "./src/screens/EditGroupScreen";
+import GroupInfoScreen from "./src/screens/GroupInfoScreen";
 
 // Admin pages
 import AdminChatScreen from "./src/screens/AdminChatScreen";
@@ -33,10 +38,15 @@ export default function App() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="AdminSignup" component={AdminSignupScreen} />
+        <Stack.Screen name="DebugAuth" component={DebugAuthScreen} />
 
         {/* Admin */}
         <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
         <Stack.Screen name="CreateEmployee" component={CreateEmployeeScreen} />
+        <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+        <Stack.Screen name="EditGroup" component={EditGroupScreen} />
+        <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
+        <Stack.Screen name="GroupChat" component={GroupChatScreen} />
         <Stack.Screen name="AdminChat" component={AdminChatScreen} />
         <Stack.Screen name="AdminMeet" component={AdminMeetScreen} />
         <Stack.Screen name="AdminWork" component={AdminWorkScreen} />
