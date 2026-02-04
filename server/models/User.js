@@ -19,16 +19,25 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  lastSeen: {
+    type: Date,
+    default: Date.now
+  },
   profile: {
-  name: { type: String },
-  jobRole: { type: String },
-  avatar: { type: String }
-},
-profileCompleted: {
-  type: Boolean,
-  default: false
-}
-
+    name: { type: String },
+    jobRole: { type: String },
+    avatar: { type: String }
+  },
+  profileCompleted: {
+    type: Boolean,
+    default: false
+  }
+}, {
+  timestamps: true
 });
 
 module.exports = mongoose.model("User", userSchema);
