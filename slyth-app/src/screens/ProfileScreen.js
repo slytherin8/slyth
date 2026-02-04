@@ -4,10 +4,11 @@ import {
   TextInput,
   Image,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
+  ScrollView
 } from "react-native";
 import { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "../utils/storage";
 import * as ImagePicker from "expo-image-picker";
 
 const API = "http://localhost:5000";
@@ -62,41 +63,49 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={pickImage}>
-        <Image
-          source={
-            avatar
-              ? { uri: avatar }
-              : require("../../assets/images/profile.png")
-          }
-          style={styles.avatar}
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        <TouchableOpacity onPress={pickImage}>
+          <Image
+            source={
+              avatar
+                ? { uri: avatar }
+                : require("../../assets/images/profile.png")
+            }
+            style={styles.avatar}
+          />
+        </TouchableOpacity>
+
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Your Name"
+          style={styles.input}
         />
-      </TouchableOpacity>
 
-      <TextInput
-        value={name}
-        onChangeText={setName}
-        placeholder="Your Name"
-        style={styles.input}
-      />
+        <TextInput
+          value={jobRole}
+          onChangeText={setJobRole}
+          placeholder="Job Role"
+          style={styles.input}
+        />
 
-      <TextInput
-        value={jobRole}
-        onChangeText={setJobRole}
-        placeholder="Job Role"
-        style={styles.input}
-      />
-
-      <TouchableOpacity style={styles.btn} onPress={save}>
-        <Text style={styles.btnText}>Save</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity style={styles.btn} onPress={save}>
+          <Text style={styles.btnText}>Save</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24 },
+  container: { 
+    flex: 1,
+    backgroundColor: "#F8FAFC"
+  },
+  content: {
+    padding: 24
+  },
   avatar: {
     width: 90,
     height: 90,
