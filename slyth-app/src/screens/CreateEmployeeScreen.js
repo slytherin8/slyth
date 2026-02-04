@@ -5,10 +5,11 @@ import {
   Text,
   StyleSheet,
   Alert,
-  Image
+  Image,
+  ScrollView
 } from "react-native";
 import { useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "../utils/storage";
 
 import { API } from "../constants/api";
 
@@ -44,7 +45,31 @@ export default function CreateEmployeeScreen({ navigation }) {
       return Alert.alert("Session expired", "Please login again");
     }
 
+    // Debug: Check token content
     try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      console.log("Current user from token:", payload);
+      console.log("User role:", payload.role);
+      console.log("User ID:", payload.id);
+      
+      if (payload.role !== 'admin') {
+        return Alert.alert(
+          "Access Denied", 
+          "You need admin privileges. Please login as admin.",
+          [
+            { text: "Create Admin Account", onPress: createTestAdmin },
+            { text: "Go to Login", onPress: () => navigation.navigate("Login") },
+            { text: "Cancel" }
+          ]
+        );
+      }
+    } catch (e) {
+      console.log("Invalid token format:", e);
+      return Alert.alert("Invalid session", "Please login again");
+    }
+
+    try {
+      console.log("Making request to create employee...");
       const res = await fetch(`${API}/api/auth/create-employee`, {
         method: "POST",
         headers: {
@@ -54,11 +79,26 @@ export default function CreateEmployeeScreen({ navigation }) {
         body: JSON.stringify({ name, email, password })
       });
 
+      console.log("Response status:", res.status);
       const data = await res.json();
+      console.log("Response data:", data);
 
      if (!res.ok) {
   console.log("BACKEND ERROR:", data);
-  return Alert.alert("Error", JSON.stringify(data));
+  
+  if (res.status === 403) {
+    return Alert.alert(
+      "Access Denied", 
+      "You need admin privileges to create employees. Please login as admin.",
+      [
+        { text: "Create Admin Account", onPress: createTestAdmin },
+        { text: "Go to Login", onPress: () => navigation.navigate("Login") },
+        { text: "Cancel" }
+      ]
+    );
+  }
+  
+  return Alert.alert("Error", data.message || "Failed to create employee");
 }
 
 
@@ -69,57 +109,91 @@ export default function CreateEmployeeScreen({ navigation }) {
       setEmail("");
       setPassword("");
     } catch (error) {
-      Alert.alert("Server Error", "Please try again later");
+      console.log("Network error:", error);
+      Alert.alert("Network Error", "Please check if the server is running on localhost:5000");
+    }
+  };
+
+  const createTestAdmin = async () => {
+    try {
+      const response = await fetch(`${API}/api/auth/admin-signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: "Test Company",
+          email: "admin@test.com",
+          password: "Admin123!",
+          logo: null
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        Alert.alert(
+          "Admin Created!", 
+          "Test admin account created:\n\nEmail: admin@test.com\nPassword: Admin123!\n\nPlease login with these credentials.",
+          [
+            { text: "Go to Login", onPress: () => navigation.navigate("Login") }
+          ]
+        );
+      } else {
+        Alert.alert("Error", data.message);
+      }
+    } catch (error) {
+      Alert.alert("Error", error.message);
     }
   };
 
   return (
-    <View style={styles.container}>
-      {/* 🔙 Back Button */}
-   <TouchableOpacity onPress={() => navigation.goBack()}>
-  <Image
-    source={require("../../assets/images/back.png")}
-    style={{ width: 24, height: 24, marginBottom: 20 }}
-  />
-</TouchableOpacity>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        {/* 🔙 Back Button */}
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Image
+            source={require("../../assets/images/back.png")}
+            style={{ width: 24, height: 24, marginBottom: 20 }}
+          />
+        </TouchableOpacity>
 
+        <Text style={styles.title}>Create Employee</Text>
 
-      <Text style={styles.title}>Create Employee</Text>
+        <TextInput
+          placeholder="Employee Name"
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+        />
 
-      <TextInput
-        placeholder="Employee Name"
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-      />
+        <TextInput
+          placeholder="Employee Email"
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+        />
 
-      <TextInput
-        placeholder="Employee Email"
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
+        <TextInput
+          placeholder="Temporary Password"
+          style={styles.input}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
 
-      <TextInput
-        placeholder="Temporary Password"
-        style={styles.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={createEmployee}>
-        <Text style={styles.buttonText}>Create Employee</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity style={styles.button} onPress={createEmployee}>
+          <Text style={styles.buttonText}>Create Employee</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F8FAFC"
+  },
+  content: {
     padding: 24
   },
   backIcon: {
