@@ -35,6 +35,10 @@ const userSchema = new mongoose.Schema({
   profileCompleted: {
     type: Boolean,
     default: false
+  },
+  vaultPin: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
