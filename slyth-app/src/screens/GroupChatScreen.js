@@ -194,9 +194,25 @@ export default function GroupChatScreen({ route, navigation }) {
     setShowMessageActions(false);
   };
 
+  const handleCopyMessage = (message) => {
+    if (Platform.OS === 'web') {
+      navigator.clipboard.writeText(message.messageText);
+      Alert.alert("Copied! 📋", "Message copied to clipboard");
+    } else {
+      // For mobile, you'd use expo-clipboard
+      Alert.alert("Copied! 📋", "Message copied to clipboard");
+    }
+    setShowMessageActions(false);
+  };
+
   const showMessageActionSheet = (message) => {
     const isMyMessage = message.senderId._id === currentUserId;
     const options = [];
+    
+    // Copy option for all messages with text
+    if (message.messageText && message.messageText.trim()) {
+      options.push("Copy");
+    }
     
     if (!isMyMessage) {
       options.push("Reply");
@@ -216,7 +232,9 @@ export default function GroupChatScreen({ route, navigation }) {
           destructiveButtonIndex: options.indexOf("Delete")
         },
         (buttonIndex) => {
-          if (options[buttonIndex] === "Reply") {
+          if (options[buttonIndex] === "Copy") {
+            handleCopyMessage(message);
+          } else if (options[buttonIndex] === "Reply") {
             handleReply(message);
           } else if (options[buttonIndex] === "Delete") {
             Alert.alert(
@@ -277,44 +295,7 @@ export default function GroupChatScreen({ route, navigation }) {
     setShowAttachmentOptions(false);
   };
 
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera permissions');
-      return;
-    }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
-      quality: 0.8,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets && result.assets[0]) {
-      const asset = result.assets[0];
-      const base64Image = `data:image/jpeg;base64,${asset.base64}`;
-      
-      // For web compatibility, use a simple confirm instead of Alert.prompt
-      if (Platform.OS === 'web') {
-        const caption = prompt("Add a caption (optional):");
-        sendMessage(caption || "📷 Photo", "image", base64Image);
-      } else {
-        Alert.prompt(
-          "Send Photo",
-          "Add a caption (optional)",
-          [
-            { text: "Cancel", style: "cancel" },
-            { 
-              text: "Send", 
-              onPress: (caption) => sendMessage(caption || "📷 Photo", "image", base64Image)
-            }
-          ],
-          "plain-text"
-        );
-      }
-    }
-    setShowAttachmentOptions(false);
-  };
 
   const pickDocument = async () => {
     try {
@@ -621,16 +602,6 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Text style={styles.attachmentSubtext}>Share photos from your gallery</Text>
               </View>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.attachmentOption} onPress={takePhoto}>
-              <View style={styles.attachmentIconContainer}>
-                <Text style={styles.attachmentIcon}>📸</Text>
-              </View>
-              <View style={styles.attachmentTextContainer}>
-                <Text style={styles.attachmentText}>Camera</Text>
-                <Text style={styles.attachmentSubtext}>Take a new photo</Text>
-              </View>
-            </TouchableOpacity>
             
             <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
               <View style={styles.attachmentIconContainer}>
@@ -661,6 +632,15 @@ export default function GroupChatScreen({ route, navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.messageActionsModal}>
+            {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
+              <TouchableOpacity 
+                style={styles.actionOption}
+                onPress={() => handleCopyMessage(selectedMessage)}
+              >
+                <Text style={styles.actionText}>Copy</Text>
+              </TouchableOpacity>
+            )}
+            
             {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
               <TouchableOpacity 
                 style={styles.actionOption}
@@ -809,7 +789,7 @@ export default function GroupChatScreen({ route, navigation }) {
                               });
 
                               if (response.ok) {
-                                Alert.alert("Success", "Group deleted successfully", [
+                                Alert.alert("Success! 🗑️", "Group has been deleted successfully!", [
                                   { text: "OK", onPress: () => navigation.goBack() }
                                 ]);
                               } else {
@@ -871,7 +851,7 @@ export default function GroupChatScreen({ route, navigation }) {
                               });
 
                               if (response.ok) {
-                                Alert.alert("Success", "You have left the group", [
+                                Alert.alert("Success! 👋", "You have left the group successfully!", [
                                   { text: "OK", onPress: () => navigation.goBack() }
                                 ]);
                               } else {
