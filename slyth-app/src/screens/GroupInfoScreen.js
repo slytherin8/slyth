@@ -30,7 +30,14 @@ export default function GroupInfoScreen({ route, navigation }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    navigation.setOptions({ title: "Group Info" });
+    navigation.setOptions({ 
+      title: "Group Info",
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+          <Text style={{ fontSize: 24, color: "#374151" }}>←</Text>
+        </TouchableOpacity>
+      )
+    });
     fetchGroupInfo();
     checkUserRole();
   }, []);
