@@ -5,6 +5,7 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const vaultRoutes = require("./routes/vaultRoutes");
 
 const app = express();
 
@@ -23,14 +24,15 @@ async function startServer() {
 
     app.use("/api/auth", authRoutes);
     app.use("/api/chat", chatRoutes);
+    app.use("/api/vault", vaultRoutes);
 
     app.get("/", (req, res) => {
       res.send("Backend running successfully 🚀");
     });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
 
 
 
