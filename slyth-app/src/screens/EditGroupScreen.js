@@ -37,7 +37,14 @@ export default function EditGroupScreen({ route, navigation }) {
   const [selectedMembers, setSelectedMembers] = useState([]);
 
   useEffect(() => {
-    navigation.setOptions({ title: "Edit Group" });
+    navigation.setOptions({ 
+      title: "Edit Group",
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+          <Text style={{ fontSize: 24, color: "#374151" }}>←</Text>
+        </TouchableOpacity>
+      )
+    });
     fetchEmployees();
     fetchGroupDetails();
   }, []);
@@ -138,7 +145,7 @@ export default function EditGroupScreen({ route, navigation }) {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Success", "Group updated successfully", [
+        Alert.alert("Success! 🎉", `Group "${name}" has been updated successfully!`, [
           { text: "OK", onPress: () => navigation.goBack() }
         ]);
       } else {
@@ -170,7 +177,7 @@ export default function EditGroupScreen({ route, navigation }) {
               });
 
               if (response.ok) {
-                Alert.alert("Success", "Group deleted successfully", [
+                Alert.alert("Success! 🗑️", "Group has been deleted successfully!", [
                   { text: "OK", onPress: () => navigation.navigate("AdminChat") }
                 ]);
               } else {
