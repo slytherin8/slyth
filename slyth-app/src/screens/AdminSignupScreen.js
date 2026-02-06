@@ -5,7 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Image
+  Image,
+  ScrollView
 } from "react-native";
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
@@ -77,7 +78,11 @@ export default function AdminSignupScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={true}
+    >
       {/* 🔙 Back Button */}
       <TouchableOpacity
         onPress={() => navigation.goBack()}
@@ -120,7 +125,7 @@ export default function AdminSignupScreen({ navigation }) {
       <TouchableOpacity style={styles.button} onPress={signup}>
         <Text style={styles.buttonText}>Create Account</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -129,8 +134,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  contentContainer: {
     padding: 24,
-    justifyContent: "center"
+    justifyContent: "center",
+    flexGrow: 1,
+    paddingTop: 80
   },
   backBtn: {
     position: "absolute",
