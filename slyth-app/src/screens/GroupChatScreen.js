@@ -16,8 +16,7 @@ import {
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
-// Uncomment this line after installing expo-document-picker
-// import * as DocumentPicker from 'expo-document-picker';
+import * as DocumentPicker from 'expo-document-picker';
 
 // Direct API calls instead of chatService
 const API_BASE_URL = "http://localhost:5000";
@@ -33,7 +32,7 @@ const getAuthHeaders = async () => {
 const getCurrentUserId = async () => {
   const token = await AsyncStorage.getItem("token");
   if (!token) return null;
-  
+
   try {
     // Decode JWT to get user ID
     const payload = JSON.parse(atob(token.split('.')[1]));
@@ -69,7 +68,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const initializeChat = async () => {
     const userId = await getCurrentUserId();
     setCurrentUserId(userId);
-    
+
     // Check if current user is admin
     const token = await AsyncStorage.getItem("token");
     if (token) {
@@ -80,7 +79,7 @@ export default function GroupChatScreen({ route, navigation }) {
         console.log("Token decode error:", e);
       }
     }
-    
+
     // Fetch group info
     await fetchGroupInfo();
     fetchMessages();
@@ -135,7 +134,7 @@ export default function GroupChatScreen({ route, navigation }) {
       const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}/messages`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messageText: textToSend || (messageType === "image" ? "📷 Image" : "📎 File"),
           messageType,
           fileData,
@@ -148,7 +147,7 @@ export default function GroupChatScreen({ route, navigation }) {
 
       setMessages(prev => [...prev, data]);
       setReplyingTo(null);
-      
+
       // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -208,20 +207,20 @@ export default function GroupChatScreen({ route, navigation }) {
   const showMessageActionSheet = (message) => {
     const isMyMessage = message.senderId._id === currentUserId;
     const options = [];
-    
+
     // Copy option for all messages with text
     if (message.messageText && message.messageText.trim()) {
       options.push("Copy");
     }
-    
+
     if (!isMyMessage) {
       options.push("Reply");
     }
-    
+
     if (isMyMessage) {
       options.push("Delete");
     }
-    
+
     options.push("Cancel");
 
     if (Platform.OS === 'ios') {
@@ -271,7 +270,7 @@ export default function GroupChatScreen({ route, navigation }) {
     if (!result.canceled && result.assets && result.assets[0]) {
       const asset = result.assets[0];
       const base64Image = `data:image/jpeg;base64,${asset.base64}`;
-      
+
       // For web compatibility, use a simple confirm instead of Alert.prompt
       if (Platform.OS === 'web') {
         const caption = prompt("Add a caption (optional):");
@@ -283,8 +282,8 @@ export default function GroupChatScreen({ route, navigation }) {
           "Add a caption (optional)",
           [
             { text: "Cancel", style: "cancel" },
-            { 
-              text: "Send", 
+            {
+              text: "Send",
               onPress: (caption) => sendMessage(caption || "📷 Photo", "image", base64Image)
             }
           ],
@@ -328,8 +327,8 @@ export default function GroupChatScreen({ route, navigation }) {
           "Enter document name (this is a demo - install expo-document-picker for real functionality):",
           [
             { text: "Cancel", style: "cancel" },
-            { 
-              text: "Send", 
+            {
+              text: "Send",
               onPress: (fileName) => {
                 if (fileName && fileName.trim()) {
                   sendMessage(`📎 ${fileName.trim()}`, "file", {
@@ -363,7 +362,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const renderMessage = ({ item }) => {
     const isMyMessage = item.senderId._id === currentUserId;
     const isUserOnline = onlineUsers.some(user => user._id === item.senderId._id);
-    
+
     return (
       <View style={[
         styles.messageWrapper,
@@ -373,8 +372,8 @@ export default function GroupChatScreen({ route, navigation }) {
           <View style={styles.senderAvatarContainer}>
             <View style={styles.senderAvatar}>
               {item.senderId.profile?.avatar ? (
-                <Image 
-                  source={{ uri: item.senderId.profile.avatar }} 
+                <Image
+                  source={{ uri: item.senderId.profile.avatar }}
                   style={styles.avatarImage}
                 />
               ) : (
@@ -386,7 +385,7 @@ export default function GroupChatScreen({ route, navigation }) {
             {isUserOnline && <View style={styles.onlineStatusDot} />}
           </View>
         )}
-        
+
         <TouchableOpacity
           style={[
             styles.messageContainer,
@@ -400,7 +399,7 @@ export default function GroupChatScreen({ route, navigation }) {
               {item.senderId.profile?.name || "Unknown"}
             </Text>
           )}
-          
+
           {item.repliedMessage && (
             <View style={styles.repliedMessage}>
               <Text style={styles.repliedSender}>{item.repliedMessage.senderName}</Text>
@@ -409,7 +408,7 @@ export default function GroupChatScreen({ route, navigation }) {
               </Text>
             </View>
           )}
-          
+
           {item.messageType === "image" && item.fileData ? (
             <View style={styles.imageContainer}>
               <Image source={{ uri: item.fileData }} style={styles.messageImage} />
@@ -423,7 +422,7 @@ export default function GroupChatScreen({ route, navigation }) {
               )}
             </View>
           ) : null}
-          
+
           {item.messageType === "file" && item.fileData ? (
             <View style={styles.fileMessage}>
               <Text style={styles.fileIcon}>📎</Text>
@@ -435,7 +434,7 @@ export default function GroupChatScreen({ route, navigation }) {
               </View>
             </View>
           ) : null}
-          
+
           {(item.messageType === "text" || (!item.fileData)) && (
             <Text style={[
               styles.messageText,
@@ -444,7 +443,7 @@ export default function GroupChatScreen({ route, navigation }) {
               {item.messageText}
             </Text>
           )}
-          
+
           <View style={styles.messageFooter}>
             <Text style={[
               styles.messageTime,
@@ -471,7 +470,7 @@ export default function GroupChatScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
@@ -480,15 +479,15 @@ export default function GroupChatScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.groupInfo}
           onPress={() => navigation.navigate("GroupInfo", { groupId, groupName })}
         >
           <View style={styles.groupAvatar}>
             {groupInfo?.profilePhoto ? (
-              <Image 
-                source={{ uri: groupInfo.profilePhoto }} 
+              <Image
+                source={{ uri: groupInfo.profilePhoto }}
                 style={styles.groupAvatarImage}
               />
             ) : (
@@ -504,7 +503,7 @@ export default function GroupChatScreen({ route, navigation }) {
               </View>
             )}
           </View>
-          
+
           <View style={styles.groupDetails}>
             <Text style={styles.headerTitle}>{groupName}</Text>
             <Text style={styles.memberCount}>
@@ -513,8 +512,8 @@ export default function GroupChatScreen({ route, navigation }) {
             </Text>
           </View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           onPress={() => setShowGroupMenu(true)}
           style={styles.menuButton}
         >
@@ -528,6 +527,7 @@ export default function GroupChatScreen({ route, navigation }) {
         data={messages}
         keyExtractor={(item) => item._id}
         renderItem={renderMessage}
+        style={styles.messagesListContainer}
         contentContainerStyle={styles.messagesList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
@@ -555,13 +555,13 @@ export default function GroupChatScreen({ route, navigation }) {
 
       {/* Message Input */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.attachButton}
           onPress={() => setShowAttachmentOptions(true)}
         >
           <Text style={styles.attachButtonText}>📎</Text>
         </TouchableOpacity>
-        
+
         <TextInput
           style={styles.textInput}
           placeholder="Type a message..."
@@ -570,7 +570,7 @@ export default function GroupChatScreen({ route, navigation }) {
           multiline
           maxLength={1000}
         />
-        
+
         <TouchableOpacity
           style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
           onPress={handleSendText}
@@ -592,7 +592,7 @@ export default function GroupChatScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.attachmentModal}>
             <Text style={styles.modalTitle}>Send</Text>
-            
+
             <TouchableOpacity style={styles.attachmentOption} onPress={pickImage}>
               <View style={styles.attachmentIconContainer}>
                 <Text style={styles.attachmentIcon}>📷</Text>
@@ -602,7 +602,7 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Text style={styles.attachmentSubtext}>Share photos from your gallery</Text>
               </View>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
               <View style={styles.attachmentIconContainer}>
                 <Text style={styles.attachmentIcon}>📎</Text>
@@ -612,9 +612,9 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Text style={styles.attachmentSubtext}>Share PDFs, docs, and other files</Text>
               </View>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.cancelButton} 
+
+            <TouchableOpacity
+              style={styles.cancelButton}
               onPress={() => setShowAttachmentOptions(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -633,25 +633,25 @@ export default function GroupChatScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.messageActionsModal}>
             {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => handleCopyMessage(selectedMessage)}
               >
                 <Text style={styles.actionText}>Copy</Text>
               </TouchableOpacity>
             )}
-            
+
             {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => handleReply(selectedMessage)}
               >
                 <Text style={styles.actionText}>Reply</Text>
               </TouchableOpacity>
             )}
-            
+
             {selectedMessage && selectedMessage.senderId._id === currentUserId && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => {
                   Alert.alert(
@@ -667,9 +667,9 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
               </TouchableOpacity>
             )}
-            
-            <TouchableOpacity 
-              style={styles.cancelButton} 
+
+            <TouchableOpacity
+              style={styles.cancelButton}
               onPress={() => setShowMessageActions(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -690,8 +690,8 @@ export default function GroupChatScreen({ route, navigation }) {
               <View style={styles.modalGroupInfo}>
                 <View style={styles.modalGroupAvatar}>
                   {groupInfo?.profilePhoto ? (
-                    <Image 
-                      source={{ uri: groupInfo.profilePhoto }} 
+                    <Image
+                      source={{ uri: groupInfo.profilePhoto }}
                       style={styles.modalGroupAvatarImage}
                     />
                   ) : (
@@ -710,10 +710,10 @@ export default function GroupChatScreen({ route, navigation }) {
                 </View>
               </View>
             </View>
-            
+
             {isAdmin ? (
               <>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
@@ -723,12 +723,12 @@ export default function GroupChatScreen({ route, navigation }) {
                   <Text style={styles.menuIcon}>ℹ️</Text>
                   <Text style={styles.menuText}>Group Info</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
-                    navigation.navigate("EditGroup", { 
-                      groupId, 
+                    navigation.navigate("EditGroup", {
+                      groupId,
                       groupName,
                       groupDescription: groupInfo?.description,
                       groupPhoto: groupInfo?.profilePhoto
@@ -738,12 +738,12 @@ export default function GroupChatScreen({ route, navigation }) {
                   <Text style={styles.menuIcon}>✏️</Text>
                   <Text style={styles.menuText}>Edit Group</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
-                    navigation.navigate("EditGroup", { 
-                      groupId, 
+                    navigation.navigate("EditGroup", {
+                      groupId,
                       groupName,
                       groupDescription: groupInfo?.description,
                       groupPhoto: groupInfo?.profilePhoto
@@ -753,12 +753,12 @@ export default function GroupChatScreen({ route, navigation }) {
                   <Text style={styles.menuIcon}>👥</Text>
                   <Text style={styles.menuText}>Manage Members</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
-                    navigation.navigate("EditGroup", { 
-                      groupId, 
+                    navigation.navigate("EditGroup", {
+                      groupId,
                       groupName,
                       groupDescription: groupInfo?.description,
                       groupPhoto: groupInfo?.profilePhoto
@@ -768,7 +768,7 @@ export default function GroupChatScreen({ route, navigation }) {
                   <Text style={styles.menuIcon}>📷</Text>
                   <Text style={styles.menuText}>Change Group Photo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
@@ -810,7 +810,7 @@ export default function GroupChatScreen({ route, navigation }) {
               </>
             ) : (
               <>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
@@ -820,7 +820,7 @@ export default function GroupChatScreen({ route, navigation }) {
                   <Text style={styles.menuIcon}>ℹ️</Text>
                   <Text style={styles.menuText}>Group Info</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
@@ -830,7 +830,7 @@ export default function GroupChatScreen({ route, navigation }) {
                   <Text style={styles.menuIcon}>🔇</Text>
                   <Text style={styles.menuText}>Mute Notifications</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuOption}
                   onPress={() => {
                     setShowGroupMenu(false);
@@ -871,9 +871,9 @@ export default function GroupChatScreen({ route, navigation }) {
                 </TouchableOpacity>
               </>
             )}
-            
-            <TouchableOpacity 
-              style={styles.cancelButton} 
+
+            <TouchableOpacity
+              style={styles.cancelButton}
               onPress={() => setShowGroupMenu(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -990,6 +990,9 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontWeight: "bold"
   },
+  messagesListContainer: {
+    flex: 1,
+  },
   messagesList: {
     padding: 10,
     paddingBottom: 20
@@ -1094,7 +1097,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 12,
-    marginBottom: 4
+    marginBottom: 8
   },
   imageCaption: {
     fontSize: 14,
@@ -1214,12 +1217,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600"
-  },
-  messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 8
   },
   fileMessage: {
     flexDirection: "row",
@@ -1385,9 +1382,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#374151",
     flex: 1
-  },
-  deleteText: {
-    color: "#DC2626"
   },
   leaveText: {
     color: "#F59E0B"
