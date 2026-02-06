@@ -27,7 +27,7 @@ const getAuthHeaders = async () => {
 
 export default function EditGroupScreen({ route, navigation }) {
   const { groupId, groupName, groupDescription, groupPhoto } = route.params;
-  
+
   const [name, setName] = useState(groupName || "");
   const [description, setDescription] = useState(groupDescription || "");
   const [profilePhoto, setProfilePhoto] = useState(groupPhoto || null);
@@ -37,7 +37,7 @@ export default function EditGroupScreen({ route, navigation }) {
   const [selectedMembers, setSelectedMembers] = useState([]);
 
   useEffect(() => {
-    navigation.setOptions({ 
+    navigation.setOptions({
       title: "Edit Group",
       headerLeft: () => (
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
@@ -195,8 +195,12 @@ export default function EditGroupScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Group Photo Section */}
         <View style={styles.photoSection}>
           <Text style={styles.sectionTitle}>Group Photo</Text>
@@ -219,7 +223,7 @@ export default function EditGroupScreen({ route, navigation }) {
         {/* Group Details Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Group Details</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Group Name *</Text>
             <TextInput
@@ -250,7 +254,7 @@ export default function EditGroupScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>
             Members ({selectedMembers.length} selected)
           </Text>
-          
+
           {employees.map((employee) => (
             <TouchableOpacity
               key={employee._id}
@@ -260,8 +264,8 @@ export default function EditGroupScreen({ route, navigation }) {
               <View style={styles.memberInfo}>
                 <View style={styles.memberAvatar}>
                   {employee.profile?.avatar ? (
-                    <Image 
-                      source={{ uri: employee.profile.avatar }} 
+                    <Image
+                      source={{ uri: employee.profile.avatar }}
                       style={styles.memberAvatarImage}
                     />
                   ) : (
@@ -277,7 +281,7 @@ export default function EditGroupScreen({ route, navigation }) {
                   <Text style={styles.memberEmail}>{employee.email}</Text>
                 </View>
               </View>
-              
+
               <View style={[
                 styles.checkbox,
                 selectedMembers.includes(employee._id) && styles.checkboxSelected
@@ -312,8 +316,8 @@ export default function EditGroupScreen({ route, navigation }) {
             <Text style={styles.deleteButtonText}>Delete Group</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -322,8 +326,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC"
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
-    padding: 20
+    padding: 20,
+    paddingBottom: 100,
+    flexGrow: 1
   },
   photoSection: {
     alignItems: "center",
