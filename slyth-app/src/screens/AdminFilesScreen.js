@@ -160,18 +160,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff'
   },
   content: {
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 100
-  },
-  scrollView: {
-    flex: 1
-  },
-  content: {
     flexGrow: 1,
     alignItems: 'center',
     paddingTop: 20,
-    paddingBottom: 60,
+    paddingBottom: 100,
     minHeight: '100%'
   },
   statusIcon: {
