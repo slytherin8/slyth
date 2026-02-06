@@ -14,7 +14,8 @@ export default function AppLayout({
   navigation,
   children,
   activeTab,
-  role = "admin" // admin | employee
+  role = "admin", // admin | employee
+  onBack
 }) {
   const [company, setCompany] = useState({});
   const [profile, setProfile] = useState(null);
@@ -69,7 +70,7 @@ export default function AppLayout({
       {/* 🔝 TOP BAR */}
       <View style={styles.topBar}>
         {/* 🔙 BACK */}
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={onBack || (() => navigation.goBack())}>
           <Image
             source={require("../../assets/images/back.png")}
             style={styles.backIcon}
