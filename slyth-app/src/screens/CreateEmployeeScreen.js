@@ -5,8 +5,9 @@ import {
   Text,
   StyleSheet,
   Alert,
+  ScrollView,
   Image,
-  ScrollView
+  Platform
 } from "react-native";
 import { useState } from "react";
 import AsyncStorage from "../utils/storage";
@@ -51,10 +52,10 @@ export default function CreateEmployeeScreen({ navigation }) {
       console.log("Current user from token:", payload);
       console.log("User role:", payload.role);
       console.log("User ID:", payload.id);
-      
+
       if (payload.role !== 'admin') {
         return Alert.alert(
-          "Access Denied", 
+          "Access Denied",
           "You need admin privileges. Please login as admin.",
           [
             { text: "Create Admin Account", onPress: createTestAdmin },
@@ -83,23 +84,23 @@ export default function CreateEmployeeScreen({ navigation }) {
       const data = await res.json();
       console.log("Response data:", data);
 
-     if (!res.ok) {
-  console.log("BACKEND ERROR:", data);
-  
-  if (res.status === 403) {
-    return Alert.alert(
-      "Access Denied", 
-      "You need admin privileges to create employees. Please login as admin.",
-      [
-        { text: "Create Admin Account", onPress: createTestAdmin },
-        { text: "Go to Login", onPress: () => navigation.navigate("Login") },
-        { text: "Cancel" }
-      ]
-    );
-  }
-  
-  return Alert.alert("Error", data.message || "Failed to create employee");
-}
+      if (!res.ok) {
+        console.log("BACKEND ERROR:", data);
+
+        if (res.status === 403) {
+          return Alert.alert(
+            "Access Denied",
+            "You need admin privileges to create employees. Please login as admin.",
+            [
+              { text: "Create Admin Account", onPress: createTestAdmin },
+              { text: "Go to Login", onPress: () => navigation.navigate("Login") },
+              { text: "Cancel" }
+            ]
+          );
+        }
+
+        return Alert.alert("Error", data.message || "Failed to create employee");
+      }
 
 
       Alert.alert("Success", "Employee created successfully ✅");
@@ -130,7 +131,7 @@ export default function CreateEmployeeScreen({ navigation }) {
       const data = await response.json();
       if (response.ok) {
         Alert.alert(
-          "Admin Created!", 
+          "Admin Created!",
           "Test admin account created:\n\nEmail: admin@test.com\nPassword: Admin123!\n\nPlease login with these credentials.",
           [
             { text: "Go to Login", onPress: () => navigation.navigate("Login") }
@@ -145,8 +146,12 @@ export default function CreateEmployeeScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={true}
+      >
         {/* 🔙 Back Button */}
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image
@@ -183,8 +188,8 @@ export default function CreateEmployeeScreen({ navigation }) {
         <TouchableOpacity style={styles.button} onPress={createEmployee}>
           <Text style={styles.buttonText}>Create Employee</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -193,8 +198,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC"
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
-    padding: 24
+    padding: 24,
+    paddingBottom: 100,
+    flexGrow: 1
   },
   backIcon: {
     width: 24,
