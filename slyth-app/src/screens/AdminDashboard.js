@@ -4,35 +4,35 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ScrollView
+  ScrollView,
+  Alert,
+  Platform
 } from "react-native";
-import { useEffect, useState } from "react"; // ✅ FIXED
+import { useEffect, useState } from "react";
 import AsyncStorage from "../utils/storage";
 import AppLayout from "../components/AppLayout";
-
-import { API } from "../constants/api";
-
-
+import api from "../services/api"; // ✅ Fixed named to default
 
 export default function AdminDashboard({ navigation }) {
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
   }, []);
 
   const fetchEmployees = async () => {
-    const token = await AsyncStorage.getItem("token");
-    if (!token) return;
-
+    setLoading(true);
     try {
-      const res = await fetch(`${API}/api/auth/employees`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setEmployees(data);
+      const res = await api.get("/auth/employees");
+      setEmployees(res.data);
     } catch (e) {
       console.log("EMPLOYEE FETCH ERROR", e);
+      if (e.response?.status === 403) {
+        Alert.alert("Access Denied", "You do not have admin privileges.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
