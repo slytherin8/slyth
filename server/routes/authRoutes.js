@@ -199,9 +199,9 @@ router.get("/me", auth, async (req, res) => {
 router.get("/test-admin", auth, adminOnly, async (req, res) => {
   try {
     console.log("TEST ADMIN - Request user:", req.user);
-    res.json({ 
-      message: "Admin access working!", 
-      user: req.user 
+    res.json({
+      message: "Admin access working!",
+      user: req.user
     });
   } catch (err) {
     console.error("TEST ADMIN ERROR:", err);
@@ -209,5 +209,25 @@ router.get("/test-admin", auth, adminOnly, async (req, res) => {
   }
 });
 
+
+// 🔹 DELETE EMPLOYEE (ADMIN ONLY)
+router.delete("/employees/:id", auth, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.role === "admin") return res.status(403).json({ message: "Cannot delete an admin" });
+
+    await User.findByIdAndDelete(id);
+    // Also cleanup projects and tasks
+    await Project.deleteMany({ employeeId: id });
+    await Task.deleteMany({ employeeId: id });
+
+    res.json({ message: "Employee deleted successfully" });
+  } catch (err) {
+    console.error("DELETE EMPLOYEE ERROR:", err);
+    res.status(500).json({ message: "Failed to delete employee" });
+  }
+});
 
 module.exports = router;
