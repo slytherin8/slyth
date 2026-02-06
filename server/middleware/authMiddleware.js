@@ -12,6 +12,8 @@ const auth = (req, res, next) => {
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    console.log("Auth Middleware - Decoded Payload:", decoded);
+
     req.user = decoded; // { id, role, companyId }
     next();
   } catch (err) {
@@ -21,8 +23,14 @@ const auth = (req, res, next) => {
 
 /* 👑 ADMIN ONLY */
 const adminOnly = (req, res, next) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ message: "Admin access only" });
+  const role = (req.user?.role || "").toLowerCase();
+  console.log("AdminOnly Middleware - User Role:", role);
+  if (role !== "admin") {
+    console.warn("403 Forbidden: User is not an admin", req.user);
+    return res.status(403).json({
+      message: "Admin access only",
+      debug_role: req.user?.role
+    });
   }
   next();
 };
