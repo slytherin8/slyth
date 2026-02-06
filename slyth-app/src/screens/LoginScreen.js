@@ -32,7 +32,7 @@ export default function LoginScreen({ navigation }) {
 
       await AsyncStorage.setItem("token", data.token);
       console.log("TOKEN SAVED:", data.token);
-   navigation.replace("ProfileSetup");
+      navigation.replace("ProfileSetup");
 
     } catch {
       Alert.alert("Server not reachable");
@@ -40,59 +40,61 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
-        {/* 🔙 BACK BUTTON */}
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Image
-            source={require("../../assets/images/back.png")} // replace image if needed
-            style={styles.backIcon}
-          />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Login</Text>
-
-        <TextInput
-          placeholder="Email"
-          style={styles.input}
-          onChangeText={setEmail}
-          autoCapitalize="none"
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={true}
+    >
+      {/* 🔙 BACK BUTTON */}
+      <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Image
+          source={require("../../assets/images/back.png")} // replace image if needed
+          style={styles.backIcon}
         />
-        <TextInput
-          placeholder="Password"
-          style={styles.input}
-          secureTextEntry
-          onChangeText={setPassword}
-        />
+      </TouchableOpacity>
 
-        <View style={styles.roleRow}>
-          <TouchableOpacity
-            style={[styles.roleBtn, role === "admin" && styles.activeRole]}
-            onPress={() => setRole("admin")}
-          >
-            <Text>Admin</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.roleBtn, role === "employee" && styles.activeRole]}
-            onPress={() => setRole("employee")}
-          >
-            <Text>Employee</Text>
-          </TouchableOpacity>
-        </View>
+      <Text style={styles.title}>Login</Text>
 
-        <TouchableOpacity style={styles.button} onPress={login}>
-          <Text style={styles.buttonText}>Login</Text>
+      <TextInput
+        placeholder="Email"
+        style={styles.input}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+      />
+      <TextInput
+        placeholder="Password"
+        style={styles.input}
+        secureTextEntry
+        onChangeText={setPassword}
+      />
+
+      <View style={styles.roleRow}>
+        <TouchableOpacity
+          style={[styles.roleBtn, role === "admin" && styles.activeRole]}
+          onPress={() => setRole("admin")}
+        >
+          <Text>Admin</Text>
         </TouchableOpacity>
-
-        {role === "admin" && (
-          <Text
-            style={styles.link}
-            onPress={() => navigation.navigate("AdminSignup")}
-          >
-            Create Company Account
-          </Text>
-        )}
+        <TouchableOpacity
+          style={[styles.roleBtn, role === "employee" && styles.activeRole]}
+          onPress={() => setRole("employee")}
+        >
+          <Text>Employee</Text>
+        </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={styles.button} onPress={login}>
+        <Text style={styles.buttonText}>Login</Text>
+      </TouchableOpacity>
+
+      {role === "admin" && (
+        <Text
+          style={styles.link}
+          onPress={() => navigation.navigate("AdminSignup")}
+        >
+          Create Company Account
+        </Text>
+      )}
     </ScrollView>
   );
 }
@@ -105,7 +107,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
     justifyContent: "center",
-    minHeight: "100%"
+    flexGrow: 1
   },
   backIcon: {
     width: 24,
