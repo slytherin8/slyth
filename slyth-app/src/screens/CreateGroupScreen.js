@@ -43,7 +43,7 @@ export default function CreateGroupScreen({ navigation }) {
       const headers = await getAuthHeaders();
       console.log("Fetching employees from:", `${API_BASE_URL}/api/chat/employees`);
       console.log("Headers:", headers);
-      
+
       // Debug: Check token content
       const token = await AsyncStorage.getItem("token");
       if (token) {
@@ -55,21 +55,21 @@ export default function CreateGroupScreen({ navigation }) {
           console.log("Invalid token format:", e);
         }
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/api/chat/employees`, {
         method: "GET",
         headers
       });
 
       console.log("Response status:", response.status);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.log("Error response:", errorText);
-        
+
         if (response.status === 403) {
           Alert.alert(
-            "Access Denied", 
+            "Access Denied",
             "You need admin privileges to view employees. Please login as admin.",
             [
               { text: "Go to Login", onPress: () => navigation.navigate("Login") },
@@ -78,7 +78,7 @@ export default function CreateGroupScreen({ navigation }) {
           );
           return;
         }
-        
+
         throw new Error(`Server error: ${response.status} - ${errorText}`);
       }
 
@@ -90,7 +90,7 @@ export default function CreateGroupScreen({ navigation }) {
       Alert.alert("Error", `Failed to fetch employees: ${error.message}`);
       // Show a retry option
       Alert.alert(
-        "Connection Error", 
+        "Connection Error",
         "Unable to load employees. Make sure the server is running on localhost:5000",
         [
           { text: "Retry", onPress: fetchEmployees },
@@ -124,7 +124,7 @@ export default function CreateGroupScreen({ navigation }) {
   };
 
   const toggleMemberSelection = (employeeId) => {
-    setSelectedMembers(prev => 
+    setSelectedMembers(prev =>
       prev.includes(employeeId)
         ? prev.filter(id => id !== employeeId)
         : [...prev, employeeId]
@@ -193,7 +193,11 @@ export default function CreateGroupScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Group Photo */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Group Photo</Text>
@@ -212,7 +216,7 @@ export default function CreateGroupScreen({ navigation }) {
         {/* Group Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Group Information</Text>
-          
+
           <TextInput
             style={styles.input}
             placeholder="Group Name"
@@ -220,7 +224,7 @@ export default function CreateGroupScreen({ navigation }) {
             onChangeText={setGroupName}
             maxLength={50}
           />
-          
+
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Description (optional)"
@@ -237,7 +241,7 @@ export default function CreateGroupScreen({ navigation }) {
           <Text style={styles.sectionTitle}>
             Select Members ({selectedMembers.length} selected)
           </Text>
-          
+
           {employees.length === 0 ? (
             <Text style={styles.noEmployeesText}>
               No active employees found
@@ -255,8 +259,8 @@ export default function CreateGroupScreen({ navigation }) {
                 <View style={styles.employeeInfo}>
                   <View style={styles.avatar}>
                     {employee.profile?.avatar ? (
-                      <Image 
-                        source={{ uri: employee.profile.avatar }} 
+                      <Image
+                        source={{ uri: employee.profile.avatar }}
                         style={styles.avatarImage}
                       />
                     ) : (
@@ -339,9 +343,13 @@ const styles = StyleSheet.create({
   disabledButton: {
     color: "#94A3B8"
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     padding: 20,
-    paddingBottom: 40
+    paddingBottom: 100,
+    flexGrow: 1
   },
   section: {
     marginBottom: 30
