@@ -32,7 +32,13 @@ export default function LoginScreen({ navigation }) {
 
       await AsyncStorage.setItem("token", data.token);
       console.log("TOKEN SAVED:", data.token);
-      navigation.replace("ProfileSetup");
+      
+      // Skip profile setup for admins, only employees need profile setup
+      if (role === "admin") {
+        navigation.replace("AdminDashboard");
+      } else {
+        navigation.replace("ProfileSetup");
+      }
 
     } catch {
       Alert.alert("Server not reachable");
