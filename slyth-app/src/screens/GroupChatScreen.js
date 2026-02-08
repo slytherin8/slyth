@@ -12,7 +12,8 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-  ActionSheetIOS
+  ActionSheetIOS,
+  Linking
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
@@ -165,30 +166,66 @@ export default function GroupChatScreen({ route, navigation }) {
   };
 
   const handleReply = (message) => {
+    console.log("=== REPLY MESSAGE DEBUG ===");
+    console.log("Replying to message:", message._id);
+    console.log("Sender:", message.senderId.profile?.name);
+    console.log("Message text:", message.messageText);
+    
     setReplyingTo({
       messageId: message._id,
       senderName: message.senderId.profile?.name || "Unknown",
       messageText: message.messageText
     });
     setShowMessageActions(false);
+    
+    console.log("Reply state set, replyingTo should now be visible");
   };
 
   const handleDeleteMessage = async (messageId) => {
+    console.log("=== DELETE MESSAGE DEBUG ===");
+    console.log("Message ID:", messageId);
+    console.log("Group ID:", groupId);
+    console.log("Current User ID:", currentUserId);
+    
     try {
+      const token = await AsyncStorage.getItem("token");
+      console.log("Token exists:", !!token);
+      console.log("Token preview:", token ? token.substring(0, 20) + "..." : "null");
+      
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}/messages/${messageId}`, {
+      console.log("Headers:", headers);
+      
+      const url = `${API_BASE_URL}/api/chat/groups/${groupId}/messages/${messageId}`;
+      console.log("Delete URL:", url);
+      
+      const response = await fetch(url, {
         method: "DELETE",
         headers
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+      
+      const responseText = await response.text();
+      console.log("Response text:", responseText);
+      
       if (response.ok) {
-        setMessages(prev => prev.filter(msg => msg._id !== messageId));
-        Alert.alert("Success", "Message deleted");
+        console.log("Delete successful, refreshing messages...");
+        await fetchMessages();
+        Alert.alert("Success! 🗑️", "Message deleted successfully");
       } else {
-        Alert.alert("Error", "Failed to delete message");
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText };
+        }
+        console.log("Delete error:", errorData);
+        Alert.alert("Error", errorData.message || "Failed to delete message");
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to delete message");
+      console.error("Delete message error:", error);
+      Alert.alert("Error", "Failed to delete message: " + error.message);
     }
     setShowMessageActions(false);
   };
@@ -204,7 +241,55 @@ export default function GroupChatScreen({ route, navigation }) {
     setShowMessageActions(false);
   };
 
+  const handleLinkPress = async (url) => {
+    try {
+      // Ensure URL has protocol
+      let fullUrl = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        fullUrl = 'https://' + url;
+      }
+      
+      const supported = await Linking.canOpenURL(fullUrl);
+      if (supported) {
+        await Linking.openURL(fullUrl);
+      } else {
+        Alert.alert("Error", "Cannot open this link");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Cannot open this link");
+    }
+  };
+
+  const renderMessageText = (text, isMyMessage) => {
+    // Simple URL detection regex
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}[^\s]*)/gi;
+    const parts = text.split(urlRegex);
+    
+    return (
+      <Text style={[
+        styles.messageText,
+        isMyMessage ? styles.myMessageText : styles.otherMessageText
+      ]}>
+        {parts.map((part, index) => {
+          if (urlRegex.test(part)) {
+            return (
+              <Text
+                key={index}
+                style={styles.linkText}
+                onPress={() => handleLinkPress(part)}
+              >
+                {part}
+              </Text>
+            );
+          }
+          return part;
+        })}
+      </Text>
+    );
+  };
+
   const showMessageActionSheet = (message) => {
+    console.log("Showing action sheet for message:", message._id);
     const isMyMessage = message.senderId._id === currentUserId;
     const options = [];
 
@@ -213,13 +298,14 @@ export default function GroupChatScreen({ route, navigation }) {
       options.push("Copy");
     }
 
+    // Reply option for all messages (except your own)
     if (!isMyMessage) {
       options.push("Reply");
     }
 
-    if (isMyMessage) {
-      options.push("Delete");
-    }
+    // Delete option - always show for both admin and employee
+    // Backend will handle permissions
+    options.push("Delete");
 
     options.push("Cancel");
 
@@ -231,6 +317,7 @@ export default function GroupChatScreen({ route, navigation }) {
           destructiveButtonIndex: options.indexOf("Delete")
         },
         (buttonIndex) => {
+          console.log("Selected option:", options[buttonIndex]);
           if (options[buttonIndex] === "Copy") {
             handleCopyMessage(message);
           } else if (options[buttonIndex] === "Reply") {
@@ -386,19 +473,26 @@ export default function GroupChatScreen({ route, navigation }) {
           </View>
         )}
 
-        <TouchableOpacity
-          style={[
-            styles.messageContainer,
-            isMyMessage ? styles.myMessage : styles.otherMessage
-          ]}
-          onLongPress={() => showMessageActionSheet(item)}
-          onPress={() => showMessageActionSheet(item)}
-        >
-          {!isMyMessage && (
-            <Text style={styles.senderName}>
-              {item.senderId.profile?.name || "Unknown"}
-            </Text>
-          )}
+        <View style={[
+          styles.messageContainer,
+          isMyMessage ? styles.myMessage : styles.otherMessage
+        ]}>
+          {/* Message Header with Dropdown */}
+          <View style={styles.messageHeader}>
+            {!isMyMessage && (
+              <Text style={styles.senderName}>
+                {item.senderId.profile?.name || "Unknown"}
+              </Text>
+            )}
+            
+            {/* Dropdown Arrow inside message */}
+            <TouchableOpacity
+              style={styles.messageDropdownInside}
+              onPress={() => showMessageActionSheet(item)}
+            >
+              <Text style={styles.dropdownArrowInside}>⌄</Text>
+            </TouchableOpacity>
+          </View>
 
           {item.repliedMessage && (
             <View style={styles.repliedMessage}>
@@ -436,12 +530,7 @@ export default function GroupChatScreen({ route, navigation }) {
           ) : null}
 
           {(item.messageType === "text" || (!item.fileData)) && (
-            <Text style={[
-              styles.messageText,
-              isMyMessage ? styles.myMessageText : styles.otherMessageText
-            ]}>
-              {item.messageText}
-            </Text>
+            renderMessageText(item.messageText, isMyMessage)
           )}
 
           <View style={styles.messageFooter}>
@@ -455,7 +544,7 @@ export default function GroupChatScreen({ route, navigation }) {
               <Text style={styles.messageStatus}>✓✓</Text>
             )}
           </View>
-        </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -632,11 +721,14 @@ export default function GroupChatScreen({ route, navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.messageActionsModal}>
+            <Text style={styles.modalTitle}>Message Options</Text>
+            
             {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
               <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => handleCopyMessage(selectedMessage)}
               >
+                <Text style={styles.actionIcon}>📋</Text>
                 <Text style={styles.actionText}>Copy</Text>
               </TouchableOpacity>
             )}
@@ -646,11 +738,13 @@ export default function GroupChatScreen({ route, navigation }) {
                 style={styles.actionOption}
                 onPress={() => handleReply(selectedMessage)}
               >
+                <Text style={styles.actionIcon}>↩️</Text>
                 <Text style={styles.actionText}>Reply</Text>
               </TouchableOpacity>
             )}
 
-            {selectedMessage && selectedMessage.senderId._id === currentUserId && (
+            {/* Always show delete option - backend handles permissions */}
+            {selectedMessage && (
               <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => {
@@ -664,6 +758,7 @@ export default function GroupChatScreen({ route, navigation }) {
                   );
                 }}
               >
+                <Text style={styles.actionIcon}>🗑️</Text>
                 <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
               </TouchableOpacity>
             )}
@@ -1011,6 +1106,22 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     justifyContent: "flex-start"
   },
+  messageHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4
+  },
+  messageDropdownInside: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    marginLeft: 8
+  },
+  dropdownArrowInside: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontWeight: "bold"
+  },
   senderAvatarContainer: {
     position: "relative",
     marginRight: 8,
@@ -1113,6 +1224,10 @@ const styles = StyleSheet.create({
   },
   otherMessageText: {
     color: "#000"
+  },
+  linkText: {
+    color: "#2563EB",
+    textDecorationLine: "underline"
   },
   messageFooter: {
     flexDirection: "row",
@@ -1300,14 +1415,23 @@ const styles = StyleSheet.create({
     color: "#6B7280"
   },
   actionOption: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 15,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB"
   },
+  actionIcon: {
+    fontSize: 18,
+    marginRight: 12,
+    width: 24,
+    textAlign: "center"
+  },
   actionText: {
     fontSize: 16,
-    color: "#2563EB",
-    textAlign: "center"
+    color: "#374151",
+    flex: 1
   },
   deleteText: {
     color: "#DC2626"
