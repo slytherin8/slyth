@@ -447,7 +447,8 @@ router.delete("/groups/:groupId/messages/:messageId", auth, async (req, res) => 
     // Find the message
     const message = await Message.findOne({
       _id: messageId,
-      groupId
+      groupId,
+      isDeleted: false
     });
 
     if (!message) {
@@ -468,13 +469,10 @@ router.delete("/groups/:groupId/messages/:messageId", auth, async (req, res) => 
       return res.status(403).json({ message: "You don't have permission to delete this message" });
     }
 
-    // Mark message as deleted instead of actually deleting it
-    await Message.findByIdAndUpdate(messageId, { 
-      isDeleted: true,
-      messageText: "This message was deleted"
-    });
+    // Actually delete the message from database
+    await Message.findByIdAndDelete(messageId);
 
-    console.log("Message marked as deleted successfully");
+    console.log("Message deleted successfully from database");
     res.json({ message: "Message deleted successfully" });
   } catch (error) {
     console.error("Delete message error:", error);
