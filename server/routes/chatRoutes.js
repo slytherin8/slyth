@@ -429,6 +429,7 @@ router.post("/groups/:groupId/leave", auth, async (req, res) => {
 router.delete("/groups/:groupId/messages/:messageId", auth, async (req, res) => {
   try {
     const { groupId, messageId } = req.params;
+    console.log("Delete message request:", { groupId, messageId, userId: req.user.id, role: req.user.role });
 
     // Verify user is member of the group
     const group = await Group.findOne({
@@ -439,18 +440,32 @@ router.delete("/groups/:groupId/messages/:messageId", auth, async (req, res) => 
     });
 
     if (!group) {
+      console.log("Group not found or access denied");
       return res.status(403).json({ message: "Access denied to this group" });
     }
 
-    // Find the message and verify ownership
+    // Find the message
     const message = await Message.findOne({
       _id: messageId,
-      groupId,
-      senderId: req.user.id
+      groupId
     });
 
     if (!message) {
-      return res.status(404).json({ message: "Message not found or you don't have permission to delete it" });
+      console.log("Message not found");
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    console.log("Message found:", { messageId, senderId: message.senderId, isDeleted: message.isDeleted });
+
+    // Check permissions: admins can delete any message, users can only delete their own
+    const isAdmin = req.user.role === 'admin';
+    const isMessageOwner = message.senderId.toString() === req.user.id;
+
+    console.log("Permission check:", { isAdmin, isMessageOwner, userRole: req.user.role });
+
+    if (!isAdmin && !isMessageOwner) {
+      console.log("Permission denied");
+      return res.status(403).json({ message: "You don't have permission to delete this message" });
     }
 
     // Mark message as deleted instead of actually deleting it
@@ -459,6 +474,7 @@ router.delete("/groups/:groupId/messages/:messageId", auth, async (req, res) => 
       messageText: "This message was deleted"
     });
 
+    console.log("Message marked as deleted successfully");
     res.json({ message: "Message deleted successfully" });
   } catch (error) {
     console.error("Delete message error:", error);
