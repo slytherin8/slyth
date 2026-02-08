@@ -77,7 +77,7 @@ export default function ProfileSetupScreen({ navigation }) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        <Text style={styles.title}>Set up your profile</Text>
+        <Text style={styles.title}>Set up your employee profile</Text>
 
         <TouchableOpacity onPress={pickImage} style={styles.avatarBox}>
           {avatar ? (
