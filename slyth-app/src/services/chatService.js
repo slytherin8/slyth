@@ -1,7 +1,6 @@
 import { Platform } from "react-native";
 import AsyncStorage from '../utils/storage';
-
-const API_BASE_URL = "http://localhost:5000";
+import { API } from '../constants/api';
 
 class ChatService {
   async getAuthHeaders() {
@@ -16,7 +15,7 @@ class ChatService {
   async createGroup(groupData) {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups`, {
+      const response = await fetch(`${API}/api/chat/groups`, {
         method: "POST",
         headers,
         body: JSON.stringify(groupData)
@@ -34,7 +33,7 @@ class ChatService {
   async getUserGroups() {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups`, {
+      const response = await fetch(`${API}/api/chat/groups`, {
         method: "GET",
         headers
       });
@@ -51,7 +50,7 @@ class ChatService {
   async getGroupMessages(groupId, page = 1) {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}/messages?page=${page}`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}/messages?page=${page}`, {
         method: "GET",
         headers
       });
@@ -68,7 +67,7 @@ class ChatService {
   async sendMessage(groupId, messageData) {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}/messages`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}/messages`, {
         method: "POST",
         headers,
         body: JSON.stringify(messageData)
@@ -86,7 +85,7 @@ class ChatService {
   async getEmployees() {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/employees`, {
+      const response = await fetch(`${API}/api/chat/employees`, {
         method: "GET",
         headers
       });
@@ -103,7 +102,7 @@ class ChatService {
   async getGroupDetails(groupId) {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
         method: "GET",
         headers
       });
