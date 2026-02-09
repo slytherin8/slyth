@@ -50,9 +50,11 @@ export default function ProfileSetupScreen({ navigation }) {
       const data = await res.json();
 
       if (!res.ok) {
-        Alert.alert("Error", data.message || "Profile save failed");
+        Alert.alert("Profile Setup Failed", data.message || "Failed to save profile");
         return;
       }
+
+      Alert.alert("Success! 🎉", "Profile setup completed successfully");
 
       // 🔀 ROLE-BASED REDIRECT (FROM BACKEND)
       if (data.role === "admin") {
@@ -61,7 +63,7 @@ export default function ProfileSetupScreen({ navigation }) {
         navigation.replace("EmployeeHome");
       }
     } catch (err) {
-      Alert.alert("Profile save failed");
+      Alert.alert("Profile Setup Failed", "Failed to save profile. Please try again.");
     }
   };
 
