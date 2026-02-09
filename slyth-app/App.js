@@ -1,5 +1,6 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
+import ErrorBoundary from "./src/components/ErrorBoundary";
 
 import WelcomeScreen from "./src/screens/WelcomeScreen";
 import LoginScreen from "./src/screens/LoginScreen";
@@ -33,40 +34,42 @@ const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {/* Auth */}
-        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="AdminSignup" component={AdminSignupScreen} />
-        <Stack.Screen name="DebugAuth" component={DebugAuthScreen} />
+    <ErrorBoundary>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {/* Auth */}
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="AdminSignup" component={AdminSignupScreen} />
+          <Stack.Screen name="DebugAuth" component={DebugAuthScreen} />
 
-        {/* Admin */}
-        <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
-        <Stack.Screen name="CreateEmployee" component={CreateEmployeeScreen} />
-        <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-        <Stack.Screen name="EditGroup" component={EditGroupScreen} />
-        <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
-        <Stack.Screen name="GroupChat" component={GroupChatScreen} />
-        <Stack.Screen name="AdminChat" component={AdminChatScreen} />
-        <Stack.Screen name="AdminMeet" component={AdminMeetScreen} />
-        <Stack.Screen name="AdminWork" component={AdminWorkScreen} />
-        <Stack.Screen name="AdminFiles" component={AdminFilesScreen} />
-        <Stack.Screen name="AdminVault" component={AdminVaultScreen} />
-        <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
-        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-        <Stack.Screen
-          name="Profile"
-          component={ProfileScreen}
-        />
+          {/* Admin */}
+          <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+          <Stack.Screen name="CreateEmployee" component={CreateEmployeeScreen} />
+          <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+          <Stack.Screen name="EditGroup" component={EditGroupScreen} />
+          <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
+          <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+          <Stack.Screen name="AdminChat" component={AdminChatScreen} />
+          <Stack.Screen name="AdminMeet" component={AdminMeetScreen} />
+          <Stack.Screen name="AdminWork" component={AdminWorkScreen} />
+          <Stack.Screen name="AdminFiles" component={AdminFilesScreen} />
+          <Stack.Screen name="AdminVault" component={AdminVaultScreen} />
+          <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
+          <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+          <Stack.Screen
+            name="Profile"
+            component={ProfileScreen}
+          />
 
-        {/* Employee */}
-        <Stack.Screen name="EmployeeHome" component={EmployeeHome} />
-        <Stack.Screen name="EmployeeChat" component={EmployeeChatScreen} />
-        <Stack.Screen name="EmployeeMeet" component={EmployeeMeetScreen} />
-        <Stack.Screen name="EmployeeWork" component={EmployeeWorkScreen} />
-        <Stack.Screen name="EmployeeProfile" component={EmployeeProfileScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+          {/* Employee */}
+          <Stack.Screen name="EmployeeHome" component={EmployeeHome} />
+          <Stack.Screen name="EmployeeChat" component={EmployeeChatScreen} />
+          <Stack.Screen name="EmployeeMeet" component={EmployeeMeetScreen} />
+          <Stack.Screen name="EmployeeWork" component={EmployeeWorkScreen} />
+          <Stack.Screen name="EmployeeProfile" component={EmployeeProfileScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ErrorBoundary>
   );
 }
