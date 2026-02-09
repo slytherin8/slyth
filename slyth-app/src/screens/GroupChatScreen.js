@@ -19,8 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
 import * as DocumentPicker from 'expo-document-picker';
 
-// Direct API calls instead of chatService
-const API_BASE_URL = "http://localhost:5000";
+import { API } from '../constants/api';
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -62,7 +61,6 @@ export default function GroupChatScreen({ route, navigation }) {
   const flatListRef = useRef(null);
 
   useEffect(() => {
-    navigation.setOptions({ title: groupName });
     initializeChat();
   }, [groupId, groupName]);
 
@@ -89,7 +87,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const fetchGroupInfo = async () => {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
         method: "GET",
         headers
       });
@@ -108,7 +106,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const fetchMessages = async () => {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}/messages`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}/messages`, {
         method: "GET",
         headers
       });
@@ -130,31 +128,48 @@ export default function GroupChatScreen({ route, navigation }) {
     setNewMessage("");
     setSending(true);
 
+    console.log("=== SENDING MESSAGE ===");
+    console.log("Message text:", textToSend);
+    console.log("Message type:", messageType);
+    console.log("File data:", fileData);
+
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}/messages`, {
+      const payload = {
+        messageText: textToSend || (messageType === "image" ? "📷 Image" : "📎 File"),
+        messageType,
+        fileData,
+        repliedMessage: replyingTo
+      };
+
+      console.log("Sending payload:", payload);
+
+      const response = await fetch(`${API}/api/chat/groups/${groupId}/messages`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          messageText: textToSend || (messageType === "image" ? "📷 Image" : "📎 File"),
-          messageType,
-          fileData,
-          repliedMessage: replyingTo
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
+      console.log("Server response:", data);
+
       if (!response.ok) throw new Error(data.message);
 
       setMessages(prev => [...prev, data]);
       setReplyingTo(null);
+
+      // Show success message for file uploads
+      if (messageType === "file") {
+        Alert.alert("Success! 📎", "File sent successfully");
+      }
 
       // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      Alert.alert("Error", "Failed to send message");
+      console.error("Send message error:", error);
+      Alert.alert("Error", "Failed to send message: " + error.message);
       if (messageText) setNewMessage(messageText); // Restore message on error
     } finally {
       setSending(false);
@@ -195,7 +210,7 @@ export default function GroupChatScreen({ route, navigation }) {
       const headers = await getAuthHeaders();
       console.log("Headers:", headers);
       
-      const url = `${API_BASE_URL}/api/chat/groups/${groupId}/messages/${messageId}`;
+      const url = `${API}/api/chat/groups/${groupId}/messages/${messageId}`;
       console.log("Delete URL:", url);
       
       const response = await fetch(url, {
@@ -389,13 +404,15 @@ export default function GroupChatScreen({ route, navigation }) {
       if (Platform.OS === 'web') {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.pdf,.doc,.docx,.txt,.xlsx,.ppt,.pptx';
+        input.accept = '.pdf,.doc,.docx,.txt,.xlsx,.ppt,.pptx,.zip,.rar';
         input.onchange = (event) => {
           const file = event.target.files[0];
           if (file) {
+            console.log("Web file selected:", file.name, file.size, file.type);
             const reader = new FileReader();
             reader.onload = (e) => {
               const base64Data = e.target.result;
+              console.log("Web file read as base64, length:", base64Data.length);
               sendMessage(`📎 ${file.name}`, "file", {
                 name: file.name,
                 size: file.size,
@@ -408,33 +425,119 @@ export default function GroupChatScreen({ route, navigation }) {
         };
         input.click();
       } else {
-        // For mobile, use a simple text input for demo
-        Alert.prompt(
-          "Send Document",
-          "Enter document name (this is a demo - install expo-document-picker for real functionality):",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Send",
-              onPress: (fileName) => {
-                if (fileName && fileName.trim()) {
-                  sendMessage(`📎 ${fileName.trim()}`, "file", {
-                    name: fileName.trim(),
-                    size: Math.floor(Math.random() * 1000) + 100,
-                    type: "document"
-                  });
-                }
-              }
-            }
-          ],
-          "plain-text",
-          "document.pdf"
-        );
+        // For mobile, use expo-document-picker
+        console.log("Opening document picker for mobile...");
+        const result = await DocumentPicker.getDocumentAsync({
+          type: '*/*',
+          copyToCacheDirectory: true,
+        });
+
+        console.log("Document picker result:", result);
+
+        if (!result.canceled && result.assets && result.assets[0]) {
+          const file = result.assets[0];
+          console.log("Mobile file selected:", file.name, file.size, file.mimeType);
+          
+          try {
+            // For mobile, read the file as base64 using fetch and FileReader
+            const response = await fetch(file.uri);
+            const blob = await response.blob();
+            
+            // Convert blob to base64
+            const reader = new FileReader();
+            reader.onload = () => {
+              const base64Data = reader.result;
+              console.log("Mobile file converted to base64, length:", base64Data.length);
+              
+              sendMessage(`📎 ${file.name}`, "file", {
+                name: file.name,
+                size: file.size,
+                type: file.mimeType || 'application/octet-stream',
+                data: base64Data
+              });
+            };
+            
+            reader.onerror = (error) => {
+              console.error("FileReader error:", error);
+              Alert.alert("Error", "Failed to read file");
+            };
+            
+            reader.readAsDataURL(blob);
+            
+          } catch (fileError) {
+            console.error("File reading error:", fileError);
+            Alert.alert("Error", "Failed to read file: " + fileError.message);
+          }
+        }
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to send document");
+      console.error("Document picker error:", error);
+      Alert.alert("Error", "Failed to pick document: " + error.message);
     }
     setShowAttachmentOptions(false);
+  };
+
+  const handleFileDownload = async (fileData) => {
+    try {
+      console.log("File download requested:", fileData);
+      
+      if (Platform.OS === 'web') {
+        // For web, create download link
+        if (fileData.data) {
+          const link = document.createElement('a');
+          link.href = fileData.data;
+          link.download = fileData.name || 'download';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          Alert.alert("Success! 📥", "File download started");
+        } else {
+          Alert.alert("Error", "File data not available for download");
+        }
+      } else {
+        // For mobile
+        if (fileData.data) {
+          // If we have base64 data, show file info and offer to save
+          Alert.alert(
+            "📎 " + (fileData.name || "File"),
+            `Size: ${fileData.size ? `${(fileData.size / 1024).toFixed(1)} KB` : "Unknown"}\nType: ${fileData.type || "Unknown"}\n\nFile contains data and can be processed.`,
+            [
+              { text: "OK", style: "default" }
+            ]
+          );
+        } else if (fileData.uri) {
+          // If we have a local URI, try to open it
+          try {
+            const supported = await Linking.canOpenURL(fileData.uri);
+            if (supported) {
+              await Linking.openURL(fileData.uri);
+            } else {
+              Alert.alert(
+                "📎 " + (fileData.name || "File"),
+                `Size: ${fileData.size ? `${(fileData.size / 1024).toFixed(1)} KB` : "Unknown"}\nType: ${fileData.type || "Unknown"}\n\nLocal file URI: ${fileData.uri}`,
+                [
+                  { text: "OK", style: "default" }
+                ]
+              );
+            }
+          } catch (linkError) {
+            console.error("Link opening error:", linkError);
+            Alert.alert(
+              "📎 " + (fileData.name || "File"),
+              `Size: ${fileData.size ? `${(fileData.size / 1024).toFixed(1)} KB` : "Unknown"}\nType: ${fileData.type || "Unknown"}`,
+              [
+                { text: "OK", style: "default" }
+              ]
+            );
+          }
+        } else {
+          Alert.alert("Error", "File data not available");
+        }
+      }
+    } catch (error) {
+      console.error("File download error:", error);
+      Alert.alert("Error", "Failed to process file: " + error.message);
+    }
   };
 
   const cancelReply = () => {
@@ -518,13 +621,28 @@ export default function GroupChatScreen({ route, navigation }) {
           ) : null}
 
           {item.messageType === "file" && item.fileData ? (
+            <TouchableOpacity 
+              style={styles.fileMessage}
+              onPress={() => handleFileDownload(item.fileData)}
+            >
+              <Text style={styles.fileIcon}>📎</Text>
+              <View style={styles.fileInfo}>
+                <Text style={styles.fileName}>
+                  {item.fileData.name || "Unknown File"}
+                </Text>
+                <Text style={styles.fileSize}>
+                  {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : "Document"}
+                  {item.fileData.type && ` • ${item.fileData.type.split('/')[1]?.toUpperCase() || 'FILE'}`}
+                </Text>
+              </View>
+              <Text style={styles.downloadIcon}>⬇️</Text>
+            </TouchableOpacity>
+          ) : item.messageType === "file" ? (
             <View style={styles.fileMessage}>
               <Text style={styles.fileIcon}>📎</Text>
               <View style={styles.fileInfo}>
-                <Text style={styles.fileName}>{item.fileData.name}</Text>
-                <Text style={styles.fileSize}>
-                  {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : "Document"}
-                </Text>
+                <Text style={styles.fileName}>File</Text>
+                <Text style={styles.fileSize}>File data not available</Text>
               </View>
             </View>
           ) : null}
@@ -878,7 +996,7 @@ export default function GroupChatScreen({ route, navigation }) {
                           onPress: async () => {
                             try {
                               const headers = await getAuthHeaders();
-                              const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}`, {
+                              const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
                                 method: "DELETE",
                                 headers
                               });
@@ -940,7 +1058,7 @@ export default function GroupChatScreen({ route, navigation }) {
                           onPress: async () => {
                             try {
                               const headers = await getAuthHeaders();
-                              const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}/leave`, {
+                              const response = await fetch(`${API}/api/chat/groups/${groupId}/leave`, {
                                 method: "POST",
                                 headers
                               });
@@ -1356,6 +1474,11 @@ const styles = StyleSheet.create({
   fileSize: {
     fontSize: 12,
     color: "#6B7280"
+  },
+  downloadIcon: {
+    fontSize: 16,
+    marginLeft: 8,
+    color: "#2563EB"
   },
   modalOverlay: {
     flex: 1,
