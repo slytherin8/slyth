@@ -16,8 +16,7 @@ import {
 import AppLayout from "../components/AppLayout";
 import AsyncStorage from '../utils/storage';
 
-// Direct API calls instead of chatService
-const API_BASE_URL = "http://localhost:5000";
+import { API } from '../constants/api';
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -41,7 +40,7 @@ export default function AdminChatScreen({ navigation }) {
   const fetchGroups = async () => {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups`, {
+      const response = await fetch(`${API}/api/chat/groups`, {
         method: "GET",
         headers
       });
@@ -163,19 +162,19 @@ export default function AdminChatScreen({ navigation }) {
           onPress: async () => {
             try {
               const headers = await getAuthHeaders();
-              const response = await fetch(`${API_BASE_URL}/api/chat/groups/${group._id}`, {
+              const response = await fetch(`${API}/api/chat/groups/${group._id}`, {
                 method: "DELETE",
                 headers
               });
 
               if (response.ok) {
-                Alert.alert("Success", "Group deleted successfully");
+                Alert.alert("Success! 🗑️", `Group "${group.name}" deleted successfully`);
                 fetchGroups(); // Refresh the list
               } else {
-                Alert.alert("Error", "Failed to delete group");
+                Alert.alert("Delete Group Failed", "Failed to delete group");
               }
             } catch (error) {
-              Alert.alert("Error", "Failed to delete group");
+              Alert.alert("Delete Group Failed", "Failed to delete group");
             }
           }
         }
