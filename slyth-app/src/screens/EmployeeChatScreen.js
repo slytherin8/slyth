@@ -16,8 +16,7 @@ import {
 import AppLayout from "../components/AppLayout";
 import AsyncStorage from '../utils/storage';
 
-// Direct API calls instead of chatService
-const API_BASE_URL = "http://localhost:5000";
+import { API } from '../constants/api';
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -41,7 +40,7 @@ export default function EmployeeChatScreen({ navigation }) {
   const fetchGroups = async () => {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups`, {
+      const response = await fetch(`${API}/api/chat/groups`, {
         method: "GET",
         headers
       });
@@ -167,19 +166,19 @@ export default function EmployeeChatScreen({ navigation }) {
           onPress: async () => {
             try {
               const headers = await getAuthHeaders();
-              const response = await fetch(`${API_BASE_URL}/api/chat/groups/${group._id}/leave`, {
+              const response = await fetch(`${API}/api/chat/groups/${group._id}/leave`, {
                 method: "POST",
                 headers
               });
 
               if (response.ok) {
-                Alert.alert("Success", "You have left the group");
+                Alert.alert("Success! 🚪", `You have left "${group.name}" successfully`);
                 fetchGroups(); // Refresh the list
               } else {
-                Alert.alert("Error", "Failed to leave group");
+                Alert.alert("Leave Group Failed", "Failed to leave group");
               }
             } catch (error) {
-              Alert.alert("Error", "Failed to leave group");
+              Alert.alert("Leave Group Failed", "Failed to leave group");
             }
           }
         }
