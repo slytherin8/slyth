@@ -139,9 +139,10 @@ export default function AdminWorkScreen({ navigation }) {
       setProjects([project, ...projects]);
       setNewProject({ name: "" });
       setShowProjectModal(false);
+      Alert.alert("Success! 🎉", "Project created successfully");
     } catch (error) {
       console.error("Create project error details:", error);
-      Alert.alert("Error", "Failed to create project. Status 403 Forbidden. Check your role.");
+      Alert.alert("Project Creation Failed", "Failed to create project. Check your admin privileges.");
     }
   };
 
@@ -158,8 +159,9 @@ export default function AdminWorkScreen({ navigation }) {
       setShowTaskModal(false);
       // Update stats
       fetchEmployeeStats(selectedEmployee._id);
+      Alert.alert("Success! 🎉", "Work assigned successfully");
     } catch (error) {
-      Alert.alert("Error", "Failed to add task");
+      Alert.alert("Task Assignment Failed", "Failed to assign work");
     }
   };
 
