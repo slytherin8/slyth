@@ -1,12 +1,9 @@
 import api from "./api";
 import { io } from "socket.io-client";
 import { Platform } from "react-native";
+import { API } from "../constants/api";
 
-const SOCKET_URL = Platform.OS === 'android'
-    ? "http://10.0.2.2:5000"
-    : "http://localhost:5000";
-
-const socket = io(SOCKET_URL); // Connect to the root for socket.io
+const socket = io(API); // Use centralized API configuration
 
 export const workService = {
     // Auth/Users
