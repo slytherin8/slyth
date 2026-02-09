@@ -177,6 +177,13 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
     const { groupId } = req.params;
     const { messageText, messageType = "text", fileData, repliedMessage } = req.body;
 
+    console.log("=== SEND MESSAGE SERVER ===");
+    console.log("Group ID:", groupId);
+    console.log("Message text:", messageText);
+    console.log("Message type:", messageType);
+    console.log("File data:", fileData ? "Present" : "None");
+    console.log("File data keys:", fileData ? Object.keys(fileData) : "N/A");
+
     if (!messageText || messageText.trim().length === 0) {
       return res.status(400).json({ message: "Message text is required" });
     }
@@ -206,6 +213,8 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
       repliedMessage
     });
 
+    console.log("Message created:", message._id);
+
     // Update group's last activity and total message count
     await Group.findByIdAndUpdate(groupId, { 
       lastActivity: new Date(),
@@ -225,6 +234,8 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
 
     const populatedMessage = await Message.findById(message._id)
       .populate("senderId", "profile.name profile.avatar role");
+
+    console.log("Populated message:", populatedMessage);
 
     res.status(201).json(populatedMessage);
   } catch (error) {
