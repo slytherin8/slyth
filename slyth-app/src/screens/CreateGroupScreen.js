@@ -14,8 +14,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
 
-// Simple fetch function instead of importing chatService
-const API_BASE_URL = "http://localhost:5000";
+import { API } from '../constants/api';
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -41,7 +40,7 @@ export default function CreateGroupScreen({ navigation }) {
   const fetchEmployees = async () => {
     try {
       const headers = await getAuthHeaders();
-      console.log("Fetching employees from:", `${API_BASE_URL}/api/chat/employees`);
+      console.log("Fetching employees from:", `${API}/api/chat/employees`);
       console.log("Headers:", headers);
 
       // Debug: Check token content
@@ -56,7 +55,7 @@ export default function CreateGroupScreen({ navigation }) {
         }
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/employees`, {
+      const response = await fetch(`${API}/api/chat/employees`, {
         method: "GET",
         headers
       });
@@ -91,7 +90,7 @@ export default function CreateGroupScreen({ navigation }) {
       // Show a retry option
       Alert.alert(
         "Connection Error",
-        "Unable to load employees. Make sure the server is running on localhost:5000",
+        "Unable to load employees. Make sure the server is running.",
         [
           { text: "Retry", onPress: fetchEmployees },
           { text: "Cancel", onPress: () => navigation.goBack() }
@@ -145,7 +144,7 @@ export default function CreateGroupScreen({ navigation }) {
     setLoading(true);
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups`, {
+      const response = await fetch(`${API}/api/chat/groups`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -157,13 +156,30 @@ export default function CreateGroupScreen({ navigation }) {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) {
+        Alert.alert("Group Creation Failed", data.message || "Failed to create group");
+        return;
+      }
 
-      Alert.alert("Success", "Group created successfully", [
-        { text: "OK", onPress: () => navigation.goBack() }
+      Alert.alert("Success! 🎉", "Group created successfully", [
+        { 
+          text: "View Group", 
+          onPress: () => {
+            navigation.navigate("GroupChat", { 
+              groupId: data._id, 
+              groupName: data.name 
+            });
+          }
+        },
+        { text: "Create Another", onPress: () => {
+          setGroupName("");
+          setDescription("");
+          setProfilePhoto("");
+          setSelectedMembers([]);
+        }}
       ]);
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to create group");
+      Alert.alert("Group Creation Failed", error.message || "Failed to create group");
     } finally {
       setLoading(false);
     }
