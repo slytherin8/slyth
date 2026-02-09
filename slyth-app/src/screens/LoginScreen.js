@@ -6,7 +6,8 @@ import {
   StyleSheet,
   Alert,
   Image,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from "react-native";
 import { useState } from "react";
 import AsyncStorage from "../utils/storage";
@@ -18,20 +19,51 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("admin");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const login = async () => {
+    // Input validation
+    if (!email.trim()) {
+      Alert.alert("Validation Error", "Please enter your email address");
+      return;
+    }
+    
+    if (!password.trim()) {
+      Alert.alert("Validation Error", "Please enter your password");
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Validation Error", "Please enter a valid email address");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role })
+        body: JSON.stringify({ 
+          email: email.trim().toLowerCase(), 
+          password: password.trim(), 
+          role 
+        })
       });
 
       const data = await res.json();
-      if (!res.ok) return Alert.alert(data.message);
+      if (!res.ok) {
+        Alert.alert("Login Failed", data.message || "Invalid username or password");
+        return;
+      }
 
       await AsyncStorage.setItem("token", data.token);
       console.log("TOKEN SAVED:", data.token);
+      
+      // Show success message
+      Alert.alert("Success! 🎉", "Login successful");
       
       // Skip profile setup for admins, only employees need profile setup
       if (role === "admin") {
@@ -40,8 +72,11 @@ export default function LoginScreen({ navigation }) {
         navigation.replace("ProfileSetup");
       }
 
-    } catch {
-      Alert.alert("Server not reachable");
+    } catch (error) {
+      console.error("Login error:", error);
+      Alert.alert("Connection Error", "Server not reachable. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,12 +102,23 @@ export default function LoginScreen({ navigation }) {
         onChangeText={setEmail}
         autoCapitalize="none"
       />
-      <TextInput
-        placeholder="Password"
-        style={styles.input}
-        secureTextEntry
-        onChangeText={setPassword}
-      />
+      
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Password"
+          style={styles.passwordInput}
+          secureTextEntry={!showPassword}
+          onChangeText={setPassword}
+        />
+        <TouchableOpacity
+          style={styles.eyeButton}
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Text style={styles.eyeIcon}>
+            {showPassword ? "👁️" : "👁️‍🗨️"}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.roleRow}>
         <TouchableOpacity
@@ -89,8 +135,16 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={login}>
-        <Text style={styles.buttonText}>Login</Text>
+      <TouchableOpacity 
+        style={[styles.button, loading && styles.buttonDisabled]} 
+        onPress={login}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={styles.buttonText}>Login</Text>
+        )}
       </TouchableOpacity>
 
       {role === "admin" && (
@@ -133,6 +187,24 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 15
   },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 8,
+    marginBottom: 15
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 12
+  },
+  eyeButton: {
+    padding: 12
+  },
+  eyeIcon: {
+    fontSize: 18
+  },
   roleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -154,6 +226,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
     padding: 14,
     borderRadius: 8
+  },
+  buttonDisabled: {
+    backgroundColor: "#94A3B8",
+    opacity: 0.7
   },
   buttonText: {
     color: "#fff",
