@@ -1,19 +1,31 @@
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
-  name: String,
+  name: {
+    type: String,
+    trim: true
+  },
   email: {
     type: String,
-    unique: true
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
   },
-  password: String,
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
   role: {
     type: String,
-    enum: ["admin", "employee"]
+    enum: ["admin", "employee"],
+    required: true
   },
   companyId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Company"
+    ref: "Company",
+    required: true
   },
   isActive: {
     type: Boolean,
@@ -28,8 +40,8 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   },
   profile: {
-    name: { type: String },
-    jobRole: { type: String },
+    name: { type: String, trim: true },
+    jobRole: { type: String, trim: true },
     avatar: { type: String }
   },
   profileCompleted: {
