@@ -111,7 +111,7 @@ export default function CreateEmployeeScreen({ navigation }) {
       setPassword("");
     } catch (error) {
       console.log("Network error:", error);
-      Alert.alert("Network Error", "Please check if the server is running on localhost:5000");
+      Alert.alert("Network Error", "Please check if the server is running.");
     }
   };
 
