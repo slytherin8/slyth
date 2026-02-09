@@ -3,9 +3,9 @@ import AppLayout from "../components/AppLayout";
 
 export default function AdminProfileScreen({ navigation }) {
   return (
-    <AppLayout navigation={navigation} role="employee">
+    <AppLayout navigation={navigation} role="admin">
       <Text style={{ fontSize: 22, fontWeight: "700" }}>
-        Employee profile Screen
+        Admin Profile Screen
       </Text>
     </AppLayout>
   );
