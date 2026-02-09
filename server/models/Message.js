@@ -23,7 +23,7 @@ const messageSchema = new mongoose.Schema({
     default: "text"
   },
   fileData: {
-    type: String, // Base64 for images, file path for documents
+    type: mongoose.Schema.Types.Mixed, // Allow objects for file metadata
     default: null
   },
   repliedMessage: {
