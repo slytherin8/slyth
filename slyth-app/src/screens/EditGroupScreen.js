@@ -14,8 +14,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
 
-// Direct API calls
-const API_BASE_URL = "http://localhost:5000";
+import { API } from '../constants/api';
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -37,14 +36,6 @@ export default function EditGroupScreen({ route, navigation }) {
   const [selectedMembers, setSelectedMembers] = useState([]);
 
   useEffect(() => {
-    navigation.setOptions({
-      title: "Edit Group",
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-          <Text style={{ fontSize: 24, color: "#374151" }}>←</Text>
-        </TouchableOpacity>
-      )
-    });
     fetchEmployees();
     fetchGroupDetails();
   }, []);
@@ -52,7 +43,7 @@ export default function EditGroupScreen({ route, navigation }) {
   const fetchEmployees = async () => {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/employees`, {
+      const response = await fetch(`${API}/api/chat/employees`, {
         method: "GET",
         headers
       });
@@ -69,7 +60,7 @@ export default function EditGroupScreen({ route, navigation }) {
   const fetchGroupDetails = async () => {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
         method: "GET",
         headers
       });
@@ -131,7 +122,7 @@ export default function EditGroupScreen({ route, navigation }) {
 
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({
@@ -171,7 +162,7 @@ export default function EditGroupScreen({ route, navigation }) {
             setLoading(true);
             try {
               const headers = await getAuthHeaders();
-              const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}`, {
+              const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
                 method: "DELETE",
                 headers
               });
