@@ -10,9 +10,7 @@ import {
   Alert
 } from "react-native";
 import AsyncStorage from '../utils/storage';
-
-// Direct API calls
-const API_BASE_URL = "http://localhost:5000";
+import { API } from '../constants/api';
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -30,14 +28,6 @@ export default function GroupInfoScreen({ route, navigation }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    navigation.setOptions({ 
-      title: "Group Info",
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-          <Text style={{ fontSize: 24, color: "#374151" }}>←</Text>
-        </TouchableOpacity>
-      )
-    });
     fetchGroupInfo();
     checkUserRole();
   }, []);
@@ -57,7 +47,7 @@ export default function GroupInfoScreen({ route, navigation }) {
   const fetchGroupInfo = async () => {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/chat/groups/${groupId}`, {
+      const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
         method: "GET",
         headers
       });
