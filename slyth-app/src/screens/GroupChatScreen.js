@@ -158,9 +158,11 @@ export default function GroupChatScreen({ route, navigation }) {
       setMessages(prev => [...prev, data]);
       setReplyingTo(null);
 
-      // Show success message for file uploads
+      // Show success message for uploads
       if (messageType === "file") {
         Alert.alert("Success! 📎", "File sent successfully");
+      } else if (messageType === "image") {
+        Alert.alert("Success! 📷", "Photo sent successfully");
       }
 
       // Scroll to bottom
@@ -356,42 +358,67 @@ export default function GroupChatScreen({ route, navigation }) {
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permissions');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: false,
-      quality: 0.8,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets && result.assets[0]) {
-      const asset = result.assets[0];
-      const base64Image = `data:image/jpeg;base64,${asset.base64}`;
-
-      // For web compatibility, use a simple confirm instead of Alert.prompt
-      if (Platform.OS === 'web') {
-        const caption = prompt("Add a caption (optional):");
-        sendMessage(caption || "📷 Photo", "image", base64Image);
-      } else {
-        // Use Alert.prompt for mobile
-        Alert.prompt(
-          "Send Image",
-          "Add a caption (optional)",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Send",
-              onPress: (caption) => sendMessage(caption || "📷 Photo", "image", base64Image)
-            }
-          ],
-          "plain-text"
-        );
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant camera roll permissions');
+        return;
       }
+
+      console.log("Opening image picker...");
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.6, // Reduced quality for smaller file size
+        base64: true,
+        maxWidth: 1024, // Limit image width
+        maxHeight: 1024, // Limit image height
+      });
+
+      console.log("Image picker result:", result);
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        console.log("Selected image:", asset.uri, "Size:", asset.fileSize);
+        
+        if (!asset.base64) {
+          Alert.alert("Error", "Failed to convert image to base64. Please try a different image.");
+          return;
+        }
+        
+        const base64Image = `data:image/jpeg;base64,${asset.base64}`;
+        console.log("Base64 image length:", base64Image.length);
+
+        // Check if image is too large (limit to ~5MB base64)
+        if (base64Image.length > 5 * 1024 * 1024) {
+          Alert.alert("Error", "Image is too large. Please select a smaller image or try taking a new photo.");
+          return;
+        }
+
+        // For web compatibility, use a simple confirm instead of Alert.prompt
+        if (Platform.OS === 'web') {
+          const caption = prompt("Add a caption (optional):");
+          sendMessage(caption || "📷 Photo", "image", base64Image);
+        } else {
+          // For mobile, use Alert with text input alternative
+          Alert.alert(
+            "Send Photo",
+            "Do you want to send this photo?",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Send",
+                onPress: () => sendMessage("📷 Photo", "image", base64Image)
+              }
+            ]
+          );
+        }
+      } else {
+        console.log("Image picker was canceled or no image selected");
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      Alert.alert("Error", "Failed to pick image: " + error.message);
     }
     setShowAttachmentOptions(false);
   };
