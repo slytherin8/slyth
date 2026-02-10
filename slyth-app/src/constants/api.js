@@ -6,11 +6,8 @@ const getApiUrl = () => {
     // For web browsers, localhost works fine
     return "http://localhost:3000";
   } else {
-    // For Expo mobile app, use your computer's IP address
-    // 🚨 IMPORTANT: Update this if your IP changes
-    
-    // Your current IP address (run 'ipconfig' to get this)
-    const YOUR_COMPUTER_IP = "10.212.38.219";
+   
+    const YOUR_COMPUTER_IP = "10.96.161.219";
     
     return `http://${YOUR_COMPUTER_IP}:3000`;
   }
