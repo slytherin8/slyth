@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,18 @@ import {
   RefreshControl,
   Platform,
   Image,
-  ScrollView,
-  Modal
+  Modal,
+  Dimensions,
+  Animated,
+  PanResponder
 } from "react-native";
 import AppLayout from "../components/AppLayout";
 import AsyncStorage from '../utils/storage';
+import socketService from '../services/socketService';
 
 import { API } from '../constants/api';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -27,15 +32,87 @@ const getAuthHeaders = async () => {
 };
 
 export default function AdminChatScreen({ navigation }) {
+  const [activeTab, setActiveTab] = useState(0); // 0 = Groups, 1 = Direct Messages
   const [groups, setGroups] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showGroupActions, setShowGroupActions] = useState(false);
+  
+  // Animation values
+  const translateX = useRef(new Animated.Value(0)).current;
+  const tabIndicatorX = useRef(new Animated.Value(0)).current;
+
+  // Pan responder for swipe gestures
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const newTranslateX = activeTab === 0 ? gestureState.dx : gestureState.dx - screenWidth;
+        translateX.setValue(Math.max(-screenWidth, Math.min(0, newTranslateX)));
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const threshold = screenWidth * 0.3;
+        
+        if (gestureState.dx > threshold && activeTab === 1) {
+          // Swipe right to Groups
+          switchToTab(0);
+        } else if (gestureState.dx < -threshold && activeTab === 0) {
+          // Swipe left to Direct Messages
+          switchToTab(1);
+        } else {
+          // Snap back to current tab
+          switchToTab(activeTab);
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
-    fetchGroups();
+    // Load both tabs data on mount
+    loadAllData();
   }, []);
+
+  useEffect(() => {
+    // Connect to socket service
+    socketService.connect();
+
+    // Listen for real-time updates
+    const handleDirectMessage = (message) => {
+      updateConversations();
+    };
+
+    const handleGroupMessage = (message) => {
+      updateGroups();
+    };
+
+    const handleUnreadCountUpdate = (data) => {
+      if (data.type === "direct") {
+        updateConversations();
+      } else if (data.type === "group") {
+        updateGroups();
+      }
+    };
+
+    socketService.on('direct_message', handleDirectMessage);
+    socketService.on('group_message', handleGroupMessage);
+    socketService.on('unread_count_update', handleUnreadCountUpdate);
+
+    return () => {
+      socketService.off('direct_message', handleDirectMessage);
+      socketService.off('group_message', handleGroupMessage);
+      socketService.off('unread_count_update', handleUnreadCountUpdate);
+    };
+  }, []);
+
+  const loadAllData = async () => {
+    setLoading(true);
+    await Promise.all([fetchGroups(), fetchConversations()]);
+    setLoading(false);
+  };
 
   const fetchGroups = async () => {
     try {
@@ -47,18 +124,73 @@ export default function AdminChatScreen({ navigation }) {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      setGroups(data);
+      
+      // Sort groups by unread count first, then by last activity
+      const sortedGroups = data.sort((a, b) => {
+        if (a.unreadCount !== b.unreadCount) {
+          return b.unreadCount - a.unreadCount;
+        }
+        
+        if (!a.lastMessage && !b.lastMessage) return 0;
+        if (!a.lastMessage) return 1;
+        if (!b.lastMessage) return -1;
+        return new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt);
+      });
+      
+      setGroups(sortedGroups);
     } catch (error) {
-      Alert.alert("Error", "Failed to fetch groups");
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch groups:", error);
     }
+  };
+
+  const fetchConversations = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API}/api/direct-messages/conversations`, {
+        method: "GET",
+        headers
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      setConversations(data);
+    } catch (error) {
+      console.error("Failed to fetch conversations:", error);
+    }
+  };
+
+  const updateGroups = () => {
+    fetchGroups();
+  };
+
+  const updateConversations = () => {
+    fetchConversations();
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchGroups();
+    await loadAllData();
     setRefreshing(false);
+  };
+
+  const switchToTab = (tabIndex) => {
+    setActiveTab(tabIndex);
+    
+    // Animate content
+    Animated.spring(translateX, {
+      toValue: -tabIndex * screenWidth,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
+
+    // Animate tab indicator
+    Animated.spring(tabIndicatorX, {
+      toValue: tabIndex * (screenWidth / 2),
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
   };
 
   const formatTime = (dateString) => {
@@ -76,21 +208,20 @@ export default function AdminChatScreen({ navigation }) {
   };
 
   const renderGroupItem = ({ item }) => {
-    // Only show unread badge if there are actual unread messages
     const unreadCount = item.unreadCount || 0;
     const hasUnread = unreadCount > 0;
     
     return (
       <TouchableOpacity 
-        style={[styles.groupItem, hasUnread && styles.groupItemUnread]}
+        style={[styles.chatItem, hasUnread && styles.chatItemUnread]}
         onPress={() => navigation.navigate("GroupChat", { groupId: item._id, groupName: item.name })}
       >
-        <View style={styles.groupAvatarContainer}>
-          <View style={styles.groupAvatar}>
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatar}>
             {item.profilePhoto ? (
               <Image 
                 source={{ uri: item.profilePhoto }} 
-                style={styles.groupAvatarImage}
+                style={styles.avatarImage}
               />
             ) : (
               <Text style={styles.avatarText}>
@@ -100,14 +231,14 @@ export default function AdminChatScreen({ navigation }) {
           </View>
           {hasUnread && (
             <View style={styles.unreadBadge}>
-              <Text style={styles.unreadCount}>{unreadCount}</Text>
+              <Text style={styles.unreadCount}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
             </View>
           )}
         </View>
         
-        <View style={styles.groupInfo}>
-          <View style={styles.groupHeader}>
-            <Text style={[styles.groupName, hasUnread && styles.groupNameUnread]}>
+        <View style={styles.chatInfo}>
+          <View style={styles.chatHeader}>
+            <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>
               {item.name}
             </Text>
             {item.lastMessage && (
@@ -117,8 +248,8 @@ export default function AdminChatScreen({ navigation }) {
             )}
           </View>
           
-          <Text style={styles.groupDescription} numberOfLines={1}>
-            {item.description || `${item.members.length} members`}
+          <Text style={styles.memberCount} numberOfLines={1}>
+            {item.members.length} members
           </Text>
           
           {item.lastMessage ? (
@@ -130,13 +261,72 @@ export default function AdminChatScreen({ navigation }) {
           )}
         </View>
 
-        <View style={styles.groupActions}>
-          <TouchableOpacity 
-            style={styles.menuDots}
-            onPress={() => handleGroupMenu(item)}
-          >
-            <Text style={styles.menuDotsText}>⋮</Text>
-          </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={() => handleGroupMenu(item)}
+        >
+          <Text style={styles.menuDots}>⋮</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderConversationItem = ({ item }) => {
+    const unreadCount = item.unreadCount || 0;
+    const hasUnread = unreadCount > 0;
+    
+    return (
+      <TouchableOpacity 
+        style={[styles.chatItem, hasUnread && styles.chatItemUnread]}
+        onPress={() => navigation.navigate("DirectChat", { 
+          userId: item.user._id, 
+          userName: item.user.profile?.name || "Unknown",
+          userAvatar: item.user.profile?.avatar
+        })}
+      >
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatar}>
+            {item.user.profile?.avatar ? (
+              <Image 
+                source={{ uri: item.user.profile.avatar }} 
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {item.user.profile?.name?.charAt(0)?.toUpperCase() || "U"}
+              </Text>
+            )}
+          </View>
+          {hasUnread && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadCount}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.chatInfo}>
+          <View style={styles.chatHeader}>
+            <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>
+              {item.user.profile?.name || "Unknown User"}
+            </Text>
+            {item.lastMessage && (
+              <Text style={styles.messageTime}>
+                {formatTime(item.lastMessage.createdAt)}
+              </Text>
+            )}
+          </View>
+          
+          <Text style={styles.userRole} numberOfLines={1}>
+            {item.user.role === 'admin' ? 'Admin' : 'Employee'}
+          </Text>
+          
+          {item.lastMessage ? (
+            <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
+              {item.lastMessage.isFromMe ? "You: " : ""}{item.lastMessage.messageText}
+            </Text>
+          ) : (
+            <Text style={styles.noMessages}>No messages yet</Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -152,10 +342,7 @@ export default function AdminChatScreen({ navigation }) {
       "Delete Group",
       `Are you sure you want to delete "${group.name}"? This action cannot be undone.`,
       [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
@@ -169,7 +356,7 @@ export default function AdminChatScreen({ navigation }) {
 
               if (response.ok) {
                 Alert.alert("Success! 🗑️", `Group "${group.name}" deleted successfully`);
-                fetchGroups(); // Refresh the list
+                updateGroups();
               } else {
                 Alert.alert("Delete Group Failed", "Failed to delete group");
               }
@@ -186,8 +373,8 @@ export default function AdminChatScreen({ navigation }) {
     return (
       <AppLayout navigation={navigation} activeTab="chat" role="admin">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.loadingText}>Loading groups...</Text>
+          <ActivityIndicator size="large" color="#25D366" />
+          <Text style={styles.loadingText}>Loading chats...</Text>
         </View>
       </AppLayout>
     );
@@ -195,123 +382,185 @@ export default function AdminChatScreen({ navigation }) {
 
   return (
     <AppLayout navigation={navigation} activeTab="chat" role="admin">
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header with Create Group Button */}
+      <View style={styles.container}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Groups</Text>
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={() => navigation.navigate("CreateGroup")}
-          >
-            <Text style={styles.createButtonText}>+ New Group</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Groups List */}
-        {groups.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No Groups Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Create your first group to start collaborating with your team
-            </Text>
+          <Text style={styles.headerTitle}>Chats</Text>
+          {activeTab === 0 && (
             <TouchableOpacity
-              style={styles.emptyButton}
+              style={styles.newGroupButton}
               onPress={() => navigation.navigate("CreateGroup")}
             >
-              <Text style={styles.emptyButtonText}>Create Group</Text>
+              <Text style={styles.newGroupButtonText}>+ New Group</Text>
             </TouchableOpacity>
-          </View>
-        ) : (
-          <FlatList
-            data={groups}
-            keyExtractor={(item) => item._id}
-            renderItem={renderGroupItem}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            contentContainerStyle={styles.listContainer}
-            scrollEnabled={false} // Disable FlatList scroll since we're using ScrollView
-            nestedScrollEnabled={true} // Enable nested scrolling
-          />
-        )}
-      </ScrollView>
-
-      {/* Group Actions Modal */}
-      <Modal
-        visible={showGroupActions}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowGroupActions(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.groupActionsModal}>
-            <Text style={styles.modalTitle}>
-              {selectedGroup?.name}
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.actionOption}
-              onPress={() => {
-                setShowGroupActions(false);
-                navigation.navigate("GroupInfo", { 
-                  groupId: selectedGroup?._id, 
-                  groupName: selectedGroup?.name 
-                });
-              }}
-            >
-              <Text style={styles.actionIcon}>ℹ️</Text>
-              <Text style={styles.actionText}>Group Info</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionOption}
-              onPress={() => {
-                setShowGroupActions(false);
-                navigation.navigate("EditGroup", { 
-                  groupId: selectedGroup?._id, 
-                  groupName: selectedGroup?.name,
-                  groupDescription: selectedGroup?.description,
-                  groupPhoto: selectedGroup?.profilePhoto 
-                });
-              }}
-            >
-              <Text style={styles.actionIcon}>✏️</Text>
-              <Text style={styles.actionText}>Edit Group</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionOption}
-              onPress={() => {
-                setShowGroupActions(false);
-                handleDeleteGroup(selectedGroup);
-              }}
-            >
-              <Text style={[styles.actionIcon, styles.deleteText]}>🗑️</Text>
-              <Text style={[styles.actionText, styles.deleteText]}>Delete Group</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.cancelActionButton}
-              onPress={() => setShowGroupActions(false)}
-            >
-              <Text style={styles.cancelActionText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+          )}
         </View>
-      </Modal>
 
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 0 && styles.activeTab]}
+            onPress={() => switchToTab(0)}
+          >
+            <Text style={[styles.tabText, activeTab === 0 && styles.activeTabText]}>
+              Groups
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 1 && styles.activeTab]}
+            onPress={() => switchToTab(1)}
+          >
+            <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>
+              Direct Messages
+            </Text>
+          </TouchableOpacity>
+          
+          {/* Tab Indicator */}
+          <Animated.View 
+            style={[
+              styles.tabIndicator,
+              { transform: [{ translateX: tabIndicatorX }] }
+            ]} 
+          />
+        </View>
+
+        {/* Content with Swipe */}
+        <View style={styles.contentContainer} {...panResponder.panHandlers}>
+          <Animated.View 
+            style={[
+              styles.swipeContainer,
+              { transform: [{ translateX }] }
+            ]}
+          >
+            {/* Groups Tab */}
+            <View style={styles.tabContent}>
+              {groups.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>No Groups Yet</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Create your first group to start collaborating
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.emptyButton}
+                    onPress={() => navigation.navigate("CreateGroup")}
+                  >
+                    <Text style={styles.emptyButtonText}>Create Group</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <FlatList
+                  data={groups}
+                  keyExtractor={(item) => item._id}
+                  renderItem={renderGroupItem}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                  }
+                  showsVerticalScrollIndicator={false}
+                />
+              )}
+            </View>
+
+            {/* Direct Messages Tab */}
+            <View style={styles.tabContent}>
+              {conversations.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>No Conversations Yet</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Start a conversation with your employees
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={conversations}
+                  keyExtractor={(item) => item.user._id}
+                  renderItem={renderConversationItem}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                  }
+                  showsVerticalScrollIndicator={false}
+                />
+              )}
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Group Actions Modal */}
+        <Modal
+          visible={showGroupActions}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowGroupActions(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.groupActionsModal}>
+              <Text style={styles.modalTitle}>
+                {selectedGroup?.name}
+              </Text>
+              
+              <TouchableOpacity 
+                style={styles.actionOption}
+                onPress={() => {
+                  setShowGroupActions(false);
+                  navigation.navigate("GroupInfo", { 
+                    groupId: selectedGroup?._id, 
+                    groupName: selectedGroup?.name 
+                  });
+                }}
+              >
+                <Text style={styles.actionIcon}>ℹ️</Text>
+                <Text style={styles.actionText}>Group Info</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.actionOption}
+                onPress={() => {
+                  setShowGroupActions(false);
+                  navigation.navigate("EditGroup", { 
+                    groupId: selectedGroup?._id, 
+                    groupName: selectedGroup?.name,
+                    groupDescription: selectedGroup?.description,
+                    groupPhoto: selectedGroup?.profilePhoto 
+                  });
+                }}
+              >
+                <Text style={styles.actionIcon}>✏️</Text>
+                <Text style={styles.actionText}>Edit Group</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.actionOption}
+                onPress={() => {
+                  setShowGroupActions(false);
+                  handleDeleteGroup(selectedGroup);
+                }}
+              >
+                <Text style={[styles.actionIcon, styles.deleteText]}>🗑️</Text>
+                <Text style={[styles.actionText, styles.deleteText]}>Delete Group</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.cancelActionButton}
+                onPress={() => setShowGroupActions(false)}
+              >
+                <Text style={styles.cancelActionText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </AppLayout>
   );
 }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC"
+    backgroundColor: "#FFFFFF"
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
+    backgroundColor: "#FFFFFF"
   },
   loadingText: {
     marginTop: 10,
@@ -324,60 +573,96 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0"
+    borderBottomColor: "#E5E7EB"
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "700",
-    color: "#0F172A"
+    color: "#111827"
   },
-  createButton: {
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 15,
+  newGroupButton: {
+    backgroundColor: "#25D366",
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6
+    borderRadius: 20
   },
-  createButtonText: {
-    color: "#fff",
+  newGroupButtonText: {
+    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600"
   },
-  listContainer: {
-    padding: 20
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    position: "relative"
   },
-  groupItem: {
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: "center"
+  },
+  activeTab: {
+    // Active tab styling handled by indicator
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#6B7280"
+  },
+  activeTabText: {
+    color: "#25D366",
+    fontWeight: "600"
+  },
+  tabIndicator: {
+    position: "absolute",
+    bottom: 0,
+    height: 3,
+    width: screenWidth / 2,
+    backgroundColor: "#25D366",
+    borderRadius: 2
+  },
+  contentContainer: {
+    flex: 1,
+    overflow: "hidden"
+  },
+  swipeContainer: {
+    flexDirection: "row",
+    width: screenWidth * 2,
+    flex: 1
+  },
+  tabContent: {
+    width: screenWidth,
+    flex: 1
+  },
+  chatItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-    borderLeftWidth: 0
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6"
   },
-  groupItemUnread: {
-    borderLeftWidth: 4,
-    borderLeftColor: "#10B981"
+  chatItemUnread: {
+    backgroundColor: "#F0FDF4"
   },
-  groupAvatarContainer: {
+  avatarContainer: {
     position: "relative",
     marginRight: 12
   },
-  groupAvatar: {
+  avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center"
   },
-  groupAvatarImage: {
+  avatarImage: {
     width: 50,
     height: 50,
     borderRadius: 25
@@ -385,53 +670,58 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#fff"
+    color: "#6B7280"
   },
   unreadBadge: {
     position: "absolute",
     top: -2,
     right: -2,
-    backgroundColor: "#EF4444",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    backgroundColor: "#25D366",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#fff"
+    borderColor: "#FFFFFF"
   },
   unreadCount: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#fff"
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF"
   },
-  groupInfo: {
+  chatInfo: {
     flex: 1,
     marginRight: 8
   },
-  groupHeader: {
+  chatHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4
+    marginBottom: 2
   },
-  groupName: {
+  chatName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#111827",
     flex: 1
   },
-  groupNameUnread: {
+  chatNameUnread: {
     fontWeight: "700"
   },
   messageTime: {
     fontSize: 12,
     color: "#6B7280"
   },
-  groupDescription: {
+  memberCount: {
     fontSize: 13,
     color: "#6B7280",
-    marginBottom: 4
+    marginBottom: 2
+  },
+  userRole: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 2
   },
   lastMessage: {
     fontSize: 14,
@@ -446,96 +736,41 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     fontStyle: "italic"
   },
-  groupActions: {
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  menuDots: {
+  menuButton: {
     padding: 8
   },
-  menuDotsText: {
+  menuDots: {
     fontSize: 16,
     color: "#9CA3AF"
-  },
-  groupAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#E2E8F0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15
-  },
-  avatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#64748B"
-  },
-  groupInfo: {
-    flex: 1
-  },
-  groupHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#0F172A",
-    flex: 1
-  },
-  messageTime: {
-    fontSize: 12,
-    color: "#64748B"
-  },
-  memberCount: {
-    fontSize: 12,
-    color: "#64748B",
-    marginBottom: 4
-  },
-  lastMessage: {
-    fontSize: 14,
-    color: "#475569"
-  },
-  noMessages: {
-    fontSize: 14,
-    color: "#94A3B8",
-    fontStyle: "italic"
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40
+    paddingHorizontal: 40,
+    paddingTop: 100
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#0F172A",
+    color: "#111827",
     marginBottom: 10
   },
   emptySubtitle: {
     fontSize: 16,
-    color: "#64748B",
+    color: "#6B7280",
     textAlign: "center",
     marginBottom: 30,
     lineHeight: 22
   },
   emptyButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#25D366",
     paddingHorizontal: 30,
     paddingVertical: 12,
-    borderRadius: 8
+    borderRadius: 25
   },
   emptyButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600"
   },
@@ -545,7 +780,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end"
   },
   groupActionsModal: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -556,7 +791,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 20,
-    color: "#0F172A"
+    color: "#111827"
   },
   actionOption: {
     flexDirection: "row",
@@ -575,6 +810,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#374151",
     flex: 1
+  },
+  deleteText: {
+    color: "#DC2626"
   },
   cancelActionButton: {
     marginTop: 10,
