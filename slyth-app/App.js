@@ -9,6 +9,7 @@ import AdminDashboard from "./src/screens/AdminDashboard";
 import CreateEmployeeScreen from "./src/screens/CreateEmployeeScreen";
 import CreateGroupScreen from "./src/screens/CreateGroupScreen";
 import GroupChatScreen from "./src/screens/GroupChatScreen";
+import DirectChatScreen from "./src/screens/DirectChatScreen";
 import DebugAuthScreen from "./src/screens/DebugAuthScreen";
 import EmployeeHome from "./src/screens/EmployeeHome";
 import EditGroupScreen from "./src/screens/EditGroupScreen";
@@ -50,6 +51,7 @@ export default function App() {
           <Stack.Screen name="EditGroup" component={EditGroupScreen} />
           <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
           <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+          <Stack.Screen name="DirectChat" component={DirectChatScreen} />
           <Stack.Screen name="AdminChat" component={AdminChatScreen} />
           <Stack.Screen name="AdminMeet" component={AdminMeetScreen} />
           <Stack.Screen name="AdminWork" component={AdminWorkScreen} />
