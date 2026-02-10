@@ -43,6 +43,7 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     try {
+      console.log(`🔍 Attempting login to: ${API}/api/auth/login`);
       const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,7 +75,7 @@ export default function LoginScreen({ navigation }) {
 
     } catch (error) {
       console.error("Login error:", error);
-      Alert.alert("Connection Error", "Server not reachable. Please check your connection.");
+      Alert.alert("Connection Error", `Server not reachable at ${API}. Please check your connection.`);
     } finally {
       setLoading(false);
     }
