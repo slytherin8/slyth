@@ -18,6 +18,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
 import * as DocumentPicker from 'expo-document-picker';
+import socketService from '../services/socketService';
 
 import { API } from '../constants/api';
 
@@ -63,6 +64,30 @@ export default function GroupChatScreen({ route, navigation }) {
   useEffect(() => {
     initializeChat();
   }, [groupId, groupName]);
+
+  useEffect(() => {
+    // Connect to socket service
+    socketService.connect();
+
+    // Listen for real-time group messages
+    const handleGroupMessage = (message) => {
+      // Only add message if it's from the current group
+      if (message.groupId === groupId) {
+        setMessages(prev => [...prev, message]);
+        
+        // Scroll to bottom
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    };
+
+    socketService.on('group_message', handleGroupMessage);
+
+    return () => {
+      socketService.off('group_message', handleGroupMessage);
+    };
+  }, [groupId]);
 
   const initializeChat = async () => {
     const userId = await getCurrentUserId();
