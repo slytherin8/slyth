@@ -237,6 +237,24 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
 
     console.log("Populated message:", populatedMessage);
 
+    // Emit real-time updates to all group members
+    const io = req.app.get("io");
+    if (io) {
+      // Emit the new message to all group members
+      group.members.forEach(member => {
+        if (member.userId.toString() !== req.user.id) {
+          io.to(member.userId.toString()).emit("group_message", populatedMessage);
+          
+          // Emit unread count update for this specific group
+          io.to(member.userId.toString()).emit("unread_count_update", {
+            type: "group",
+            groupId: groupId,
+            count: member.unreadCount + 1
+          });
+        }
+      });
+    }
+
     res.status(201).json(populatedMessage);
   } catch (error) {
     console.error("Send message error:", error);
