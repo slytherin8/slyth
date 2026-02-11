@@ -38,23 +38,38 @@ export default function LoginScreen({ navigation }) {
   const [role, setRole] = useState("admin");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Error states
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  // Validation functions
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  };
+
+  const clearErrors = () => {
+    setEmailError("");
+    setPasswordError("");
+  };
 
   const login = async () => {
+    clearErrors();
+    
     // Input validation
     if (!email.trim()) {
-      Alert.alert("Validation Error", "Please enter your email address");
+      setEmailError("Please enter your email address");
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address");
       return;
     }
     
     if (!password.trim()) {
-      Alert.alert("Validation Error", "Please enter your password");
-      return;
-    }
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert("Validation Error", "Please enter a valid email address");
+      setPasswordError("Please enter your password");
       return;
     }
 
@@ -73,7 +88,14 @@ export default function LoginScreen({ navigation }) {
 
       const data = await res.json();
       if (!res.ok) {
-        Alert.alert("Login Failed", data.message || "Invalid username or password");
+        // Handle specific error messages
+        if (res.status === 404) {
+          setEmailError("Account not found. Please sign up");
+        } else if (res.status === 401) {
+          setPasswordError("Invalid email or password");
+        } else {
+          Alert.alert("Login Failed", data.message || "Login failed. Please try again");
+        }
         return;
       }
 
@@ -170,12 +192,16 @@ export default function LoginScreen({ navigation }) {
                   <TextInput
                     placeholder="Email"
                     placeholderTextColor="#9CA3AF"
-                    style={styles.input}
+                    style={[styles.input, emailError && styles.inputError]}
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (emailError) setEmailError("");
+                    }}
                     autoCapitalize="none"
                     keyboardType="email-address"
                   />
+                  {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
                 </View>
 
                 {/* Password Input */}
@@ -183,9 +209,12 @@ export default function LoginScreen({ navigation }) {
                   <TextInput
                     placeholder="Password"
                     placeholderTextColor="#9CA3AF"
-                    style={[styles.input, styles.passwordInput]}
+                    style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (passwordError) setPasswordError("");
+                    }}
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity
@@ -201,6 +230,7 @@ export default function LoginScreen({ navigation }) {
                       resizeMode="contain"
                     />
                   </TouchableOpacity>
+                  {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
                 </View>
 
                 {/* Login Button */}
@@ -395,5 +425,16 @@ const styles = StyleSheet.create({
   signupLink: {
     color: "#00664F",
     fontWeight: "700"
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    borderWidth: 2
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: getResponsiveFontSize(12),
+    marginTop: getResponsiveSize(4),
+    marginLeft: getResponsiveSize(4),
+    fontFamily: "System"
   }
 });
