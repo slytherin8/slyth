@@ -6,46 +6,62 @@ import {
   Image,
   Dimensions,
   StatusBar,
+  Platform
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
+// Responsive helper functions
+const getResponsiveSize = (size) => {
+  const scale = width / 375; // Base width (iPhone X)
+  return Math.round(size * scale);
+};
+
+const getResponsiveFontSize = (size) => {
+  const scale = width / 375;
+  const newSize = size * scale;
+  return Math.max(newSize, size * 0.85); // Minimum 85% of original size
+};
+
 export default function WelcomeScreen({ navigation }) {
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#00664F" />
-      
-      {/* Main content area */}
-      <View style={styles.contentContainer}>
-        {/* Hand illustration - larger and more prominent */}
-        <View style={styles.illustrationContainer}>
-          <Image
-            source={require("../../assets/images/hand.png")}
-            style={styles.handImage}
-            resizeMode="contain"
-          />
-        </View>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#00664F" />
+        
+        {/* Main content area */}
+        <View style={styles.contentContainer}>
+          {/* Hand illustration - larger and more prominent */}
+          <View style={styles.illustrationContainer}>
+            <Image
+              source={require("../../assets/images/hand.png")}
+              style={styles.handImage}
+              resizeMode="contain"
+            />
+          </View>
 
-        {/* Bottom card */}
-        <View style={styles.bottomCard}>
-          <Text style={styles.title}>
-            Let's <Text style={styles.titleAccent}>Build</Text> Better{'\n'}Together.
-          </Text>
-          
-          <Text style={styles.subtitle}>
-            The #1 private collaboration platform designed for teams to communicate, share ideas, manage work, and grow collectively in one secure space.
-          </Text>
+          {/* Bottom card */}
+          <View style={styles.bottomCard}>
+            <Text style={styles.title}>
+              Let's <Text style={styles.titleAccent}>Build</Text> Better{'\n'}Together.
+            </Text>
+            
+            <Text style={styles.subtitle}>
+              The #1 private collaboration platform designed for teams to communicate, share ideas, manage work, and grow collectively in one secure space.
+            </Text>
 
-          <TouchableOpacity
-            style={styles.getStartedButton}
-            onPress={() => navigation.navigate("Login")}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>Get Started</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.getStartedButton}
+              onPress={() => navigation.navigate("Login")}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.buttonText}>Get Started</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -57,75 +73,65 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingTop: 80,
+    paddingTop: Math.max(height * 0.02, 20), // Reduced top padding to move image higher
   },
   illustrationContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start', // Changed from 'center' to 'flex-start'
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: Math.max(width * 0.05, 20),
+    paddingTop: Math.max(height * 0.05, 30), // Added top padding to position image higher
+    minHeight: height * 0.5, // Increased minimum height
   },
   handImage: {
-    width: width * 0.9,
-    height: width * 0.9,
-    maxWidth: 500,
-    maxHeight: 500,
+    width: Math.min(width * 0.95, 900), // Increased from 0.85 to 0.95 and maxWidth to 700
+    height: Math.min(width * 0.95, height * 0.6), // Increased height ratio to 0.6
+    maxWidth: 800, // Increased from 550
+    maxHeight: 900, // Increased from 700
   },
   bottomCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 32,
-    paddingTop: 40,
-    paddingBottom: 50,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    borderTopLeftRadius: getResponsiveSize(32),
+    borderTopRightRadius: getResponsiveSize(32),
+    paddingHorizontal: Math.max(width * 0.06, 24),
+    paddingTop: getResponsiveSize(36),
+    paddingBottom: Math.max(getResponsiveSize(50), 50), // Increased bottom padding
+    minHeight: height * 0.4, // Increased minimum height for more space
   },
   title: {
-    fontSize: 32,
+    fontSize: getResponsiveFontSize(28),
     fontWeight: '700',
     color: '#1F2937',
     textAlign: 'left',
-    marginBottom: 16,
-    fontFamily: 'Urbanist-Bold', // Will fallback to system font if not loaded
-    lineHeight: 38,
+    marginBottom: getResponsiveSize(16),
+    fontFamily: 'System',
+    lineHeight: getResponsiveFontSize(34),
   },
   titleAccent: {
     color: '#00664F',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#6B7280',
     textAlign: 'left',
-    marginBottom: 32,
-    lineHeight: 24,
-    fontFamily: 'Urbanist-Regular', // Will fallback to system font if not loaded
+    marginBottom: getResponsiveSize(32),
+    lineHeight: getResponsiveFontSize(24),
+    fontFamily: 'System',
   },
   getStartedButton: {
     backgroundColor: '#00664F',
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 16,
+    paddingVertical: getResponsiveSize(18),
+    paddingHorizontal: getResponsiveSize(32),
+    borderRadius: getResponsiveSize(16),
     alignItems: 'center',
-    shadowColor: '#00664F',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    minHeight: getResponsiveSize(56),
+    justifyContent: 'center',
+    marginTop: getResponsiveSize(8), // Added margin top for better spacing
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18),
     fontWeight: '600',
-    fontFamily: 'Urbanist-SemiBold', // Will fallback to system font if not loaded
+    fontFamily: 'System',
   },
 });
