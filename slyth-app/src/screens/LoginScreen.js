@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,14 +7,30 @@ import {
   StyleSheet,
   Alert,
   Image,
-  ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  StatusBar,
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView
 } from "react-native";
-import { useState } from "react";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
 
+const { width, height } = Dimensions.get('window');
 
+// Responsive helper functions
+const getResponsiveSize = (size) => {
+  const scale = width / 375; // Base width (iPhone X)
+  return Math.round(size * scale);
+};
+
+const getResponsiveFontSize = (size) => {
+  const scale = width / 375;
+  const newSize = size * scale;
+  return Math.max(newSize, size * 0.85); // Minimum 85% of original size
+};
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -82,164 +99,301 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={true}
-    >
-      {/* 🔙 BACK BUTTON */}
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Image
-          source={require("../../assets/images/back.png")} // replace image if needed
-          style={styles.backIcon}
-        />
-      </TouchableOpacity>
-
-      <Text style={styles.title}>Login</Text>
-
-      <TextInput
-        placeholder="Email"
-        style={styles.input}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
-      
-      <View style={styles.passwordContainer}>
-        <TextInput
-          placeholder="Password"
-          style={styles.passwordInput}
-          secureTextEntry={!showPassword}
-          onChangeText={setPassword}
-        />
-        <TouchableOpacity
-          style={styles.eyeButton}
-          onPress={() => setShowPassword(!showPassword)}
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#00664F" />
+        
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <Text style={styles.eyeIcon}>
-            {showPassword ? "👁️" : "👁️‍🗨️"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+          {/* Background Section with Hand Image */}
+          <View style={styles.backgroundSection}>
+            <View style={styles.illustrationContainer}>
+              <Image
+                source={require("../../assets/images/hand.png")}
+                style={styles.handImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
 
-      <View style={styles.roleRow}>
-        <TouchableOpacity
-          style={[styles.roleBtn, role === "admin" && styles.activeRole]}
-          onPress={() => setRole("admin")}
-        >
-          <Text>Admin</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.roleBtn, role === "employee" && styles.activeRole]}
-          onPress={() => setRole("employee")}
-        >
-          <Text>Employee</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Bottom White Card */}
+          <View style={styles.cardContainer}>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <View style={styles.card}>
+                {/* Title */}
+                <Text style={styles.cardTitle}>
+                  Login with Your <Text style={styles.roleHighlight}>Role</Text>
+                </Text>
 
-      <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
-        onPress={login}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={styles.buttonText}>Login</Text>
-        )}
-      </TouchableOpacity>
+                {/* Role Toggle */}
+                <View style={styles.roleToggleContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.roleButton,
+                      role === "admin" ? styles.roleButtonActive : styles.roleButtonInactive
+                    ]}
+                    onPress={() => setRole("admin")}
+                  >
+                    <Text style={[
+                      styles.roleButtonText,
+                      role === "admin" ? styles.roleButtonTextActive : styles.roleButtonTextInactive
+                    ]}>
+                      Admin
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.roleButton,
+                      role === "employee" ? styles.roleButtonActive : styles.roleButtonInactive
+                    ]}
+                    onPress={() => setRole("employee")}
+                  >
+                    <Text style={[
+                      styles.roleButtonText,
+                      role === "employee" ? styles.roleButtonTextActive : styles.roleButtonTextInactive
+                    ]}>
+                      Employee
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-      {role === "admin" && (
-        <Text
-          style={styles.link}
-          onPress={() => navigation.navigate("AdminSignup")}
-        >
-          Create Company Account
-        </Text>
-      )}
-    </ScrollView>
+                {/* Email Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    placeholder="Email"
+                    placeholderTextColor="#9CA3AF"
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
+
+                {/* Password Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    placeholder="Password"
+                    placeholderTextColor="#9CA3AF"
+                    style={[styles.input, styles.passwordInput]}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Image
+                      source={showPassword 
+                        ? require("../../assets/images/eye-open.png")
+                        : require("../../assets/images/eye-close.png")
+                      }
+                      style={styles.eyeIcon}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Login Button */}
+                <TouchableOpacity
+                  style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+                  onPress={login}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.loginButtonText}>Login</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                  <Text style={styles.footerText}>
+                    Want to create a company?{" "}
+                    <Text
+                      style={styles.signupLink}
+                      onPress={() => navigation.navigate("AdminSignup")}
+                    >
+                      SIGNUP
+                    </Text>
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC"
+    backgroundColor: "#00664F"
   },
-  content: {
-    padding: 24,
+  keyboardAvoidingView: {
+    flex: 1
+  },
+  backgroundSection: {
+    flex: 1,
+    position: "relative",
     justifyContent: "center",
+    alignItems: "center",
+    minHeight: height * 0.35
+  },
+  illustrationContainer: {
+    position: "absolute",
+    top: height * 0.02,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 2
+  },
+  handImage: {
+    width: Math.min(width * 0.95, 850),
+    height: Math.min(height * 0.55, 800),
+    maxWidth: 650,
+    maxHeight: 600
+  },
+  cardContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: Math.max(height * 0.65, 500),
+    zIndex: 3
+  },
+  scrollView: {
+    flex: 1
+  },
+  scrollContent: {
     flexGrow: 1
   },
-  backIcon: {
-    width: 24,
-    height: 24,
-    marginBottom: 15
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: getResponsiveSize(32),
+    borderTopRightRadius: getResponsiveSize(32),
+    paddingHorizontal: Math.max(width * 0.06, 20),
+    paddingTop: getResponsiveSize(32),
+    paddingBottom: getResponsiveSize(40),
+    minHeight: Math.max(height * 0.65, 500)
   },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
+  cardTitle: {
+    fontSize: getResponsiveFontSize(26),
+    fontWeight: "600",
     textAlign: "center",
-    marginBottom: 30
+    color: "#1F2937",
+    marginBottom: getResponsiveSize(28),
+    fontFamily: "System",
+    lineHeight: getResponsiveFontSize(32)
+  },
+  roleHighlight: {
+    color: "#00664F",
+    fontWeight: "700"
+  },
+  roleToggleContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: getResponsiveSize(28),
+    padding: getResponsiveSize(6),
+    marginBottom: getResponsiveSize(28)
+  },
+  roleButton: {
+    flex: 1,
+    paddingVertical: getResponsiveSize(14),
+    paddingHorizontal: getResponsiveSize(20),
+    borderRadius: getResponsiveSize(22),
+    alignItems: "center"
+  },
+  roleButtonActive: {
+    backgroundColor: "#00664F"
+  },
+  roleButtonInactive: {
+    backgroundColor: "transparent"
+  },
+  roleButtonText: {
+    fontSize: getResponsiveFontSize(16),
+    fontWeight: "600",
+    fontFamily: "System"
+  },
+  roleButtonTextActive: {
+    color: "#FFFFFF"
+  },
+  roleButtonTextInactive: {
+    color: "#6B7280"
+  },
+  inputContainer: {
+    position: "relative",
+    marginBottom: getResponsiveSize(18)
   },
   input: {
+    backgroundColor: "#F9FAFB",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15
-  },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    marginBottom: 15
+    borderColor: "#E5E7EB",
+    borderRadius: getResponsiveSize(18),
+    paddingHorizontal: getResponsiveSize(20),
+    paddingVertical: getResponsiveSize(16),
+    fontSize: getResponsiveFontSize(16),
+    color: "#1F2937",
+    fontFamily: "System",
+    minHeight: getResponsiveSize(50)
   },
   passwordInput: {
-    flex: 1,
-    padding: 12
+    paddingRight: getResponsiveSize(55)
   },
   eyeButton: {
-    padding: 12
+    position: "absolute",
+    right: getResponsiveSize(16),
+    top: getResponsiveSize(15),
+    padding: getResponsiveSize(6)
   },
   eyeIcon: {
-    fontSize: 18
+    width: getResponsiveSize(20),
+    height: getResponsiveSize(20),
+    tintColor: "#6B7280"
   },
-  roleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20
-  },
-  roleBtn: {
-    flex: 1,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
+  loginButton: {
+    backgroundColor: "#00664F",
+    borderRadius: getResponsiveSize(28),
+    paddingVertical: getResponsiveSize(18),
     alignItems: "center",
-    marginHorizontal: 5,
-    borderRadius: 6
+    marginTop: getResponsiveSize(12),
+    marginBottom: getResponsiveSize(24),
+    minHeight: getResponsiveSize(56)
   },
-  activeRole: {
-    backgroundColor: "#DBEAFE"
+  loginButtonDisabled: {
+    backgroundColor: "#9CA3AF"
   },
-  button: {
-    backgroundColor: "#2563EB",
-    padding: 14,
-    borderRadius: 8
+  loginButtonText: {
+    color: "#FFFFFF",
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: "700",
+    fontFamily: "System"
   },
-  buttonDisabled: {
-    backgroundColor: "#94A3B8",
-    opacity: 0.7
+  footer: {
+    alignItems: "center",
+    paddingTop: getResponsiveSize(8)
   },
-  buttonText: {
-    color: "#fff",
+  footerText: {
+    fontSize: getResponsiveFontSize(14),
+    color: "#6B7280",
+    fontFamily: "System",
     textAlign: "center",
-    fontWeight: "600"
+    lineHeight: getResponsiveFontSize(20)
   },
-  link: {
-    textAlign: "center",
-    marginTop: 15,
-    color: "#2563EB"
+  signupLink: {
+    color: "#00664F",
+    fontWeight: "700"
   }
 });
