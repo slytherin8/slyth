@@ -39,9 +39,33 @@ export default function AdminSignupScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [logo, setLogo] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  // Error states
+  const [companyNameError, setCompanyNameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
-  const isStrongPassword = (password) =>
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password);
+  // Validation functions
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  };
+
+  const isStrongPassword = (password) => {
+    const hasMinLength = password.length >= 8;
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecialChar = /[@$!%*?&]/.test(password);
+    
+    return hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
+  };
+
+  const clearErrors = () => {
+    setCompanyNameError("");
+    setEmailError("");
+    setPasswordError("");
+  };
 
   const pickLogo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -55,23 +79,30 @@ export default function AdminSignupScreen({ navigation }) {
   };
 
   const signup = async () => {
-    if (!companyName || !email || !password) {
-      Alert.alert("Validation Error", "All fields are required");
+    clearErrors();
+    
+    if (!companyName.trim()) {
+      setCompanyNameError("Please enter your company name");
       return;
     }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert("Validation Error", "Please enter a valid email address");
+    if (!email.trim()) {
+      setEmailError("Please enter your email address");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    if (!password.trim()) {
+      setPasswordError("Please enter your password");
       return;
     }
 
     if (!isStrongPassword(password)) {
-      Alert.alert(
-        "Weak Password",
-        "Password must contain uppercase, lowercase, number & special character"
-      );
+      setPasswordError("Password must contain at least 8 characters, including uppercase, lowercase, number, and special character");
       return;
     }
 
@@ -92,7 +123,12 @@ export default function AdminSignupScreen({ navigation }) {
       console.log("RAW RESPONSE:", text);
 
       if (!res.ok) {
-        Alert.alert("Server Error", text);
+        // Handle specific error messages
+        if (res.status === 409 || text.includes("already exists") || text.includes("already registered")) {
+          setEmailError("Email already registered. Please login");
+        } else {
+          Alert.alert("Server Error", text);
+        }
         return;
       }
 
@@ -157,11 +193,15 @@ export default function AdminSignupScreen({ navigation }) {
                   <TextInput
                     placeholder="Company name"
                     placeholderTextColor="#9CA3AF"
-                    style={styles.input}
+                    style={[styles.input, companyNameError && styles.inputError]}
                     value={companyName}
-                    onChangeText={setCompanyName}
+                    onChangeText={(text) => {
+                      setCompanyName(text);
+                      if (companyNameError) setCompanyNameError("");
+                    }}
                     autoCapitalize="words"
                   />
+                  {companyNameError ? <Text style={styles.errorText}>{companyNameError}</Text> : null}
                 </View>
 
                 {/* Email Input */}
@@ -169,12 +209,16 @@ export default function AdminSignupScreen({ navigation }) {
                   <TextInput
                     placeholder="Email"
                     placeholderTextColor="#9CA3AF"
-                    style={styles.input}
+                    style={[styles.input, emailError && styles.inputError]}
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (emailError) setEmailError("");
+                    }}
                     autoCapitalize="none"
                     keyboardType="email-address"
                   />
+                  {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
                 </View>
 
                 {/* Password Input */}
@@ -182,9 +226,12 @@ export default function AdminSignupScreen({ navigation }) {
                   <TextInput
                     placeholder="Password"
                     placeholderTextColor="#9CA3AF"
-                    style={[styles.input, styles.passwordInput]}
+                    style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (passwordError) setPasswordError("");
+                    }}
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity
@@ -200,6 +247,7 @@ export default function AdminSignupScreen({ navigation }) {
                       resizeMode="contain"
                     />
                   </TouchableOpacity>
+                  {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
                 </View>
 
                 {/* Create Company Button */}
@@ -297,6 +345,7 @@ const styles = StyleSheet.create({
     fontFamily: "System",
     lineHeight: getResponsiveFontSize(32)
   },
+  
   titleAccent: {
     color: "#00664F",
     fontWeight: "700"
@@ -392,5 +441,16 @@ const styles = StyleSheet.create({
   loginLink: {
     color: "#00664F",
     fontWeight: "700"
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    borderWidth: 2
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: getResponsiveFontSize(12),
+    marginTop: getResponsiveSize(4),
+    marginLeft: getResponsiveSize(4),
+    fontFamily: "System"
   }
 });
