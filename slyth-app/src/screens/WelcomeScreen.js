@@ -84,10 +84,10 @@ const styles = StyleSheet.create({
     minHeight: height * 0.5, // Increased minimum height
   },
   handImage: {
-    width: Math.min(width * 0.95, 900), // Increased from 0.85 to 0.95 and maxWidth to 700
-    height: Math.min(width * 0.95, height * 0.6), // Increased height ratio to 0.6
-    maxWidth: 800, // Increased from 550
-    maxHeight: 900, // Increased from 700
+    width: Math.min(width * 1.0, 950), // Increased to full width and larger maxWidth
+    height: Math.min(width * 1.0, height * 0.65), // Increased height ratio
+    maxWidth: 950, // Increased from 800
+    maxHeight: 950, // Increased from 900
   },
   bottomCard: {
     backgroundColor: '#FFFFFF',
