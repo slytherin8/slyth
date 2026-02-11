@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import {
   View,
   TextInput,
@@ -5,40 +6,102 @@ import {
   Text,
   StyleSheet,
   Alert,
-  ScrollView,
   Image,
-  Platform
+  Dimensions,
+  StatusBar
 } from "react-native";
-import { useState } from "react";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
-
 import { API } from "../constants/api";
 
+const { width, height } = Dimensions.get('window');
 
+// Responsive helper functions
+const getResponsiveSize = (size) => {
+  const scale = width / 375;
+  return Math.round(size * scale);
+};
 
-
-
+const getResponsiveFontSize = (size) => {
+  const scale = width / 375;
+  const newSize = size * scale;
+  return Math.max(newSize, size * 0.85);
+};
 
 export default function CreateEmployeeScreen({ navigation }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [company, setCompany] = useState({});
+  
+  // Error states
+  const [nameError, setNameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
-  // 🔐 Strong password check
+  useEffect(() => {
+    fetchCompany();
+  }, []);
+
+  const fetchCompany = async () => {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API}/api/auth/company`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setCompany(data);
+    } catch (err) {
+      console.log("COMPANY FETCH ERROR", err);
+      setCompany({});
+    }
+  };
+
+  // Validation functions
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  };
+
   const isStrongPassword = (password) => {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password);
   };
 
+  const clearErrors = () => {
+    setNameError("");
+    setEmailError("");
+    setPasswordError("");
+  };
+
   const createEmployee = async () => {
-    if (!name || !email || !password) {
-      return Alert.alert("All fields are required");
+    clearErrors();
+    
+    // Validation
+    if (!name.trim()) {
+      setNameError("Employee name is required");
+      return;
+    }
+
+    if (!email.trim()) {
+      setEmailError("Employee email is required");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    if (!password.trim()) {
+      setPasswordError("Employee password is required");
+      return;
     }
 
     if (!isStrongPassword(password)) {
-      return Alert.alert(
-        "Weak Password",
-        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
-      );
+      setPasswordError("Password must contain at least 8 characters, including uppercase, lowercase, number, and special character");
+      return;
     }
 
     const token = await AsyncStorage.getItem("token");
@@ -50,19 +113,9 @@ export default function CreateEmployeeScreen({ navigation }) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       console.log("Current user from token:", payload);
-      console.log("User role:", payload.role);
-      console.log("User ID:", payload.id);
 
       if (payload.role !== 'admin') {
-        return Alert.alert(
-          "Access Denied",
-          "You need admin privileges. Please login as admin.",
-          [
-            { text: "Create Admin Account", onPress: createTestAdmin },
-            { text: "Go to Login", onPress: () => navigation.navigate("Login") },
-            { text: "Cancel" }
-          ]
-        );
+        return Alert.alert("Access Denied", "You need admin privileges to create employees.");
       }
     } catch (e) {
       console.log("Invalid token format:", e);
@@ -77,7 +130,11 @@ export default function CreateEmployeeScreen({ navigation }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ 
+          name: name.trim(), 
+          email: email.trim().toLowerCase(), 
+          password: password.trim() 
+        })
       });
 
       console.log("Response status:", res.status);
@@ -88,150 +145,220 @@ export default function CreateEmployeeScreen({ navigation }) {
         console.log("BACKEND ERROR:", data);
 
         if (res.status === 403) {
-          return Alert.alert(
-            "Access Denied",
-            "You need admin privileges to create employees. Please login as admin.",
-            [
-              { text: "Create Admin Account", onPress: createTestAdmin },
-              { text: "Go to Login", onPress: () => navigation.navigate("Login") },
-              { text: "Cancel" }
-            ]
-          );
+          return Alert.alert("Access Denied", "You need admin privileges to create employees.");
+        }
+
+        if (res.status === 409 || data.message?.includes("already exists") || data.message?.includes("already registered")) {
+          setEmailError("Email already registered");
+          return;
         }
 
         return Alert.alert("Error", data.message || "Failed to create employee");
       }
 
+      Alert.alert("Success! 🎉", "Employee created successfully", [
+        {
+          text: "OK",
+          onPress: () => {
+            // Reset form
+            setName("");
+            setEmail("");
+            setPassword("");
+            // Navigate back to dashboard
+            navigation.goBack();
+          }
+        }
+      ]);
 
-      Alert.alert("Success", "Employee created successfully ✅");
-
-      // Reset form
-      setName("");
-      setEmail("");
-      setPassword("");
     } catch (error) {
       console.log("Network error:", error);
-      Alert.alert("Network Error", "Please check if the server is running.");
-    }
-  };
-
-  const createTestAdmin = async () => {
-    try {
-      const response = await fetch(`${API}/api/auth/admin-signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyName: "Test Company",
-          email: "admin@test.com",
-          password: "Admin123!",
-          logo: null
-        })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        Alert.alert(
-          "Admin Created!",
-          "Test admin account created:\n\nEmail: admin@test.com\nPassword: Admin123!\n\nPlease login with these credentials.",
-          [
-            { text: "Go to Login", onPress: () => navigation.navigate("Login") }
-          ]
-        );
-      } else {
-        Alert.alert("Error", data.message);
-      }
-    } catch (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert("Network Error", `Server not reachable at ${API}. Please check your connection.`);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={true}
-      >
-        {/* 🔙 Back Button */}
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Image
-            source={require("../../assets/images/back.png")}
-            style={{ width: 24, height: 24, marginBottom: 20 }}
-          />
-        </TouchableOpacity>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Image
+              source={require("../../assets/images/back.png")}
+              style={styles.backIcon}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+          
+          <Text style={styles.headerTitle}>New Employee</Text>
+          
+          <View style={styles.companyLogoContainer}>
+            {company?.logo ? (
+              <Image source={{ uri: company.logo }} style={styles.companyLogo} />
+            ) : (
+              <View style={styles.defaultLogo}>
+                <Text style={styles.defaultLogoText}>$</Text>
+              </View>
+            )}
+          </View>
+        </View>
 
-        <Text style={styles.title}>Create Employee</Text>
+        {/* Form Section */}
+        <View style={styles.formContainer}>
+          <View style={styles.inputContainer}>
+            {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+            <TextInput
+              placeholder="Enter employee name"
+              placeholderTextColor="#9CA3AF"
+              style={[styles.input, nameError && styles.inputError]}
+              value={name}
+              onChangeText={(text) => {
+                setName(text);
+                if (nameError) setNameError("");
+              }}
+              autoCapitalize="words"
+            />
+          </View>
 
-        <TextInput
-          placeholder="Employee Name"
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-        />
+          <View style={styles.inputContainer}>
+            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+            <TextInput
+              placeholder="Enter employee email"
+              placeholderTextColor="#9CA3AF"
+              style={[styles.input, emailError && styles.inputError]}
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) setEmailError("");
+              }}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
 
-        <TextInput
-          placeholder="Employee Email"
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-        />
+          <View style={styles.inputContainer}>
+            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            <TextInput
+              placeholder="Enter employee password"
+              placeholderTextColor="#9CA3AF"
+              style={[styles.input, passwordError && styles.inputError]}
+              secureTextEntry
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError("");
+              }}
+            />
+          </View>
 
-        <TextInput
-          placeholder="Temporary Password"
-          style={styles.input}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <TouchableOpacity style={styles.button} onPress={createEmployee}>
-          <Text style={styles.buttonText}>Create Employee</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+          <TouchableOpacity style={styles.createButton} onPress={createEmployee}>
+            <Text style={styles.createButtonText}>Create Employee</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC"
+    backgroundColor: "#F5F5F5"
   },
-  scrollView: {
-    flex: 1,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: getResponsiveSize(20),
+    paddingVertical: getResponsiveSize(16),
+    backgroundColor: "#F5F5F5"
   },
-  content: {
-    padding: 24,
-    paddingBottom: 100,
-    flexGrow: 1
+  backButton: {
+    padding: getResponsiveSize(8)
   },
   backIcon: {
-    width: 24,
-    height: 24,
-    marginBottom: 20
+    width: getResponsiveSize(24),
+    height: getResponsiveSize(24),
+    tintColor: "#374151"
   },
-  title: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: "600",
+    color: "#1F2937",
+    fontFamily: "Inter-SemiBold"
+  },
+  companyLogoContainer: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  companyLogo: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    borderRadius: getResponsiveSize(20)
+  },
+  defaultLogo: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    borderRadius: getResponsiveSize(20),
+    backgroundColor: "#E5F3F0",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  defaultLogoText: {
+    fontSize: getResponsiveFontSize(16),
     fontWeight: "700",
-    marginBottom: 20
+    color: "#00664F",
+    fontFamily: "Inter-Bold"
+  },
+  formContainer: {
+    flex: 1,
+    paddingHorizontal: getResponsiveSize(20),
+    paddingTop: getResponsiveSize(40)
+  },
+  inputContainer: {
+    marginBottom: getResponsiveSize(24)
   },
   input: {
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15
+    borderColor: "#E5E7EB",
+    borderRadius: getResponsiveSize(28),
+    paddingHorizontal: getResponsiveSize(24),
+    paddingVertical: getResponsiveSize(18),
+    fontSize: getResponsiveFontSize(16),
+    color: "#1F2937",
+    fontFamily: "Inter-Regular",
+    minHeight: getResponsiveSize(56)
   },
-  button: {
-    backgroundColor: "#2563EB",
-    padding: 14,
-    borderRadius: 8,
-    marginTop: 10
+  createButton: {
+    backgroundColor: "#00664F",
+    borderRadius: getResponsiveSize(28),
+    paddingVertical: getResponsiveSize(18),
+    alignItems: "center",
+    marginTop: getResponsiveSize(40),
+    minHeight: getResponsiveSize(56)
   },
-  buttonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600"
+  createButtonText: {
+    color: "#FFFFFF",
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: "600",
+    fontFamily: "Inter-SemiBold"
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    borderWidth: 2
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: getResponsiveFontSize(12),
+    marginBottom: getResponsiveSize(8),
+    marginLeft: getResponsiveSize(4),
+    fontFamily: "Inter-Regular"
   }
 });
