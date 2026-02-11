@@ -210,7 +210,7 @@ export default function CreateEmployeeScreen({ navigation }) {
         {/* Form Section */}
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
-            {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+            <Text style={styles.inputLabel}>Employee name</Text>
             <TextInput
               placeholder="Enter employee name"
               placeholderTextColor="#9CA3AF"
@@ -222,10 +222,11 @@ export default function CreateEmployeeScreen({ navigation }) {
               }}
               autoCapitalize="words"
             />
+            {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
           </View>
 
           <View style={styles.inputContainer}>
-            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+            <Text style={styles.inputLabel}>Employee Email</Text>
             <TextInput
               placeholder="Enter employee email"
               placeholderTextColor="#9CA3AF"
@@ -238,10 +239,11 @@ export default function CreateEmployeeScreen({ navigation }) {
               autoCapitalize="none"
               keyboardType="email-address"
             />
+            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
           </View>
 
           <View style={styles.inputContainer}>
-            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            <Text style={styles.inputLabel}>Employee Password</Text>
             <TextInput
               placeholder="Enter employee password"
               placeholderTextColor="#9CA3AF"
@@ -253,6 +255,7 @@ export default function CreateEmployeeScreen({ navigation }) {
                 if (passwordError) setPasswordError("");
               }}
             />
+            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
           </View>
 
           <TouchableOpacity style={styles.createButton} onPress={createEmployee}>
@@ -324,6 +327,14 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: getResponsiveSize(24)
   },
+  inputLabel: {
+    fontSize: getResponsiveFontSize(14),
+    fontWeight: "500",
+    color: "#374151",
+    fontFamily: "Inter-Medium",
+    marginBottom: getResponsiveSize(16),
+    marginLeft: getResponsiveSize(4)
+  },
   input: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -357,7 +368,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#EF4444",
     fontSize: getResponsiveFontSize(12),
-    marginBottom: getResponsiveSize(8),
+    marginTop: getResponsiveSize(8),
     marginLeft: getResponsiveSize(4),
     fontFamily: "Inter-Regular"
   }
