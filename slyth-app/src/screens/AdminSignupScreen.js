@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,20 +7,38 @@ import {
   StyleSheet,
   Alert,
   Image,
+  ActivityIndicator,
+  StatusBar,
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView,
   ScrollView
 } from "react-native";
-import { useState } from "react";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from "expo-image-picker";
-
-
 import { API } from "../constants/api";
 
+const { width, height } = Dimensions.get('window');
+
+// Responsive helper functions
+const getResponsiveSize = (size) => {
+  const scale = width / 375; // Base width (iPhone X)
+  return Math.round(size * scale);
+};
+
+const getResponsiveFontSize = (size) => {
+  const scale = width / 375;
+  const newSize = size * scale;
+  return Math.max(newSize, size * 0.85); // Minimum 85% of original size
+};
 
 export default function AdminSignupScreen({ navigation }) {
   const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [logo, setLogo] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const isStrongPassword = (password) =>
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password);
@@ -37,7 +56,14 @@ export default function AdminSignupScreen({ navigation }) {
 
   const signup = async () => {
     if (!companyName || !email || !password) {
-      Alert.alert("All fields required");
+      Alert.alert("Validation Error", "All fields are required");
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Validation Error", "Please enter a valid email address");
       return;
     }
 
@@ -49,14 +75,15 @@ export default function AdminSignupScreen({ navigation }) {
       return;
     }
 
+    setLoading(true);
     try {
       const res = await fetch(`${API}/api/auth/admin-signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyName,
-          email,
-          password,
+          companyName: companyName.trim(),
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
           logo
         })
       });
@@ -69,124 +96,301 @@ export default function AdminSignupScreen({ navigation }) {
         return;
       }
 
-      Alert.alert("Success", "Company created successfully");
+      Alert.alert("Success! 🎉", "Company created successfully");
       navigation.replace("Login");
     } catch (error) {
       console.log("SIGNUP ERROR:", error);
-      Alert.alert("Network Error", error.message);
+      Alert.alert("Network Error", `Server not reachable at ${API}. Please check your connection.`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
-    >
-      {/* 🔙 Back Button */}
-      <TouchableOpacity
-        onPress={() => navigation.goBack()}
-        style={styles.backBtn}
-      >
-        <Image
-          source={require("../../assets/images/back.png")}
-          style={styles.backIcon}
-        />
-      </TouchableOpacity>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#00664F" />
+        
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          {/* Background Section with Hand Image */}
+          <View style={styles.backgroundSection}>
+            <View style={styles.illustrationContainer}>
+              <Image
+                source={require("../../assets/images/hand.png")}
+                style={styles.handImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
 
-      <Text style={styles.title}>Create Company Account</Text>
+          {/* Bottom White Card */}
+          <View style={styles.cardContainer}>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <View style={styles.card}>
+                {/* Title */}
+                <Text style={styles.cardTitle}>
+                  Create Your <Text style={styles.titleAccent}>Company</Text>.
+                </Text>
 
-      <TextInput
-        placeholder="Company Name"
-        style={styles.input}
-        onChangeText={setCompanyName}
-      />
+                {/* Logo Selection */}
+                <TouchableOpacity style={styles.logoContainer} onPress={pickLogo}>
+                  {logo ? (
+                    <Image source={{ uri: logo }} style={styles.logoPreview} />
+                  ) : (
+                    <View style={styles.logoPlaceholder}>
+                      <Text style={styles.logoPlaceholderText}>$</Text>
+                    </View>
+                  )}
+                  <Text style={styles.logoSelectText}>Select logo</Text>
+                </TouchableOpacity>
 
-      <TextInput
-        placeholder="Admin Email"
-        style={styles.input}
-        autoCapitalize="none"
-        onChangeText={setEmail}
-      />
+                {/* Company Name Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    placeholder="Company name"
+                    placeholderTextColor="#9CA3AF"
+                    style={styles.input}
+                    value={companyName}
+                    onChangeText={setCompanyName}
+                    autoCapitalize="words"
+                  />
+                </View>
 
-      <TextInput
-        placeholder="Password"
-        style={styles.input}
-        secureTextEntry
-        onChangeText={setPassword}
-      />
+                {/* Email Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    placeholder="Email"
+                    placeholderTextColor="#9CA3AF"
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
 
-      <TouchableOpacity style={styles.logoBtn} onPress={pickLogo}>
-        <Text>Select Company Logo</Text>
-      </TouchableOpacity>
+                {/* Password Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    placeholder="Password"
+                    placeholderTextColor="#9CA3AF"
+                    style={[styles.input, styles.passwordInput]}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Image
+                      source={showPassword 
+                        ? require("../../assets/images/eye-open.png")
+                        : require("../../assets/images/eye-close.png")
+                      }
+                      style={styles.eyeIcon}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                </View>
 
-      {logo && <Image source={{ uri: logo }} style={styles.logoPreview} />}
+                {/* Create Company Button */}
+                <TouchableOpacity
+                  style={[styles.createButton, loading && styles.createButtonDisabled]}
+                  onPress={signup}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.createButtonText}>Create Company</Text>
+                  )}
+                </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={signup}>
-        <Text style={styles.buttonText}>Create Account</Text>
-      </TouchableOpacity>
-    </ScrollView>
+                {/* Footer */}
+                <View style={styles.footer}>
+                  <Text style={styles.footerText}>
+                    Already have an account?{" "}
+                    <Text
+                      style={styles.loginLink}
+                      onPress={() => navigation.navigate("Login")}
+                    >
+                      LOGIN
+                    </Text>
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
-/* ✅ STYLES (THIS WAS MISSING) */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#00664F"
   },
-  contentContainer: {
-    padding: 24,
+  keyboardAvoidingView: {
+    flex: 1
+  },
+  backgroundSection: {
+    flex: 1,
+    position: "relative",
     justifyContent: "center",
-    flexGrow: 1,
-    paddingTop: 80
-  },
-  backBtn: {
-    position: "absolute",
-    top: 40,
-    left: 20,
-    zIndex: 10
-  },
-  backIcon: {
-    width: 24,
-    height: 24
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 25
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15
-  },
-  logoBtn: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
     alignItems: "center",
-    marginBottom: 10
+    minHeight: height * 0.35
+  },
+  illustrationContainer: {
+    position: "absolute",
+    top: height * 0.05,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 2
+  },
+  handImage: {
+    width: Math.min(width * 0.85, 700),
+    height: Math.min(height * 0.35, 550),
+    maxWidth: 600,
+    maxHeight: 450
+  },
+  cardContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: Math.max(height * 0.75, 600),
+    zIndex: 3
+  },
+  scrollView: {
+    flex: 1
+  },
+  scrollContent: {
+    flexGrow: 1
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: getResponsiveSize(32),
+    borderTopRightRadius: getResponsiveSize(32),
+    paddingHorizontal: Math.max(width * 0.06, 20),
+    paddingTop: getResponsiveSize(32),
+    paddingBottom: getResponsiveSize(40),
+    minHeight: Math.max(height * 0.75, 600)
+  },
+  cardTitle: {
+    fontSize: getResponsiveFontSize(26),
+    fontWeight: "600",
+    textAlign: "center",
+    color: "#1F2937",
+    marginBottom: getResponsiveSize(32),
+    fontFamily: "System",
+    lineHeight: getResponsiveFontSize(32)
+  },
+  titleAccent: {
+    color: "#00664F",
+    fontWeight: "700"
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: getResponsiveSize(32)
+  },
+  logoPlaceholder: {
+    width: getResponsiveSize(80),
+    height: getResponsiveSize(80),
+    borderRadius: getResponsiveSize(40),
+    backgroundColor: "#E5F3F0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: getResponsiveSize(8)
+  },
+  logoPlaceholderText: {
+    fontSize: getResponsiveFontSize(32),
+    fontWeight: "700",
+    color: "#00664F"
   },
   logoPreview: {
-    width: 80,
-    height: 80,
-    alignSelf: "center",
-    marginBottom: 15,
-    borderRadius: 10
+    width: getResponsiveSize(80),
+    height: getResponsiveSize(80),
+    borderRadius: getResponsiveSize(40),
+    marginBottom: getResponsiveSize(8)
   },
-  button: {
-    backgroundColor: "#2563EB",
-    padding: 14,
-    borderRadius: 8
+  logoSelectText: {
+    fontSize: getResponsiveFontSize(14),
+    color: "#6B7280",
+    fontFamily: "System"
   },
-  buttonText: {
-    color: "#fff",
+  inputContainer: {
+    position: "relative",
+    marginBottom: getResponsiveSize(18)
+  },
+  input: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: getResponsiveSize(18),
+    paddingHorizontal: getResponsiveSize(20),
+    paddingVertical: getResponsiveSize(16),
+    fontSize: getResponsiveFontSize(16),
+    color: "#1F2937",
+    fontFamily: "System",
+    minHeight: getResponsiveSize(50)
+  },
+  passwordInput: {
+    paddingRight: getResponsiveSize(55)
+  },
+  eyeButton: {
+    position: "absolute",
+    right: getResponsiveSize(16),
+    top: getResponsiveSize(15),
+    padding: getResponsiveSize(6)
+  },
+  eyeIcon: {
+    width: getResponsiveSize(20),
+    height: getResponsiveSize(20),
+    tintColor: "#6B7280"
+  },
+  createButton: {
+    backgroundColor: "#00664F",
+    borderRadius: getResponsiveSize(28),
+    paddingVertical: getResponsiveSize(18),
+    alignItems: "center",
+    marginTop: getResponsiveSize(12),
+    marginBottom: getResponsiveSize(24),
+    minHeight: getResponsiveSize(56)
+  },
+  createButtonDisabled: {
+    backgroundColor: "#9CA3AF"
+  },
+  createButtonText: {
+    color: "#FFFFFF",
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: "700",
+    fontFamily: "System"
+  },
+  footer: {
+    alignItems: "center",
+    paddingTop: getResponsiveSize(8)
+  },
+  footerText: {
+    fontSize: getResponsiveFontSize(14),
+    color: "#6B7280",
+    fontFamily: "System",
     textAlign: "center",
-    fontWeight: "600"
+    lineHeight: getResponsiveFontSize(20)
+  },
+  loginLink: {
+    color: "#00664F",
+    fontWeight: "700"
   }
 });
