@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   StatusBar
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from "../utils/storage";
 import api from "../services/api";
 import { API } from "../constants/api";
@@ -39,6 +40,13 @@ export default function AdminDashboard({ navigation }) {
     fetchCompany();
     fetchEmployees();
   }, []);
+
+  // Refresh employees when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchEmployees();
+    }, [])
+  );
 
   const fetchCompany = async () => {
     const token = await AsyncStorage.getItem("token");
@@ -81,6 +89,49 @@ export default function AdminDashboard({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const deleteEmployee = async (employeeId, employeeName) => {
+    console.log("Delete employee called:", employeeId, employeeName);
+    Alert.alert(
+      "Delete Employee",
+      `Do you want to delete ${employeeName}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "OK",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("Deleting employee:", employeeId);
+              const token = await AsyncStorage.getItem("token");
+              const res = await fetch(`${API}/api/auth/employees/${employeeId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+              });
+
+              console.log("Delete response status:", res.status);
+
+              if (!res.ok) {
+                const data = await res.json();
+                console.log("Delete error:", data);
+                return Alert.alert("Error", data.message || "Failed to delete employee");
+              }
+
+              // Remove employee from list instantly
+              setEmployees(prev => prev.filter(emp => emp._id !== employeeId));
+              Alert.alert("Success", "Employee deleted successfully");
+            } catch (error) {
+              console.log("Delete employee error:", error);
+              Alert.alert("Error", "Failed to delete employee. Please try again.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   const featureCards = [
@@ -140,11 +191,7 @@ export default function AdminDashboard({ navigation }) {
   );
 
   const renderEmployee = ({ item }) => (
-    <TouchableOpacity
-      style={styles.employeeItem}
-      onPress={() => navigation.navigate("EmployeeWork", { employeeId: item._id })}
-      activeOpacity={0.7}
-    >
+    <View style={styles.employeeItem}>
       <View style={styles.employeeLeft}>
         <View style={styles.employeeAvatar}>
           {item.profile?.avatar ? (
@@ -162,12 +209,18 @@ export default function AdminDashboard({ navigation }) {
           <Text style={styles.employeeEmail}>{item.email}</Text>
         </View>
       </View>
-      <Image
-        source={require("../../assets/images/right-arrow.png")}
-        style={styles.arrowIcon}
-        resizeMode="contain"
-      />
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => deleteEmployee(item._id, item.profile?.name || item.name || "Unknown")}
+        activeOpacity={0.7}
+      >
+        <Image
+          source={require("../../assets/images/delete.png")}
+          style={styles.deleteIcon}
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -446,6 +499,16 @@ const styles = StyleSheet.create({
     width: getResponsiveSize(16),
     height: getResponsiveSize(16),
     tintColor: "#9CA3AF"
+  },
+  deleteButton: {
+    padding: getResponsiveSize(12),
+    backgroundColor: "#FEF2F2",
+    borderRadius: getResponsiveSize(8)
+  },
+  deleteIcon: {
+    width: getResponsiveSize(24),
+    height: getResponsiveSize(24),
+    tintColor: "#EF4444"
   },
   emptyState: {
     alignItems: "center",
