@@ -7,7 +7,7 @@ const getApiUrl = () => {
     return "http://localhost:3000";
   } else {
    
-    const YOUR_COMPUTER_IP = "10.96.161.219";
+    const YOUR_COMPUTER_IP = "10.142.237.219";
     
     return `http://${YOUR_COMPUTER_IP}:3000`;
   }
