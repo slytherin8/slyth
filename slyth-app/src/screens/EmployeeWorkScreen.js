@@ -182,7 +182,7 @@ export default function EmployeeWorkScreen({ navigation }) {
       <View style={styles.flex1}>
         <View style={styles.wsHeaderStrip}>
           <TouchableOpacity onPress={() => setSelectedProject(null)}>
-            <Image source={require("../../assets/images/back.png")} style={styles.backIcon} />
+            <Image source={require("../../assets/images/back-arrow.png")} style={styles.backIcon} />
           </TouchableOpacity>
           <Text style={styles.wsHeaderTitle}>{selectedProject.name}</Text>
           <View style={styles.placeholderIcon} />
