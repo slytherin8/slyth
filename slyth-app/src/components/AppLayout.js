@@ -72,7 +72,7 @@ export default function AppLayout({
         {/* 🔙 BACK */}
         <TouchableOpacity onPress={onBack || (() => navigation.goBack())}>
           <Image
-            source={require("../../assets/images/back.png")}
+            source={require("../../assets/images/back-arrow.png")}
             style={styles.backIcon}
           />
         </TouchableOpacity>
