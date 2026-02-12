@@ -32,6 +32,7 @@ export default function CreateEmployeeScreen({ navigation }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [company, setCompany] = useState({});
   
   // Error states
@@ -124,6 +125,12 @@ export default function CreateEmployeeScreen({ navigation }) {
 
     try {
       console.log("Making request to create employee...");
+      console.log("Request data:", { 
+        name: name.trim(), 
+        email: email.trim().toLowerCase(), 
+        password: "***hidden***" 
+      });
+      
       const res = await fetch(`${API}/api/auth/create-employee`, {
         method: "POST",
         headers: {
@@ -138,14 +145,36 @@ export default function CreateEmployeeScreen({ navigation }) {
       });
 
       console.log("Response status:", res.status);
-      const data = await res.json();
-      console.log("Response data:", data);
+      console.log("Response headers:", res.headers);
+      
+      const responseText = await res.text();
+      console.log("Raw response:", responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.log("Failed to parse response as JSON:", parseError);
+        data = { message: responseText };
+      }
+      
+      console.log("Parsed response data:", data);
 
       if (!res.ok) {
         console.log("BACKEND ERROR:", data);
 
         if (res.status === 403) {
           return Alert.alert("Access Denied", "You need admin privileges to create employees.");
+        }
+
+        if (res.status === 400) {
+          if (data.message?.includes("All fields required")) {
+            return Alert.alert("Validation Error", "Please fill in all fields");
+          }
+          if (data.message?.includes("already exists")) {
+            setEmailError("Email already registered");
+            return;
+          }
         }
 
         if (res.status === 409 || data.message?.includes("already exists") || data.message?.includes("already registered")) {
@@ -156,7 +185,7 @@ export default function CreateEmployeeScreen({ navigation }) {
         return Alert.alert("Error", data.message || "Failed to create employee");
       }
 
-      Alert.alert("Success! 🎉", "Employee created successfully", [
+      Alert.alert("Success", "Bro employee created", [
         {
           text: "OK",
           onPress: () => {
@@ -244,17 +273,32 @@ export default function CreateEmployeeScreen({ navigation }) {
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Employee Password</Text>
-            <TextInput
-              placeholder="Enter employee password"
-              placeholderTextColor="#9CA3AF"
-              style={[styles.input, passwordError && styles.inputError]}
-              secureTextEntry
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (passwordError) setPasswordError("");
-              }}
-            />
+            <View style={styles.passwordInputContainer}>
+              <TextInput
+                placeholder="Enter employee password"
+                placeholderTextColor="#9CA3AF"
+                style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError("");
+                }}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Image
+                  source={showPassword 
+                    ? require("../../assets/images/eye-open.png")
+                    : require("../../assets/images/eye-close.png")
+                  }
+                  style={styles.eyeIcon}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
             {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
           </View>
 
@@ -346,6 +390,23 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     fontFamily: "Inter-Regular",
     minHeight: getResponsiveSize(56)
+  },
+  passwordInputContainer: {
+    position: "relative"
+  },
+  passwordInput: {
+    paddingRight: getResponsiveSize(55)
+  },
+  eyeButton: {
+    position: "absolute",
+    right: getResponsiveSize(16),
+    top: getResponsiveSize(18),
+    padding: getResponsiveSize(6)
+  },
+  eyeIcon: {
+    width: getResponsiveSize(20),
+    height: getResponsiveSize(20),
+    tintColor: "#6B7280"
   },
   createButton: {
     backgroundColor: "#00664F",
