@@ -1,250 +1,255 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
+  StyleSheet,
+  Image,
+  Dimensions,
+  StatusBar,
   Alert,
-  ScrollView,
-  Linking,
-  TextInput,
+  Linking
 } from "react-native";
-import AppLayout from "../components/AppLayout";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from "../utils/storage";
+import { API } from "../constants/api";
+
+const { width, height } = Dimensions.get('window');
+
+// Responsive helper functions
+const getResponsiveSize = (size) => {
+  const scale = width / 375;
+  return Math.round(size * scale);
+};
+
+const getResponsiveFontSize = (size) => {
+  const scale = width / 375;
+  const newSize = size * scale;
+  return Math.max(newSize, size * 0.85);
+};
 
 export default function EmployeeMeetScreen({ navigation }) {
-  const [meetingId, setMeetingId] = useState("");
-  const [isJoining, setIsJoining] = useState(false);
+  const [company, setCompany] = useState({});
 
-  const joinGoogleMeet = async () => {
+  useEffect(() => {
+    fetchCompany();
+  }, []);
+
+  const fetchCompany = async () => {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) return;
+
     try {
-      // Always use HTTPS URL for web compatibility
-      await Linking.openURL('https://meet.google.com');
-    } catch (error) {
-      console.error("Error opening Google Meet:", error);
-      Alert.alert("Error", "Could not open Google Meet. Please try again.");
+      const res = await fetch(`${API}/api/auth/company`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setCompany(data);
+    } catch (err) {
+      console.log("COMPANY FETCH ERROR", err);
+      setCompany({});
     }
   };
 
-  const joinWithMeetingId = async () => {
-    if (!meetingId.trim()) {
-      Alert.alert("Missing Meeting ID", "Please enter a meeting ID or link");
-      return;
-    }
-
-    setIsJoining(true);
+  const handleConnectToMeet = async () => {
     try {
-      let meetLink = meetingId.trim();
+      console.log("Attempting to open Google Meet...");
       
-      // If it's just a meeting ID (like "abc-defg-hij"), construct the full URL
-      if (!meetLink.startsWith('http')) {
-        // Remove any spaces or special characters except hyphens
-        const cleanId = meetLink.replace(/[^a-zA-Z0-9-]/g, '');
-        meetLink = `https://meet.google.com/${cleanId}`;
+      // Try multiple approaches for better Expo compatibility
+      const meetUrls = [
+        'googlemeet://', // Try Google Meet app first
+        'https://meet.google.com', // Fallback to web
+      ];
+      
+      let opened = false;
+      
+      for (const url of meetUrls) {
+        try {
+          const canOpen = await Linking.canOpenURL(url);
+          console.log(`Can open ${url}:`, canOpen);
+          
+          if (canOpen) {
+            await Linking.openURL(url);
+            opened = true;
+            break;
+          }
+        } catch (error) {
+          console.log(`Failed to open ${url}:`, error);
+          continue;
+        }
       }
       
-      // Always use HTTPS URL for web compatibility
-      await Linking.openURL(meetLink);
-      
-      Alert.alert(
-        "Joining Meeting! 🎉",
-        "Google Meet has been opened. You should now be joining the meeting.",
-        [{ text: "OK" }]
-      );
-    } catch (error) {
-      console.error("Error joining meeting:", error);
-      Alert.alert(
-        "Error",
-        "Could not join the meeting. Please check the meeting ID/link and try again."
-      );
-    } finally {
-      setIsJoining(false);
-    }
-  };
-
-  const openGoogleMeetApp = async () => {
-    try {
-      // Always use HTTPS URL for web compatibility
-      await Linking.openURL('https://meet.google.com');
-      Alert.alert(
-        "Google Meet Opened! 📱",
-        "Google Meet has been opened in your browser. You can now join or start meetings.",
-        [{ text: "OK" }]
-      );
+      if (opened) {
+        Alert.alert(
+          "Opening Google Meet! 🎉",
+          "Google Meet is opening. You can now join meetings or browse available meetings.",
+          [{ text: "OK" }]
+        );
+      } else {
+        // If all fails, show instructions
+        Alert.alert(
+          "Google Meet",
+          "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Join a meeting with the meeting ID\n4. Or browse available meetings",
+          [{ text: "OK" }]
+        );
+      }
     } catch (error) {
       console.error("Error opening Google Meet:", error);
-      Alert.alert("Error", "Could not open Google Meet. Please try again.");
+      Alert.alert(
+        "Google Meet",
+        "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Join a meeting with the meeting ID\n4. Or browse available meetings",
+        [{ text: "OK" }]
+      );
     }
   };
 
   return (
-    <AppLayout navigation={navigation} role="employee">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 10 }}>
-            📹 Join Meeting
-          </Text>
-          
-          <Text style={{ fontSize: 14, color: "#666", marginBottom: 30, lineHeight: 20 }}>
-            Join team meetings on Google Meet. Check your group chats for meeting links 
-            shared by your admin, or enter a meeting ID below.
-          </Text>
-
-          {/* Quick Access to Group Chats */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate("EmployeeChat")}
-            style={{
-              backgroundColor: "#4285F4",
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 16,
-            }}
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 4 }}>
-              💬 Check Group Chats
-            </Text>
-            <Text style={{ color: "#fff", fontSize: 12, opacity: 0.9 }}>
-              Look for meeting links shared by your admin in group chats
-            </Text>
-          </TouchableOpacity>
-
-          {/* Join with Meeting ID/Link */}
-          <View
-            style={{
-              backgroundColor: "#f8f9fa",
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 16,
-              borderWidth: 1,
-              borderColor: "#e8eaed",
-            }}
-          >
-            <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-              🔗 Join with Meeting ID or Link
-            </Text>
-            
-            <TextInput
-              style={{
-                borderWidth: 1,
-                borderColor: "#dadce0",
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 14,
-                backgroundColor: "#fff",
-                marginBottom: 12,
-              }}
-              placeholder="Enter meeting ID (e.g., abc-defg-hij) or full link"
-              value={meetingId}
-              onChangeText={setMeetingId}
-              autoCapitalize="none"
-              autoCorrect={false}
+            <Image
+              source={require("../../assets/images/back-arrow.png")}
+              style={styles.backIcon}
+              resizeMode="contain"
             />
-
-            <TouchableOpacity
-              onPress={joinWithMeetingId}
-              disabled={isJoining}
-              style={{
-                backgroundColor: "#34A853",
-                padding: 14,
-                borderRadius: 8,
-                alignItems: "center",
-                opacity: isJoining ? 0.6 : 1,
-              }}
-            >
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>
-                {isJoining ? "Joining..." : "🚀 Join Meeting"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Browse Meetings */}
-          <TouchableOpacity
-            onPress={joinGoogleMeet}
-            style={{
-              backgroundColor: "#EA4335",
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 16,
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 4 }}>
-              🔍 Browse Available Meetings
-            </Text>
-            <Text style={{ color: "#fff", fontSize: 12, opacity: 0.9 }}>
-              Open Google Meet to see available meetings or join with a code
-            </Text>
           </TouchableOpacity>
-
-          {/* Open Google Meet App */}
-          <TouchableOpacity
-            onPress={openGoogleMeetApp}
-            style={{
-              backgroundColor: "#137333",
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 20,
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 4 }}>
-              📱 Open Google Meet App
-            </Text>
-            <Text style={{ color: "#fff", fontSize: 12, opacity: 0.9 }}>
-              Launch the Google Meet app directly (if installed)
-            </Text>
-          </TouchableOpacity>
-
-          {/* Instructions */}
-          <View
-            style={{
-              backgroundColor: "#e8f0fe",
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 20,
-            }}
-          >
-         
-          </View>
-
-          {/* Meeting Examples */}
-          <View
-            style={{
-              backgroundColor: "#f1f3f4",
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 20,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 8 }}>
-              📝 Meeting ID Examples:
-            </Text>
-            <Text style={{ fontSize: 12, color: "#5f6368", lineHeight: 18, fontFamily: "monospace" }}>
-              • abc-defg-hij{"\n"}
-              • https://meet.google.com/abc-defg-hij{"\n"}
-              • meet.google.com/abc-defg-hij
-            </Text>
-          </View>
-
-          {/* Features */}
-          <View
-            style={{
-              backgroundColor: "#f1f3f4",
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 20,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 8 }}>
-              ✨ What you can do in meetings:
-            </Text>
-            <Text style={{ fontSize: 12, color: "#5f6368", lineHeight: 18 }}>
-              • 📹 Turn camera on/off{"\n"}
-              • 🎤 Mute/unmute microphone{"\n"}
-              • 💬 Chat with participants{"\n"}
-              • 🖥️ View shared screens{"\n"}
-              • 👋 Use reactions and hand raising{"\n"}
-              • 📱 Join from any device
-            </Text>
+          
+          <Text style={styles.headerTitle}>Meet</Text>
+          
+          <View style={styles.companyLogoContainer}>
+            {company?.logo ? (
+              <Image source={{ uri: company.logo }} style={styles.companyLogo} />
+            ) : (
+              <View style={styles.defaultLogo}>
+                <Text style={styles.defaultLogoText}>$</Text>
+              </View>
+            )}
           </View>
         </View>
-      </ScrollView>
-    </AppLayout>
+
+        {/* Center Content */}
+        <View style={styles.centerContent}>
+          <View style={styles.illustrationContainer}>
+            <Image
+              source={require("../../assets/images/google-meet.png")}
+              style={styles.meetIllustration}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+
+        {/* Bottom Button */}
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity 
+            style={styles.connectButton}
+            onPress={handleConnectToMeet}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.connectButtonText}>Connect to Meet</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F5F5"
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: getResponsiveSize(20),
+    paddingVertical: getResponsiveSize(16),
+    backgroundColor: "#F5F5F5"
+  },
+  backButton: {
+    padding: getResponsiveSize(8),
+    backgroundColor: "#E5E7EB",
+    borderRadius: getResponsiveSize(20),
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  backIcon: {
+    width: getResponsiveSize(24),
+    height: getResponsiveSize(24),
+    tintColor: "#374151"
+  },
+  headerTitle: {
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: "600",
+    color: "#1F2937",
+    fontFamily: "Inter-SemiBold"
+  },
+  companyLogoContainer: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  companyLogo: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    borderRadius: getResponsiveSize(20)
+  },
+  defaultLogo: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    borderRadius: getResponsiveSize(20),
+    backgroundColor: "#E5F3F0",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  defaultLogoText: {
+    fontSize: getResponsiveFontSize(16),
+    fontWeight: "700",
+    color: "#00664F",
+    fontFamily: "Inter-Bold"
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: getResponsiveSize(20)
+  },
+  illustrationContainer: {
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  meetIllustration: {
+    width: Math.min(width * 0.8, 400),
+    height: Math.min(height * 0.4, 300),
+    maxWidth: 350,
+    maxHeight: 280
+  },
+  bottomContainer: {
+    paddingHorizontal: getResponsiveSize(20),
+    paddingBottom: getResponsiveSize(40),
+    paddingTop: getResponsiveSize(20)
+  },
+  connectButton: {
+    backgroundColor: "#00664F",
+    borderRadius: getResponsiveSize(28),
+    paddingVertical: getResponsiveSize(18),
+    alignItems: "center",
+    minHeight: getResponsiveSize(56)
+  },
+  connectButtonText: {
+    color: "#FFFFFF",
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: "600",
+    fontFamily: "Inter-SemiBold"
+  }
+});
