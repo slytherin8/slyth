@@ -217,7 +217,7 @@ export default function CreateEmployeeScreen({ navigation }) {
             onPress={() => navigation.goBack()}
           >
             <Image
-              source={require("../../assets/images/back.png")}
+              source={require("../../assets/images/back-arrow.png")}
               style={styles.backIcon}
               resizeMode="contain"
             />
@@ -325,7 +325,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5"
   },
   backButton: {
-    padding: getResponsiveSize(8)
+    padding: getResponsiveSize(8),
+    backgroundColor: "#E5E7EB",
+    borderRadius: getResponsiveSize(20),
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    justifyContent: "center",
+    alignItems: "center"
   },
   backIcon: {
     width: getResponsiveSize(24),
