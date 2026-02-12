@@ -103,7 +103,7 @@ export default function LoginScreen({ navigation }) {
       console.log("TOKEN SAVED:", data.token);
       
       // Show success message
-      Alert.alert("Success! 🎉", "Login successful");
+      Alert.alert("Success! ", "Login successful");
       
       // Skip profile setup for admins, only employees need profile setup
       if (role === "admin") {
