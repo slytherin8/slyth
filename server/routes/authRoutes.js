@@ -23,25 +23,28 @@ router.post("/admin-signup", async (req, res) => {
 
     const exists = await User.findOne({ email });
     if (exists) {
-      return res.status(400).json({ message: "Admin already exists" });
+      return res.status(409).json({ message: "Admin already exists" });
     }
 
     const hashed = await bcrypt.hash(password, 10);
 
+    // Create company first
+    const company = await Company.create({
+      name: companyName,
+      logo
+    });
+
+    // Then create admin with companyId
     const admin = await User.create({
       email,
       password: hashed,
-      role: "admin"
+      role: "admin",
+      companyId: company._id
     });
 
-    const company = await Company.create({
-      name: companyName,
-      logo,
-      createdBy: admin._id
-    });
-
-    admin.companyId = company._id;
-    await admin.save();
+    // Update company with createdBy
+    company.createdBy = admin._id;
+    await company.save();
 
     res.json({ message: "Company created successfully" });
   } catch (err) {
