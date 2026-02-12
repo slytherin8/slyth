@@ -293,11 +293,14 @@ const styles = StyleSheet.create({
     flex: 1
   },
   backgroundSection: {
-    flex: 1,
-    position: "relative",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.4,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: height * 0.35
+    zIndex: 1
   },
   illustrationContainer: {
     position: "absolute",
@@ -314,11 +317,8 @@ const styles = StyleSheet.create({
     maxHeight: 450
   },
   cardContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: Math.max(height * 0.75, 600),
+    flex: 1,
+    marginTop: height * 0.25,
     zIndex: 3
   },
   scrollView: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Math.max(width * 0.06, 20),
     paddingTop: getResponsiveSize(32),
     paddingBottom: getResponsiveSize(40),
-    minHeight: Math.max(height * 0.75, 600)
+    flex: 1
   },
   cardTitle: {
     fontSize: getResponsiveFontSize(26),
