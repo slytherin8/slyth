@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const crypto = require("crypto");
@@ -11,28 +12,52 @@ const router = express.Router();
 
 // Multer setup for file uploads
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
 // Encryption helpers
 const ALGORITHM = "aes-256-cbc";
-const ENCRYPTION_KEY = process.env.VAULT_ENCRYPTION_KEY || crypto.randomBytes(32);
+
+// Ensure we have a 32-byte key
+const getEncryptionKey = () => {
+  const key = process.env.VAULT_ENCRYPTION_KEY;
+  if (!key) {
+    console.warn("VAULT_ENCRYPTION_KEY not found in .env, using random key (files will not be readable after restart)");
+    return crypto.randomBytes(32);
+  }
+
+  // Requirement: "Convert the secret key safely using crypto.createHash('sha256')"
+  // This ensures exactly 32 bytes regardless of input length and avoids using raw env key
+  return crypto.createHash('sha256').update(String(key)).digest();
+};
+
+const ENCRYPTION_KEY = getEncryptionKey();
 
 const encrypt = (text) => {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipher(ALGORITHM, ENCRYPTION_KEY);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return { encrypted, iv: iv.toString("hex") };
+  try {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(text, "utf8", "hex");
+    encrypted += cipher.final("hex");
+    return { encrypted, iv: iv.toString("hex") };
+  } catch (error) {
+    console.error("Encryption failed:", error);
+    throw error;
+  }
 };
 
 const decrypt = (encryptedData, iv) => {
-  const decipher = crypto.createDecipher(ALGORITHM, ENCRYPTION_KEY);
-  let decrypted = decipher.update(encryptedData, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
+  try {
+    const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, Buffer.from(iv, "hex"));
+    let decrypted = decipher.update(encryptedData, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  } catch (error) {
+    console.error("Decryption failed:", error);
+    throw error;
+  }
 };
 
 /* =====================
@@ -53,7 +78,7 @@ router.get("/pin-status", auth, adminOnly, async (req, res) => {
 router.post("/set-pin", auth, adminOnly, async (req, res) => {
   try {
     const { pin } = req.body;
-    
+
     if (!pin || pin.length < 4) {
       return res.status(400).json({ message: "PIN must be at least 4 digits" });
     }
@@ -118,7 +143,7 @@ router.get("/folders", auth, adminOnly, async (req, res) => {
 router.post("/folders", auth, adminOnly, async (req, res) => {
   try {
     const { name, parentId } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ message: "Folder name required" });
     }
@@ -140,10 +165,10 @@ router.post("/folders", auth, adminOnly, async (req, res) => {
 router.delete("/folders/:folderId", auth, adminOnly, async (req, res) => {
   try {
     const { folderId } = req.params;
-    
+
     // Soft delete
     await VaultFolder.findByIdAndUpdate(folderId, { isDeleted: true });
-    
+
     // Also soft delete all files in this folder
     await VaultFile.updateMany(
       { folderId, companyId: req.user.companyId },
@@ -180,11 +205,24 @@ router.get("/files", auth, adminOnly, async (req, res) => {
 router.post("/files", auth, adminOnly, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ message: "No file uploaded. Please select a file." });
     }
 
     const { folderId } = req.body;
-    
+
+    // Validate folderId if provided
+    if (folderId && folderId !== "null" && folderId !== "undefined") {
+      if (!mongoose.Types.ObjectId.isValid(folderId)) {
+        return res.status(400).json({ message: "Invalid folder ID format" });
+      }
+
+      // Verify folder exists
+      const folderExists = await VaultFolder.exists({ _id: folderId, companyId: req.user.companyId, isDeleted: false });
+      if (!folderExists) {
+        return res.status(404).json({ message: "Target folder not found" });
+      }
+    }
+
     // Encrypt file data
     const fileBuffer = req.file.buffer.toString("base64");
     const { encrypted, iv } = encrypt(fileBuffer);
@@ -195,7 +233,7 @@ router.post("/files", auth, adminOnly, upload.single("file"), async (req, res) =
       size: req.file.size,
       encryptedData: encrypted,
       encryptionIV: iv,
-      folderId: folderId || null,
+      folderId: (folderId && folderId !== "null" && folderId !== "undefined") ? folderId : null,
       companyId: req.user.companyId,
       uploadedBy: req.user.id
     });
@@ -209,7 +247,7 @@ router.post("/files", auth, adminOnly, upload.single("file"), async (req, res) =
     });
   } catch (error) {
     console.error("File upload error:", error);
-    res.status(500).json({ message: "Failed to upload file" });
+    res.status(500).json({ message: "Failed to upload file due to server error: " + error.message });
   }
 });
 
@@ -248,10 +286,10 @@ router.get("/files/:fileId/download", auth, adminOnly, async (req, res) => {
 router.delete("/files/:fileId", auth, adminOnly, async (req, res) => {
   try {
     const { fileId } = req.params;
-    
+
     // Soft delete
     await VaultFile.findByIdAndUpdate(fileId, { isDeleted: true });
-    
+
     res.json({ message: "File deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete file" });
