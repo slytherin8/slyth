@@ -7,7 +7,7 @@ import PinKeypad from "../components/PinKeypad";
 import { vaultService } from "../services/vaultService";
 
 export default function AdminFilesScreen({ navigation }) {
-  const [hasPin, setHasPin] = useState(null); // null = loading, true/false
+  const [hasPin, setHasPin] = useState(null);
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,12 +23,9 @@ export default function AdminFilesScreen({ navigation }) {
   const checkPinStatus = async () => {
     try {
       const status = await vaultService.checkHasPin();
-      console.log("PIN Status:", status);
       setHasPin(status.hasPin);
     } catch (err) {
-      console.error("Error checking PIN:", err);
-      // If 401, it means token expired - but we will handle that globally or show alert
-      setHasPin(false); // Default to setup mode or retry
+      setHasPin(false);
     }
   };
 
@@ -39,9 +36,9 @@ export default function AdminFilesScreen({ navigation }) {
     }
   };
 
-  const handleDelete = () => {
-    setPin(prev => prev.slice(0, -1));
-    setError("");
+  const handleCancel = () => {
+    setPin("");
+    navigation.goBack();
   };
 
   const handleSubmit = async () => {
@@ -55,34 +52,20 @@ export default function AdminFilesScreen({ navigation }) {
 
     try {
       if (hasPin) {
-        // UNLOCK
-        console.log("Verifying PIN...");
         await vaultService.verifyPin(pin);
         navigation.navigate("AdminVault", { isVerified: true });
       } else {
-        // SET PIN
-        console.log("Setting PIN...");
         await vaultService.setPin(pin);
         setHasPin(true);
         Alert.alert("Success", "Secure PIN Created! Please enter it again to unlock.");
         setPin("");
       }
     } catch (err) {
-      console.error("Submit Error:", err.response?.status, err.response?.data);
-
       if (err.response?.status === 403) {
         setError("Incorrect PIN. Please try again.");
         setPin("");
-      } else if (err.response?.status === 401) {
-        Alert.alert("Session Expired", "Please login again.");
-        navigation.navigate("Login");
-      } else if (err.response?.status === 400 && err.response?.data?.message === "PIN already set") {
-        // Rare sync issue
-        setHasPin(true);
-        setError("PIN was already set. Enter it to unlock.");
-        setPin("");
       } else {
-        setError("System Error. Please restart app.");
+        setError("System Error. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -91,132 +74,138 @@ export default function AdminFilesScreen({ navigation }) {
 
   if (hasPin === null) {
     return (
-      <AppLayout navigation={navigation} role="admin" title="Store Employee Details">
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color="#006400" />
-          <Text style={{ marginTop: 10, color: '#666' }}>Securing Vault...</Text>
-        </View>
-      </AppLayout>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#00664F" />
+      </View>
     );
   }
 
   return (
-    <AppLayout navigation={navigation} role="admin" title="Store Employee Details">
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={true}
-        bounces={true}
-      >
-        <View style={styles.statusIcon}>
-          <Ionicons
-            name={hasPin ? "lock-closed" : "lock-open"}
-            size={50}
-            color={hasPin ? "#006400" : "#E2AC00"}
-          />
-        </View>
+    <AppLayout
+      navigation={navigation}
+      role="admin"
+      title="Store Employee Details"
+      showProfile={false}
+      logoPosition="right"
+    >
+      <ScrollView contentContainerStyle={styles.content} bounces={false}>
 
-        <Text style={styles.label}>
-          {hasPin ? "Enter Secret Pin to Unlock" : "Create New Secure PIN"}
+        <View style={styles.headerSpacer} />
+
+        <Text style={styles.title}>
+          {hasPin ? "Enter Secret Pin" : "Create Secret Pin"}
         </Text>
 
-        <View style={[styles.pinDisplay, error ? styles.pinError : null]}>
-          <Text style={[styles.pinText, error ? styles.errorText : null]}>
-            {pin ? '*'.repeat(pin.length) : ''}
-          </Text>
+        <View style={styles.pinInputContainer}>
+          <Text style={styles.pinInputText}>{pin}</Text>
         </View>
 
-        {error ? (
-          <Text style={styles.errorMessage}>{error}</Text>
-        ) : (
-          <View style={{ height: 20 }} />
-        )}
-
-        {loading ? (
-          <ActivityIndicator size="large" color="#006400" style={{ marginVertical: 20 }} />
-        ) : (
-          <View style={{ height: 20 }} />
-        )}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <PinKeypad
           onKeyPress={handleKeyPress}
-          onDelete={handleDelete}
+          onDelete={() => setPin(prev => prev.slice(0, -1))}
           pinLength={pin.length}
         />
 
-        {pin.length >= 4 && !loading && (
-          <TouchableOpacity onPress={handleSubmit} style={styles.submitBtn}>
-            <Text style={styles.submitText}>{hasPin ? "UNLOCK VAULT" : "SET SECURE PIN"}</Text>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-        )}
+
+          <TouchableOpacity onPress={handleSubmit} style={styles.enterButton}>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.enterButtonText}>Enter</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
       </ScrollView>
     </AppLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
+  container: {
     flex: 1,
     backgroundColor: '#fff'
   },
   content: {
     flexGrow: 1,
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 100,
-    minHeight: '100%'
+    paddingHorizontal: 20
   },
-  statusIcon: {
-    marginBottom: 20,
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 50
+  headerSpacer: {
+    height: 40
   },
-  label: {
+  title: {
     fontSize: 18,
-    color: '#333',
+    color: '#333333',
     marginBottom: 20,
     fontWeight: '500'
   },
-  pinDisplay: {
-    width: '60%',
-    height: 50,
-    backgroundColor: '#f9f9f9',
+  pinInputContainer: {
+    width: '90%',
+    height: 60,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1
   },
-  pinError: {
-    borderColor: '#FF3B30',
-    backgroundColor: '#FFF0F0'
-  },
-  pinText: {
-    fontSize: 32,
-    letterSpacing: 5,
-    color: '#333'
+  pinInputText: {
+    fontSize: 24,
+    color: '#333',
+    letterSpacing: 2
   },
   errorText: {
-    color: '#FF3B30'
+    color: '#EF4444',
+    marginBottom: 10,
+    fontSize: 14
   },
-  errorMessage: {
-    color: '#FF3B30',
-    fontSize: 14,
-    marginBottom: 10
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 20,
+    marginTop: 20
   },
-  submitBtn: {
-    marginTop: 10,
-    backgroundColor: '#006400',
-    paddingHorizontal: 40,
-    paddingVertical: 14,
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     borderRadius: 30,
-    elevation: 3
+    marginRight: 10,
+    alignItems: 'center'
   },
-  submitText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16
+  cancelButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  enterButton: {
+    flex: 1,
+    paddingVertical: 16,
+    backgroundColor: '#00664F', // Green
+    borderRadius: 30,
+    marginLeft: 10,
+    alignItems: 'center',
+    elevation: 2
+  },
+  enterButtonText: {
+    color: '#FFFFFF', // White
+    fontSize: 16,
+    fontWeight: '600'
   }
 });
