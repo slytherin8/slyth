@@ -15,7 +15,10 @@ export default function AppLayout({
   children,
   activeTab,
   role = "admin", // admin | employee
-  onBack
+  onBack,
+  showProfile = true,
+  logoPosition = "left", // left | right
+  title // New prop
 }) {
   const [company, setCompany] = useState({});
   const [profile, setProfile] = useState(null);
@@ -70,41 +73,62 @@ export default function AppLayout({
       {/* 🔝 TOP BAR */}
       <View style={styles.topBar}>
         {/* 🔙 BACK */}
-        <TouchableOpacity onPress={onBack || (() => navigation.goBack())}>
+        <TouchableOpacity
+          onPress={onBack || (() => navigation.goBack())}
+          style={styles.backButton} // Added style
+        >
           <Image
             source={require("../../assets/images/back-arrow.png")}
             style={styles.backIcon}
           />
         </TouchableOpacity>
 
-        {/* 🏢 COMPANY */}
-        <View style={styles.companyRow}>
-          {company?.logo ? (
+        {/* 🏢 COMPANY - CENTER (IF RIGHT ALIGNED) OR LEFT */}
+        {logoPosition === "left" && (
+          <View style={styles.companyRow}>
+            {company?.logo ? (
+              <Image
+                source={{ uri: company.logo }}
+                style={styles.companyLogo}
+              />
+            ) : null}
+
+            <Text style={styles.companyName}>
+              {title || company?.name || "Company"}
+            </Text>
+          </View>
+        )}
+
+        {/* 🏢 COMPANY - CENTERED TITLE OR LOGO IF POSITION RIGHT requested, handling layout spacer */}
+        {logoPosition === "right" && (
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
+          </View>
+        )}
+
+        {/* 👤 PROFILE OR RIGHT LOGO */}
+        {showProfile ? (
+          <TouchableOpacity onPress={() => go("Profile")}>
+            {profile?.avatar ? (
+              <Image
+                source={{ uri: profile.avatar }}
+                style={styles.profileIcon}
+              />
+            ) : (
+              <Image
+                source={require("../../assets/images/profile.png")}
+                style={styles.profileIcon}
+              />
+            )}
+          </TouchableOpacity>
+        ) : (
+          logoPosition === "right" && company?.logo ? (
             <Image
               source={{ uri: company.logo }}
-              style={styles.companyLogo}
+              style={styles.profileIcon} // Reusing size for consistency
             />
-          ) : null}
-
-          <Text style={styles.companyName}>
-            {company?.name || "Company"}
-          </Text>
-        </View>
-
-        {/* 👤 PROFILE */}
-        <TouchableOpacity onPress={() => go("Profile")}>
-          {profile?.avatar ? (
-            <Image
-              source={{ uri: profile.avatar }}
-              style={styles.profileIcon}
-            />
-          ) : (
-            <Image
-              source={require("../../assets/images/profile.png")}
-              style={styles.profileIcon}
-            />
-          )}
-        </TouchableOpacity>
+          ) : <View style={{ width: 40 }} /> // Spacer matched to back button size
+        )}
       </View>
 
       {/* 🧩 PAGE CONTENT */}
@@ -193,13 +217,25 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 40, // More space from top
+    paddingBottom: 16,
+    alignItems: "center"
+  },
+
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6", // Light shade
+    justifyContent: "center",
     alignItems: "center"
   },
 
   backIcon: {
-    width: 22,
-    height: 22
+    width: 20,
+    height: 20,
+    resizeMode: 'contain'
   },
 
   companyRow: {
