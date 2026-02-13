@@ -53,45 +53,20 @@ export default function AdminMeetScreen({ navigation }) {
 
   const handleConnectToMeet = async () => {
     try {
-      console.log("Attempting to open Google Meet...");
-      
-      // Try multiple approaches for better Expo compatibility
-      const meetUrls = [
-        'googlemeet://', // Try Google Meet app first
-        'https://meet.google.com/new', // Fallback to web
-      ];
-      
-      let opened = false;
-      
-      for (const url of meetUrls) {
-        try {
-          const canOpen = await Linking.canOpenURL(url);
-          console.log(`Can open ${url}:`, canOpen);
-          
-          if (canOpen) {
-            await Linking.openURL(url);
-            opened = true;
-            break;
-          }
-        } catch (error) {
-          console.log(`Failed to open ${url}:`, error);
-          continue;
-        }
-      }
-      
-      if (opened) {
+      const url = 'https://meet.google.com/new';
+      console.log("Attempting to open Google Meet:", url);
+
+      const supported = await Linking.canOpenURL(url);
+
+      if (supported) {
+        await Linking.openURL(url);
         Alert.alert(
           "Opening Google Meet! 🎉",
           "Google Meet is opening. Create your meeting and share the link with your team.",
           [{ text: "OK" }]
         );
       } else {
-        // If all fails, show instructions
-        Alert.alert(
-          "Google Meet",
-          "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Create a new meeting\n4. Share the meeting link with your team",
-          [{ text: "OK" }]
-        );
+        await Linking.openURL(url); // Try anyway
       }
     } catch (error) {
       console.error("Error opening Google Meet:", error);
@@ -107,10 +82,10 @@ export default function AdminMeetScreen({ navigation }) {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
-        
+
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -120,9 +95,9 @@ export default function AdminMeetScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          
+
           <Text style={styles.headerTitle}>Meet</Text>
-          
+
           <View style={styles.companyLogoContainer}>
             {company?.logo ? (
               <Image source={{ uri: company.logo }} style={styles.companyLogo} />
@@ -147,7 +122,7 @@ export default function AdminMeetScreen({ navigation }) {
 
         {/* Bottom Button */}
         <View style={styles.bottomContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.connectButton}
             onPress={handleConnectToMeet}
             activeOpacity={0.8}
