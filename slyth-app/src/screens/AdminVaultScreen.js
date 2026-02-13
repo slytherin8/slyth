@@ -18,21 +18,19 @@ import { useFocusEffect } from "@react-navigation/native";
 import AppLayout from "../components/AppLayout";
 import { vaultService } from "../services/vaultService";
 
-export default function AdminVaultScreen({ navigation, route }) {
-    const [items, setItems] = useState([]); // Folders + Files
+const AdminVaultScreen = ({ navigation, route }) => {
+    const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const { isVerified, folderId, folderName } = route.params || {};
 
-    // Folder Modal state
     const [showFolderModal, setShowFolderModal] = useState(false);
     const [newFolderName, setNewFolderName] = useState("");
 
-    // Security: Auto-lock if not verified
     useFocusEffect(
         useCallback(() => {
             if (!isVerified) {
-                navigation.replace("AdminFiles"); // Go back to gatekeeper
+                navigation.replace("AdminFiles");
             }
         }, [isVerified])
     );
@@ -41,23 +39,20 @@ export default function AdminVaultScreen({ navigation, route }) {
         if (isVerified) {
             loadContent();
         }
-    }, [isVerified, folderId]); // Reload when folder changes
+    }, [isVerified, folderId]);
 
     const loadContent = async () => {
         setLoading(true);
         try {
-            // 1. Get Folders
             const folders = await vaultService.getFolders(folderId);
-            // 2. Get Files
             const files = await vaultService.getFiles(folderId);
-
             const content = [
                 ...folders.map(f => ({ ...f, type: 'folder' })),
                 ...files.map(f => ({ ...f, type: 'file' }))
             ];
             setItems(content);
         } catch (err) {
-            Alert.alert("Error", "Failed to load vault content");
+            console.log("Error loading content", err);
         } finally {
             setLoading(false);
         }
@@ -77,274 +72,335 @@ export default function AdminVaultScreen({ navigation, route }) {
 
     const handleUpload = async () => {
         try {
-            const result = await DocumentPicker.getDocumentAsync({
-                type: "*/*",
-                copyToCacheDirectory: true,
-            });
-
+            const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 setUploading(true);
-                const file = result.assets[0];
-
-                await vaultService.uploadFile(file, folderId);
-
+                await vaultService.uploadFile(result.assets[0], folderId);
                 Alert.alert("Success", "File encrypted and uploaded securely");
                 loadContent();
             }
         } catch (err) {
-            console.error("Upload error details:", err.response?.data || err.message);
-            const errorMessage = err.response?.data?.message || "Could not upload file. Please check your connection and try again.";
-            Alert.alert("Upload Failed", errorMessage);
+            Alert.alert("Upload Failed", "Could not upload file.");
         } finally {
             setUploading(false);
         }
     };
 
-    const handleDelete = async (item) => {
-        const itemType = item.type === 'folder' ? 'Folder' : 'File';
-        const message = `Are you sure you want to delete "${item.name || item.originalName}"?`;
+    /* 🔹 DELETE MODAL STATE */
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState(null);
 
-        if (Platform.OS === 'web') {
-            const confirmed = window.confirm(`${itemType}: ${message}`);
-            if (confirmed) {
-                await performDelete(item);
-            }
-        } else {
-            Alert.alert(`Delete ${itemType}`, message, [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => performDelete(item)
-                }
-            ]);
-        }
+    const handleDeletePress = (item) => {
+        setItemToDelete(item);
+        setShowDeleteModal(true);
     };
 
-    const performDelete = async (item) => {
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
         try {
-            if (item.type === 'folder') {
-                await vaultService.deleteFolder(item._id);
+            if (itemToDelete.type === 'folder') {
+                await vaultService.deleteFolder(itemToDelete._id);
             } else {
-                await vaultService.deleteFile(item._id);
+                await vaultService.deleteFile(itemToDelete._id);
             }
             loadContent();
-        } catch (err) {
-            const errMsg = err.response?.data?.message || "Failed to delete";
-            if (Platform.OS === 'web') {
-                window.alert(errMsg);
-            } else {
-                Alert.alert("Error", errMsg);
-            }
-        }
-    };
-
-    const handleDownload = async (file) => {
-        try {
-            await vaultService.downloadFile(file._id, file.originalName, file.mimeType);
-        } catch (err) {
-            Alert.alert("Error", "Could not download/open file");
-        }
-    };
-
-    const handleItemPress = (item) => {
-        if (item.type === 'folder') {
-            navigation.push("AdminVault", {
-                isVerified: true,
-                folderId: item._id,
-                folderName: item.name
-            });
-        } else {
-            handleDownload(item);
+        } catch (e) {
+            Alert.alert("Error", "Failed to delete");
+        } finally {
+            setShowDeleteModal(false);
+            setItemToDelete(null);
         }
     };
 
     const renderItem = ({ item }) => (
-        <TouchableOpacity onPress={() => handleItemPress(item)} style={styles.itemContainer}>
-            <View style={styles.itemInfo}>
-                <Ionicons
-                    name={item.type === 'folder' ? "folder" : "document-text"}
-                    size={40}
-                    color={item.type === 'folder' ? "#FFD700" : "#4A90E2"}
-                />
-                <View style={{ marginLeft: 15 }}>
-                    <Text style={styles.itemName}>{item.name || item.originalName}</Text>
-                    {item.type === 'file' && (
-                        <Text style={styles.itemMeta}>
-                            {(item.size / 1024).toFixed(1)} KB • {new Date(item.uploadDate).toLocaleDateString()}
-                        </Text>
-                    )}
+        <View style={styles.card}>
+            <TouchableOpacity
+                style={styles.cardContent}
+                onPress={() => item.type === 'folder'
+                    ? navigation.push("AdminVault", { isVerified: true, folderId: item._id, folderName: item.name })
+                    : vaultService.downloadFile(item._id, item.originalName, item.mimeType)
+                }
+            >
+                <View style={[styles.iconBox, item.type === 'folder' ? styles.folderIconBox : styles.fileIconBox]}>
+                    <Ionicons
+                        name={item.type === 'folder' ? "folder-outline" : "document-text-outline"}
+                        size={24}
+                        color={item.type === 'folder' ? "#00664F" : "#00664F"}
+                    />
                 </View>
-            </View>
-
-            {item.type === 'file' && (
-                <TouchableOpacity onPress={() => handleDownload(item)} style={[styles.actionBtn, { marginRight: 8 }]}>
-                    <Ionicons name="cloud-download-outline" size={22} color="#4A90E2" />
-                </TouchableOpacity>
-            )}
-
-            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionBtn}>
-                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                <Text style={styles.itemName} numberOfLines={1}>
+                    {item.name || item.originalName}
+                </Text>
             </TouchableOpacity>
-        </TouchableOpacity>
+
+            <View style={styles.actions}>
+                {item.type === 'file' && (
+                    <TouchableOpacity
+                        onPress={() => vaultService.downloadFile(item._id, item.originalName, item.mimeType)}
+                        style={styles.actionBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        <Ionicons name="download-outline" size={20} color="#6B7280" />
+                    </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                    onPress={() => handleDeletePress(item)}
+                    style={styles.actionBtn}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                </TouchableOpacity>
+            </View>
+        </View>
     );
 
     return (
-        <AppLayout navigation={navigation} role="admin" title={folderName || "Secure Vault"}>
-            {loading ? (
-                <ActivityIndicator size="large" color="#4A90E2" style={{ marginTop: 20 }} />
-            ) : (
-                <FlatList
-                    data={items}
-                    keyExtractor={item => item._id}
-                    renderItem={renderItem}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <Ionicons name="folder-open-outline" size={60} color="#ccc" />
-                            <Text style={{ marginTop: 10, color: "#999" }}>Folder is empty</Text>
-                        </View>
-                    }
-                    contentContainerStyle={{ padding: 16 }}
-                />
-            )}
+        <AppLayout
+            navigation={navigation}
+            role="admin"
+            title={folderName || "Store Employee Details"}
+            showProfile={false}
+            logoPosition="right"
+        >
+            <View style={styles.container}>
+                {loading ? (
+                    <ActivityIndicator size="large" color="#00664F" style={{ marginTop: 20 }} />
+                ) : (
+                    <FlatList
+                        data={items}
+                        keyExtractor={item => item._id}
+                        renderItem={renderItem}
+                        contentContainerStyle={styles.listContent}
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyText}>No items found</Text>
+                            </View>
+                        }
+                    />
+                )}
 
-            {/* FABs */}
-            <View style={styles.fabContainer}>
+                {/* Floating Add Button */}
                 <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: '#FFD700', marginBottom: 10 }]}
-                    onPress={() => setShowFolderModal(true)}
+                    style={styles.fab}
+                    onPress={() => folderId ? handleUpload() : setShowFolderModal(true)}
                     disabled={uploading}
                 >
-                    <Ionicons name="folder-open" size={24} color="#333" />
+                    <Ionicons name={folderId ? "add" : "add"} size={32} color="#FFFFFF" />
                 </TouchableOpacity>
 
-                {folderId && (
-                    <TouchableOpacity
-                        style={styles.fab}
-                        onPress={handleUpload}
-                        disabled={uploading}
-                    >
-                        <Ionicons name="add" size={30} color="#fff" />
-                    </TouchableOpacity>
-                )}
-            </View>
+                {/* CREATE FOLDER MODAL */}
+                <Modal visible={showFolderModal} transparent animationType="fade">
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalCard}>
+                            <View style={styles.modalIconBox}>
+                                <Ionicons name="folder-outline" size={32} color="#FFFFFF" />
+                            </View>
 
-            {/* New Folder Modal */}
-            <Modal visible={showFolderModal} transparent animationType="slide">
-                <View style={styles.modalBg}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>New Folder</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Folder Name"
-                            value={newFolderName}
-                            onChangeText={setNewFolderName}
-                            autoFocus
-                        />
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity onPress={() => setShowFolderModal(false)}>
-                                <Text style={styles.cancelLink}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={handleCreateFolder}>
-                                <Text style={styles.createLink}>Create</Text>
-                            </TouchableOpacity>
+                            <Text style={styles.modalLabel}>Enter Folder Name</Text>
+                            <TextInput
+                                style={styles.modalInput}
+                                value={newFolderName}
+                                onChangeText={setNewFolderName}
+                                autoFocus
+                            />
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.modalBtn, styles.createBtn]}
+                                    onPress={handleCreateFolder}
+                                >
+                                    <Text style={styles.createBtnText}>Create</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.modalBtn, styles.cancelBtn]}
+                                    onPress={() => setShowFolderModal(false)}
+                                >
+                                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
 
-            {uploading && (
-                <View style={styles.uploadingOverlay}>
-                    <ActivityIndicator size="large" color="#fff" />
-                    <Text style={{ color: "#fff", marginTop: 10 }}>Encrypting & Uploading...</Text>
-                </View>
-            )}
+                {/* DELETE CONFIRMATION MODAL */}
+                <Modal visible={showDeleteModal} transparent animationType="fade">
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalCard}>
+                            <View style={[styles.modalIconBox, { backgroundColor: '#FEE2E2' }]}>
+                                <Ionicons name="trash-outline" size={32} color="#EF4444" />
+                            </View>
 
+                            <Text style={[styles.modalLabel, { color: '#000', fontSize: 18, fontWeight: '600', alignSelf: 'center', marginBottom: 5 }]}>
+                                Delete Item?
+                            </Text>
+
+                            <Text style={{ textAlign: 'center', color: '#666', marginBottom: 20 }}>
+                                Are you sure you want to delete "{itemToDelete?.name || itemToDelete?.originalName}"?
+                            </Text>
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.modalBtn, { backgroundColor: '#EF4444' }]}
+                                    onPress={confirmDelete}
+                                >
+                                    <Text style={styles.createBtnText}>Delete</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.modalBtn, styles.cancelBtn]}
+                                    onPress={() => setShowDeleteModal(false)}
+                                >
+                                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {uploading && (
+                    <View style={styles.loadingOverlay}>
+                        <ActivityIndicator color="#FFFFFF" size="large" />
+                        <Text style={styles.loadingText}>Encrypting...</Text>
+                    </View>
+                )}
+            </View>
         </AppLayout>
     );
-}
+};
 
 const styles = StyleSheet.create({
-    itemContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+    container: { flex: 1, backgroundColor: "#F8FAFC" },
+    listContent: { padding: 20 },
+    card: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#FFFFFF",
         padding: 16,
-        backgroundColor: '#fff',
-        marginBottom: 8,
-        borderRadius: 8,
-        elevation: 2,
+        borderRadius: 12,
+        marginBottom: 12,
+        justifyContent: "space-between",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1
     },
-    itemInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
+    cardContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1
     },
+    iconBox: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 12
+    },
+    folderIconBox: { backgroundColor: "#E5F3F0" }, // Light green
+    fileIconBox: { backgroundColor: "#E5F3F0" },
     itemName: {
         fontSize: 16,
-        fontWeight: '500',
-        color: '#333',
+        fontWeight: "500",
+        color: "#1F2937",
+        flex: 1
     },
-    itemMeta: {
-        fontSize: 12,
-        color: '#999',
-        marginTop: 2,
+    actions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12
     },
-    fabContainer: {
-        position: 'absolute',
-        right: 20,
-        bottom: 30,
-        alignItems: 'center'
-    },
+    actionBtn: { padding: 4 },
+    emptyState: { alignItems: "center", marginTop: 50 },
+    emptyText: { color: "#9CA3AF" },
+
     fab: {
+        position: "absolute",
+        right: 20,
+        bottom: 20,
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#4A90E2',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 4,
+        backgroundColor: "#00664F",
+        justifyContent: "center",
+        alignItems: "center",
+        elevation: 4
     },
-    emptyState: {
-        alignItems: 'center',
-        marginTop: 100,
-    },
-    uploadingOverlay: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 1000
-    },
-    modalBg: {
+
+    // Modal
+    modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
+        backgroundColor: "rgba(255, 255, 255, 0.8)", // Blurred effect simulation
+        justifyContent: "center",
+        alignItems: "center",
         padding: 20
     },
-    modalContent: {
-        backgroundColor: '#fff',
-        padding: 20,
+    modalCard: {
+        width: "100%",
+        maxWidth: 340,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 24,
+        padding: 24,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
+        borderWidth: 1,
+        borderColor: "#E5E7EB"
+    },
+    modalIconBox: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: "#00664F",
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 20
+    },
+    modalLabel: {
+        fontSize: 14,
+        color: "#4B5563",
+        marginBottom: 8,
+        alignSelf: "flex-start",
+        width: "100%"
+    },
+    modalInput: {
+        width: "100%",
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
         borderRadius: 12,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 15
-    },
-    input: {
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-        padding: 10,
-        marginBottom: 20,
+        padding: 12,
+        marginBottom: 24,
         fontSize: 16
     },
-    modalActions: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 20
+    modalButtons: {
+        flexDirection: "row",
+        width: "100%",
+        gap: 12
     },
-    cancelLink: { color: '#666', fontSize: 16 },
-    createLink: { color: '#4A90E2', fontSize: 16, fontWeight: 'bold' },
+    modalBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 24,
+        alignItems: "center"
+    },
+    createBtn: { backgroundColor: "#00664F" },
+    cancelBtn: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E5E7EB" },
+    createBtnText: { color: "#FFFFFF", fontWeight: "600" },
+    cancelBtnText: { color: "#4B5563", fontWeight: "600" },
+
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        justifyContent: "center",
+        alignItems: "center"
+    },
+    loadingText: { color: "#FFFFFF", marginTop: 12 }
 });
+
+export default AdminVaultScreen;
