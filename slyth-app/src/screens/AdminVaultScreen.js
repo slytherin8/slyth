@@ -86,18 +86,15 @@ export default function AdminVaultScreen({ navigation, route }) {
                 setUploading(true);
                 const file = result.assets[0];
 
-                await vaultService.uploadFile({
-                    uri: file.uri,
-                    name: file.name,
-                    mimeType: file.mimeType
-                }, folderId);
+                await vaultService.uploadFile(file, folderId);
 
                 Alert.alert("Success", "File encrypted and uploaded securely");
                 loadContent();
             }
         } catch (err) {
-            console.error(err);
-            Alert.alert("Upload Failed", "Could not upload file");
+            console.error("Upload error details:", err.response?.data || err.message);
+            const errorMessage = err.response?.data?.message || "Could not upload file. Please check your connection and try again.";
+            Alert.alert("Upload Failed", errorMessage);
         } finally {
             setUploading(false);
         }
