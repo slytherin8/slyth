@@ -44,18 +44,23 @@ export const vaultService = {
 
   uploadFile: async (file, folderId = null) => {
     const formData = new FormData();
-    formData.append("file", {
-      uri: file.uri,
-      type: file.mimeType,
-      name: file.name,
-    });
+
+    if (Platform.OS === "web") {
+      // On web, Expo DocumentPicker returns a File object in result.assets[0].file
+      // If not present, we can fetch it if necessary, but usually .file is there
+      const fileData = file.file || file;
+      formData.append("file", fileData);
+    } else {
+      formData.append("file", {
+        uri: file.uri,
+        type: file.mimeType,
+        name: file.name,
+      });
+    }
+
     if (folderId) formData.append("folderId", folderId);
 
-    const res = await api.post("/vault/files", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const res = await api.post("/vault/files", formData);
     return res.data;
   },
 
