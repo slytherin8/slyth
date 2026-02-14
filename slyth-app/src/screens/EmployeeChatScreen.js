@@ -13,7 +13,8 @@ import {
   Modal,
   Dimensions,
   Animated,
-  PanResponder
+  PanResponder,
+  TextInput
 } from "react-native";
 import AppLayout from "../components/AppLayout";
 import AsyncStorage from '../utils/storage';
@@ -35,11 +36,14 @@ export default function EmployeeChatScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Groups, 1 = Direct Messages
   const [groups, setGroups] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [mergedConversations, setMergedConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showGroupActions, setShowGroupActions] = useState(false);
-  
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Animation values
   const translateX = useRef(new Animated.Value(0)).current;
   const tabIndicatorX = useRef(new Animated.Value(0)).current;
@@ -56,7 +60,7 @@ export default function EmployeeChatScreen({ navigation }) {
       },
       onPanResponderRelease: (evt, gestureState) => {
         const threshold = screenWidth * 0.3;
-        
+
         if (gestureState.dx > threshold && activeTab === 1) {
           // Swipe right to Groups
           switchToTab(0);
@@ -110,7 +114,7 @@ export default function EmployeeChatScreen({ navigation }) {
 
   const loadAllData = async () => {
     setLoading(true);
-    await Promise.all([fetchGroups(), fetchConversations()]);
+    await Promise.all([fetchGroups(), fetchConversations(), fetchEmployees()]);
     setLoading(false);
   };
 
@@ -124,19 +128,19 @@ export default function EmployeeChatScreen({ navigation }) {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      
+
       // Sort groups by unread count first, then by last activity
       const sortedGroups = data.sort((a, b) => {
         if (a.unreadCount !== b.unreadCount) {
           return b.unreadCount - a.unreadCount;
         }
-        
+
         if (!a.lastMessage && !b.lastMessage) return 0;
         if (!a.lastMessage) return 1;
         if (!b.lastMessage) return -1;
         return new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt);
       });
-      
+
       setGroups(sortedGroups);
     } catch (error) {
       console.error("Failed to fetch groups:", error);
@@ -159,6 +163,77 @@ export default function EmployeeChatScreen({ navigation }) {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API}/api/chat/employees`, {
+        method: "GET",
+        headers
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Failed to fetch employees");
+
+      setEmployees(data);
+    } catch (error) {
+      console.error("Failed to fetch employees:", error);
+    }
+  };
+
+  useEffect(() => {
+    // Merge conversations and employees
+    if (!employees.length && !conversations.length) {
+      setMergedConversations([]);
+      return;
+    }
+
+    const allUsersMap = new Map();
+
+    // 1. Add all employees
+    employees.forEach(emp => {
+      allUsersMap.set(emp._id, {
+        _id: `temp_${emp._id}`,
+        user: emp,
+        lastMessage: null,
+        unreadCount: 0
+      });
+    });
+
+    // 2. Merge existing conversations
+    conversations.forEach(conv => {
+      if (conv.user && conv.user._id) {
+        if (allUsersMap.has(conv.user._id)) {
+          allUsersMap.set(conv.user._id, {
+            ...conv,
+            _id: conv._id || `temp_${conv.user._id}`
+          });
+        } else {
+          allUsersMap.set(conv.user._id, conv);
+        }
+      }
+    });
+
+    const merged = Array.from(allUsersMap.values());
+
+    // Sort
+    merged.sort((a, b) => {
+      const unreadA = a.unreadCount || 0;
+      const unreadB = b.unreadCount || 0;
+      if (unreadA !== unreadB) return unreadB - unreadA;
+
+      const timeA = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const timeB = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+
+      const nameA = a.user?.profile?.name || "";
+      const nameB = b.user?.profile?.name || "";
+      return nameA.localeCompare(nameB);
+    });
+
+    setMergedConversations(merged);
+
+  }, [employees, conversations]);
+
   const updateGroups = () => {
     fetchGroups();
   };
@@ -175,7 +250,7 @@ export default function EmployeeChatScreen({ navigation }) {
 
   const switchToTab = (tabIndex) => {
     setActiveTab(tabIndex);
-    
+
     // Animate content
     Animated.spring(translateX, {
       toValue: -tabIndex * screenWidth,
@@ -207,20 +282,30 @@ export default function EmployeeChatScreen({ navigation }) {
     }
   };
 
+  const filteredGroups = groups.filter(group =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (group.lastMessage && group.lastMessage.messageText.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredConversations = mergedConversations.filter(conv =>
+    (conv.user?.profile?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (conv.lastMessage && conv.lastMessage.messageText.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   const renderGroupItem = ({ item }) => {
     const unreadCount = item.unreadCount || 0;
     const hasUnread = unreadCount > 0;
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.chatItem, hasUnread && styles.chatItemUnread]}
         onPress={() => navigation.navigate("GroupChat", { groupId: item._id, groupName: item.name })}
       >
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             {item.profilePhoto ? (
-              <Image 
-                source={{ uri: item.profilePhoto }} 
+              <Image
+                source={{ uri: item.profilePhoto }}
                 style={styles.avatarImage}
               />
             ) : (
@@ -235,7 +320,7 @@ export default function EmployeeChatScreen({ navigation }) {
             </View>
           )}
         </View>
-        
+
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>
@@ -247,11 +332,11 @@ export default function EmployeeChatScreen({ navigation }) {
               </Text>
             )}
           </View>
-          
+
           <Text style={styles.memberCount} numberOfLines={1}>
             {item.members.length} members
           </Text>
-          
+
           {item.lastMessage ? (
             <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
               {item.lastMessage.senderName}: {item.lastMessage.messageText}
@@ -261,11 +346,14 @@ export default function EmployeeChatScreen({ navigation }) {
           )}
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.menuButton}
           onPress={() => handleGroupMenu(item)}
         >
-          <Text style={styles.menuDots}>⋮</Text>
+          <Image
+            source={require("../../assets/images/three-dot.png")}
+            style={styles.menuIconImage}
+          />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -274,12 +362,12 @@ export default function EmployeeChatScreen({ navigation }) {
   const renderConversationItem = ({ item }) => {
     const unreadCount = item.unreadCount || 0;
     const hasUnread = unreadCount > 0;
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.chatItem, hasUnread && styles.chatItemUnread]}
-        onPress={() => navigation.navigate("DirectChat", { 
-          userId: item.user._id, 
+        onPress={() => navigation.navigate("DirectChat", {
+          userId: item.user._id,
           userName: item.user.profile?.name || "Unknown",
           userAvatar: item.user.profile?.avatar
         })}
@@ -287,8 +375,8 @@ export default function EmployeeChatScreen({ navigation }) {
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             {item.user.profile?.avatar ? (
-              <Image 
-                source={{ uri: item.user.profile.avatar }} 
+              <Image
+                source={{ uri: item.user.profile.avatar }}
                 style={styles.avatarImage}
               />
             ) : (
@@ -303,7 +391,7 @@ export default function EmployeeChatScreen({ navigation }) {
             </View>
           )}
         </View>
-        
+
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>
@@ -315,11 +403,11 @@ export default function EmployeeChatScreen({ navigation }) {
               </Text>
             )}
           </View>
-          
+
           <Text style={styles.userRole} numberOfLines={1}>
             {item.user.role === 'admin' ? 'Admin' : 'Employee'}
           </Text>
-          
+
           {item.lastMessage ? (
             <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
               {item.lastMessage.isFromMe ? "You: " : ""}{item.lastMessage.messageText}
@@ -328,6 +416,18 @@ export default function EmployeeChatScreen({ navigation }) {
             <Text style={styles.noMessages}>No messages yet</Text>
           )}
         </View>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => {
+            // Placeholder for menu
+            console.log("Menu clicked");
+          }}
+        >
+          <Image
+            source={require("../../assets/images/three-dot.png")}
+            style={styles.menuIconImage}
+          />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -392,6 +492,20 @@ export default function EmployeeChatScreen({ navigation }) {
           <Text style={styles.headerTitle}>Chats</Text>
         </View>
 
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Image source={require("../../assets/images/search.png")} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search for chats & messages"
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+        </View>
+
         {/* Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
@@ -410,19 +524,19 @@ export default function EmployeeChatScreen({ navigation }) {
               Direct Messages
             </Text>
           </TouchableOpacity>
-          
+
           {/* Tab Indicator */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.tabIndicator,
               { transform: [{ translateX: tabIndicatorX }] }
-            ]} 
+            ]}
           />
         </View>
 
         {/* Content with Swipe */}
         <View style={styles.contentContainer} {...panResponder.panHandlers}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.swipeContainer,
               { transform: [{ translateX }] }
@@ -430,16 +544,22 @@ export default function EmployeeChatScreen({ navigation }) {
           >
             {/* Groups Tab */}
             <View style={styles.tabContent}>
-              {groups.length === 0 ? (
+              {filteredGroups.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyTitle}>No Groups Yet</Text>
-                  <Text style={styles.emptySubtitle}>
-                    You haven't been added to any groups yet. Ask your admin to add you to a group.
-                  </Text>
+                  {searchQuery ? (
+                    <Text style={styles.emptyTitle}>No results found</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.emptyTitle}>No Groups Yet</Text>
+                      <Text style={styles.emptySubtitle}>
+                        You haven't been added to any groups yet. Ask your admin to add you to a group.
+                      </Text>
+                    </>
+                  )}
                 </View>
               ) : (
                 <FlatList
-                  data={groups}
+                  data={filteredGroups}
                   keyExtractor={(item) => item._id}
                   renderItem={renderGroupItem}
                   refreshControl={
@@ -452,16 +572,22 @@ export default function EmployeeChatScreen({ navigation }) {
 
             {/* Direct Messages Tab */}
             <View style={styles.tabContent}>
-              {conversations.length === 0 ? (
+              {filteredConversations.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyTitle}>No Conversations Yet</Text>
-                  <Text style={styles.emptySubtitle}>
-                    Start a conversation with your admin or colleagues
-                  </Text>
+                  {searchQuery ? (
+                    <Text style={styles.emptyTitle}>No results found</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.emptyTitle}>No Conversations Yet</Text>
+                      <Text style={styles.emptySubtitle}>
+                        Start a conversation with your admin or colleagues
+                      </Text>
+                    </>
+                  )}
                 </View>
               ) : (
                 <FlatList
-                  data={conversations}
+                  data={filteredConversations}
                   keyExtractor={(item) => item.user._id}
                   renderItem={renderConversationItem}
                   refreshControl={
@@ -486,14 +612,14 @@ export default function EmployeeChatScreen({ navigation }) {
               <Text style={styles.modalTitle}>
                 {selectedGroup?.name}
               </Text>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => {
                   setShowGroupActions(false);
-                  navigation.navigate("GroupInfo", { 
-                    groupId: selectedGroup?._id, 
-                    groupName: selectedGroup?.name 
+                  navigation.navigate("GroupInfo", {
+                    groupId: selectedGroup?._id,
+                    groupName: selectedGroup?.name
                   });
                 }}
               >
@@ -501,7 +627,7 @@ export default function EmployeeChatScreen({ navigation }) {
                 <Text style={styles.actionText}>Group Info</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => {
                   setShowGroupActions(false);
@@ -512,7 +638,7 @@ export default function EmployeeChatScreen({ navigation }) {
                 <Text style={styles.actionText}>Mute Notifications</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionOption}
                 onPress={() => {
                   setShowGroupActions(false);
@@ -523,7 +649,7 @@ export default function EmployeeChatScreen({ navigation }) {
                 <Text style={[styles.actionText, styles.leaveText]}>Leave Group</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.cancelActionButton}
                 onPress={() => setShowGroupActions(false)}
               >
@@ -557,15 +683,40 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingTop: 40,
+    paddingBottom: 15, // Increased padding
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB"
+    // borderBottomWidth: 1, // Removed border
+    // borderBottomColor: "#E5E7EB"
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#111827"
+    color: "#000"
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchIcon: {
+    width: 20,
+    height: 20,
+    tintColor: '#9CA3AF',
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
   },
   tabContainer: {
     flexDirection: "row",
@@ -579,24 +730,21 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center"
   },
-  activeTab: {
-    // Active tab styling handled by indicator
-  },
   tabText: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600", // Increased weight
     color: "#6B7280"
   },
   activeTabText: {
-    color: "#25D366",
-    fontWeight: "600"
+    color: "#00664F",
+    fontWeight: "700"
   },
   tabIndicator: {
     position: "absolute",
     bottom: 0,
     height: 3,
     width: screenWidth / 2,
-    backgroundColor: "#25D366",
+    backgroundColor: "#00664F",
     borderRadius: 2
   },
   contentContainer: {
@@ -610,75 +758,88 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     width: screenWidth,
-    flex: 1
+    flex: 1,
+    backgroundColor: "#F8FAFC" // Slight grey background
   },
   chatItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6"
+    paddingVertical: 20,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 80
   },
   chatItemUnread: {
-    backgroundColor: "#F0FDF4"
+    // backgroundColor: "#F0FDF4" // Removed colored background for unread, kept white card
+    backgroundColor: "#FFFFFF"
   },
   avatarContainer: {
     position: "relative",
-    marginRight: 12
+    marginRight: 16
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56, // Increased size
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center"
   },
   avatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25
+    width: 56, // Increased size
+    height: 56,
+    borderRadius: 28
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "600",
     color: "#6B7280"
   },
   unreadBadge: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    backgroundColor: "#25D366",
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    top: 0, // Adjusted position
+    right: 0,
+    backgroundColor: "#00664F",
+    borderRadius: 12, // Circular/Pill
+    minWidth: 20,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FFFFFF"
+    borderColor: "#FFFFFF",
+    paddingHorizontal: 4
   },
   unreadCount: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
     color: "#FFFFFF"
   },
   chatInfo: {
     flex: 1,
-    marginRight: 8
+    marginRight: 8,
+    justifyContent: 'center'
   },
   chatHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 2
+    marginBottom: 4
   },
   chatName: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "700",
+    fontFamily: "Inter-Bold",
     color: "#111827",
-    flex: 1
+    flex: 1,
+    marginRight: 8
   },
   chatNameUnread: {
     fontWeight: "700"
@@ -702,7 +863,7 @@ const styles = StyleSheet.create({
     color: "#6B7280"
   },
   lastMessageUnread: {
-    color: "#374151",
+    color: "#111827",
     fontWeight: "500"
   },
   noMessages: {
@@ -711,11 +872,15 @@ const styles = StyleSheet.create({
     fontStyle: "italic"
   },
   menuButton: {
-    padding: 8
+    padding: 8,
+    justifyContent: "center",
+    alignItems: "center"
   },
-  menuDots: {
-    fontSize: 16,
-    color: "#9CA3AF"
+  menuIconImage: {
+    width: 20,
+    height: 20,
+    resizeMode: "contain",
+    tintColor: "#6B7280"
   },
   emptyContainer: {
     flex: 1,
