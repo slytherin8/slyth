@@ -14,6 +14,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
 
+
 const { width, height } = Dimensions.get('window');
 
 // Responsive helper functions
@@ -50,6 +51,8 @@ export default function AdminMeetScreen({ navigation }) {
       setCompany({});
     }
   };
+
+
 
   const handleConnectToMeet = async () => {
     try {
