@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert
 } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '../utils/storage';
 import { API } from '../constants/api';
 
@@ -22,7 +23,7 @@ const getAuthHeaders = async () => {
 
 export default function GroupInfoScreen({ route, navigation }) {
   const { groupId, groupName } = route.params;
-  
+
   const [loading, setLoading] = useState(true);
   const [groupInfo, setGroupInfo] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -68,16 +69,16 @@ export default function GroupInfoScreen({ route, navigation }) {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#25D366" />
         <Text style={styles.loadingText}>Loading group info...</Text>
       </View>
     );
@@ -87,7 +88,7 @@ export default function GroupInfoScreen({ route, navigation }) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Failed to load group information</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.retryButton}
           onPress={fetchGroupInfo}
         >
@@ -98,145 +99,120 @@ export default function GroupInfoScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Group Header */}
+    <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.groupAvatarContainer}>
-          {groupInfo.profilePhoto ? (
-            <Image 
-              source={{ uri: groupInfo.profilePhoto }} 
-              style={styles.groupAvatar}
-            />
-          ) : (
-            <View style={styles.groupAvatarPlaceholder}>
-              <Text style={styles.groupAvatarText}>
-                {groupInfo.name?.charAt(0)?.toUpperCase() || "G"}
-              </Text>
-            </View>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={28} color="#111827" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Group Avatar and Name */}
+        <View style={styles.profileSection}>
+          <View style={styles.avatarContainer}>
+            {groupInfo.profilePhoto ? (
+              <Image
+                source={{ uri: groupInfo.profilePhoto }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarText}>
+                  {groupInfo.name?.charAt(0)?.toUpperCase() || "G"}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.groupName}>{groupInfo.name}</Text>
+
+          {groupInfo.description && (
+            <Text style={styles.groupDescription}>{groupInfo.description}</Text>
           )}
         </View>
-        
-        <Text style={styles.groupName}>{groupInfo.name}</Text>
-        
-        {groupInfo.description && (
-          <Text style={styles.groupDescription}>{groupInfo.description}</Text>
-        )}
-        
-        <Text style={styles.memberCount}>
-          {groupInfo.members?.length || 0} members
-        </Text>
-      </View>
 
-      {/* Group Details */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Group Details</Text>
-        
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Created</Text>
-          <Text style={styles.detailValue}>
-            {formatDate(groupInfo.createdAt)}
-          </Text>
-        </View>
-        
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Created by</Text>
-          <Text style={styles.detailValue}>
-            {groupInfo.createdBy?.profile?.name || "Unknown"}
-          </Text>
-        </View>
-        
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Total Messages</Text>
-          <Text style={styles.detailValue}>
-            {groupInfo.totalMessages || 0}
-          </Text>
-        </View>
-        
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Last Activity</Text>
-          <Text style={styles.detailValue}>
-            {formatDate(groupInfo.lastActivity)}
-          </Text>
-        </View>
-      </View>
+        {/* Group Info Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Group Info</Text>
 
-      {/* Members List */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          Members ({groupInfo.members?.length || 0})
-        </Text>
-        
-        {groupInfo.members?.map((member, index) => (
-          <View key={member.userId._id} style={styles.memberItem}>
-            <View style={styles.memberAvatar}>
-              {member.userId.profile?.avatar ? (
-                <Image 
-                  source={{ uri: member.userId.profile.avatar }} 
-                  style={styles.memberAvatarImage}
-                />
-              ) : (
-                <Text style={styles.memberAvatarText}>
-                  {member.userId.profile?.name?.charAt(0)?.toUpperCase() || "?"}
-                </Text>
-              )}
-            </View>
-            
-            <View style={styles.memberInfo}>
-              <Text style={styles.memberName}>
-                {member.userId.profile?.name || "No Name"}
-              </Text>
-              <Text style={styles.memberRole}>
-                {member.userId.role === 'admin' ? 'Admin' : 'Employee'}
-                {member.userId._id === groupInfo.createdBy?._id && ' • Creator'}
-              </Text>
-              <Text style={styles.memberJoined}>
-                Joined {formatDate(member.joinedAt)}
-              </Text>
-            </View>
-            
-            <View style={styles.memberStatus}>
-              {member.userId.isOnline ? (
-                <View style={styles.onlineIndicator} />
-              ) : (
-                <View style={styles.offlineIndicator} />
-              )}
-            </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Created</Text>
+            <Text style={styles.infoValue}>
+              {formatDate(groupInfo.createdAt)}
+            </Text>
           </View>
-        ))}
-      </View>
 
-      {/* Action Buttons */}
-      {isAdmin && (
-        <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => navigation.navigate("EditGroup", {
-              groupId: groupInfo._id,
-              groupName: groupInfo.name,
-              groupDescription: groupInfo.description,
-              groupPhoto: groupInfo.profilePhoto
-            })}
-          >
-            <Text style={styles.editButtonText}>Edit Group</Text>
-          </TouchableOpacity>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Created By</Text>
+            <Text style={styles.infoValue}>
+              {groupInfo.createdBy?.profile?.name || "Unknown"}
+            </Text>
+          </View>
         </View>
-      )}
-      
-      <View style={styles.bottomSpacing} />
-    </ScrollView>
+
+        {/* Members Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Members</Text>
+
+          {groupInfo.members?.map((member, index) => (
+            <View key={member.userId._id} style={styles.memberRow}>
+              <View style={styles.memberAvatar}>
+                {member.userId.profile?.avatar ? (
+                  <Image
+                    source={{ uri: member.userId.profile.avatar }}
+                    style={styles.memberAvatarImage}
+                  />
+                ) : (
+                  <Text style={styles.memberAvatarText}>
+                    {member.userId.profile?.name?.charAt(0)?.toUpperCase() || "?"}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.memberInfo}>
+                <Text style={styles.memberName}>
+                  {member.userId.profile?.name || "No Name"}
+                </Text>
+                <Text style={styles.memberRole}>
+                  {member.userId.role === 'admin' ? 'Admin' : 'Employee'}
+                </Text>
+                <Text style={styles.memberJoined}>
+                  Joined {formatDate(member.joinedAt)}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC"
+    backgroundColor: "#fff"
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: "#fff"
+  },
+  backButton: {
+    padding: 4
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC"
+    backgroundColor: "#fff"
   },
   loadingText: {
     marginTop: 10,
@@ -247,7 +223,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#fff",
     padding: 20
   },
   errorText: {
@@ -257,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 20
   },
   retryButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#25D366",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8
@@ -267,31 +243,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600"
   },
-  header: {
+  scrollView: {
+    flex: 1
+  },
+  profileSection: {
     alignItems: "center",
-    backgroundColor: "#fff",
     paddingVertical: 30,
-    paddingHorizontal: 20,
-    marginBottom: 20
+    paddingHorizontal: 20
   },
-  groupAvatarContainer: {
-    marginBottom: 15
+  avatarContainer: {
+    marginBottom: 16
   },
-  groupAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60
   },
-  groupAvatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F59E0B",
+  avatarPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#FCD34D",
     justifyContent: "center",
     alignItems: "center"
   },
-  groupAvatarText: {
-    fontSize: 28,
+  avatarText: {
+    fontSize: 48,
     fontWeight: "600",
     color: "#fff"
   },
@@ -303,67 +280,61 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   groupDescription: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#6B7280",
     textAlign: "center",
-    marginBottom: 8
-  },
-  memberCount: {
-    fontSize: 14,
-    color: "#9CA3AF"
+    lineHeight: 20
   },
   section: {
-    backgroundColor: "#fff",
-    marginBottom: 20,
     paddingVertical: 20,
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
+    borderTopWidth: 8,
+    borderTopColor: "#F3F4F6"
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#111827",
-    marginBottom: 15
+    color: "#6B7280",
+    marginBottom: 16,
+    textTransform: "uppercase",
+    letterSpacing: 0.5
   },
-  detailItem: {
+  infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6"
+    paddingVertical: 12
   },
-  detailLabel: {
+  infoLabel: {
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "500"
+  },
+  infoValue: {
     fontSize: 16,
     color: "#6B7280"
   },
-  detailValue: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#111827"
-  },
-  memberItem: {
+  memberRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6"
+    paddingVertical: 12
   },
   memberAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12
   },
   memberAvatarImage: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5
+    width: 48,
+    height: 48,
+    borderRadius: 24
   },
   memberAvatarText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     color: "#6B7280"
   },
@@ -378,44 +349,11 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 14,
-    color: "#2563EB",
+    color: "#6B7280",
     marginBottom: 2
   },
   memberJoined: {
     fontSize: 12,
     color: "#9CA3AF"
-  },
-  memberStatus: {
-    alignItems: "center"
-  },
-  onlineIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#10B981"
-  },
-  offlineIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#9CA3AF"
-  },
-  actionSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20
-  },
-  editButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center"
-  },
-  editButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600"
-  },
-  bottomSpacing: {
-    height: 40
   }
 });
