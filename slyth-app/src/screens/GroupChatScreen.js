@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+// Force rebuild date: 2026-02-14
 import {
   View,
   Text,
@@ -13,10 +14,12 @@ import {
   Image,
   Modal,
   ActionSheetIOS,
-  Linking
+  Linking,
+  Pressable
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
+import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import socketService from '../services/socketService';
 
@@ -53,6 +56,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showMessageActions, setShowMessageActions] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [showAttachmentOptions, setShowAttachmentOptions] = useState(false);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -74,7 +78,7 @@ export default function GroupChatScreen({ route, navigation }) {
       // Only add message if it's from the current group
       if (message.groupId === groupId) {
         setMessages(prev => [...prev, message]);
-        
+
         // Scroll to bottom
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
@@ -212,14 +216,14 @@ export default function GroupChatScreen({ route, navigation }) {
     console.log("Replying to message:", message._id);
     console.log("Sender:", message.senderId.profile?.name);
     console.log("Message text:", message.messageText);
-    
+
     setReplyingTo({
       messageId: message._id,
       senderName: message.senderId.profile?.name || "Unknown",
       messageText: message.messageText
     });
     setShowMessageActions(false);
-    
+
     console.log("Reply state set, replyingTo should now be visible");
   };
 
@@ -228,18 +232,18 @@ export default function GroupChatScreen({ route, navigation }) {
     console.log("Message ID:", messageId);
     console.log("Group ID:", groupId);
     console.log("Current User ID:", currentUserId);
-    
+
     try {
       const token = await AsyncStorage.getItem("token");
       console.log("Token exists:", !!token);
       console.log("Token preview:", token ? token.substring(0, 20) + "..." : "null");
-      
+
       const headers = await getAuthHeaders();
       console.log("Headers:", headers);
-      
+
       const url = `${API}/api/chat/groups/${groupId}/messages/${messageId}`;
       console.log("Delete URL:", url);
-      
+
       const response = await fetch(url, {
         method: "DELETE",
         headers
@@ -247,10 +251,10 @@ export default function GroupChatScreen({ route, navigation }) {
 
       console.log("Response status:", response.status);
       console.log("Response ok:", response.ok);
-      
+
       const responseText = await response.text();
       console.log("Response text:", responseText);
-      
+
       if (response.ok) {
         console.log("Delete successful, refreshing messages...");
         await fetchMessages();
@@ -290,7 +294,7 @@ export default function GroupChatScreen({ route, navigation }) {
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         fullUrl = 'https://' + url;
       }
-      
+
       const supported = await Linking.canOpenURL(fullUrl);
       if (supported) {
         await Linking.openURL(fullUrl);
@@ -306,7 +310,7 @@ export default function GroupChatScreen({ route, navigation }) {
     // Simple URL detection regex
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}[^\s]*)/gi;
     const parts = text.split(urlRegex);
-    
+
     return (
       <Text style={[
         styles.messageText,
@@ -330,6 +334,11 @@ export default function GroupChatScreen({ route, navigation }) {
     );
   };
 
+  const handleViewInfo = (message) => {
+    setSelectedMessage(message);
+    setShowInfoModal(true);
+  };
+
   const showMessageActionSheet = (message) => {
     console.log("Showing action sheet for message:", message._id);
     const isMyMessage = message.senderId._id === currentUserId;
@@ -345,10 +354,7 @@ export default function GroupChatScreen({ route, navigation }) {
       options.push("Reply");
     }
 
-    // Delete option - always show for both admin and employee
-    // Backend will handle permissions
-    options.push("Delete");
-
+    options.push("Info");
     options.push("Cancel");
 
     if (Platform.OS === 'ios') {
@@ -373,6 +379,8 @@ export default function GroupChatScreen({ route, navigation }) {
                 { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(message._id) }
               ]
             );
+          } else if (options[buttonIndex] === "Info") {
+            handleViewInfo(message);
           }
         }
       );
@@ -405,12 +413,12 @@ export default function GroupChatScreen({ route, navigation }) {
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         console.log("Selected image:", asset.uri, "Size:", asset.fileSize);
-        
+
         if (!asset.base64) {
           Alert.alert("Error", "Failed to convert image to base64. Please try a different image.");
           return;
         }
-        
+
         const base64Image = `data:image/jpeg;base64,${asset.base64}`;
         console.log("Base64 image length:", base64Image.length);
 
@@ -489,18 +497,18 @@ export default function GroupChatScreen({ route, navigation }) {
         if (!result.canceled && result.assets && result.assets[0]) {
           const file = result.assets[0];
           console.log("Mobile file selected:", file.name, file.size, file.mimeType);
-          
+
           try {
             // For mobile, read the file as base64 using fetch and FileReader
             const response = await fetch(file.uri);
             const blob = await response.blob();
-            
+
             // Convert blob to base64
             const reader = new FileReader();
             reader.onload = () => {
               const base64Data = reader.result;
               console.log("Mobile file converted to base64, length:", base64Data.length);
-              
+
               sendMessage(`📎 ${file.name}`, "file", {
                 name: file.name,
                 size: file.size,
@@ -508,14 +516,14 @@ export default function GroupChatScreen({ route, navigation }) {
                 data: base64Data
               });
             };
-            
+
             reader.onerror = (error) => {
               console.error("FileReader error:", error);
               Alert.alert("Error", "Failed to read file");
             };
-            
+
             reader.readAsDataURL(blob);
-            
+
           } catch (fileError) {
             console.error("File reading error:", fileError);
             Alert.alert("Error", "Failed to read file: " + fileError.message);
@@ -532,7 +540,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const handleFileDownload = async (fileData) => {
     try {
       console.log("File download requested:", fileData);
-      
+
       if (Platform.OS === 'web') {
         // For web, create download link
         if (fileData.data) {
@@ -603,7 +611,24 @@ export default function GroupChatScreen({ route, navigation }) {
 
   const renderMessage = ({ item }) => {
     const isMyMessage = item.senderId._id === currentUserId;
-    const isUserOnline = onlineUsers.some(user => user._id === item.senderId._id);
+
+    // Read receipts logic (simulated for UI)
+    const renderTicks = () => {
+      if (!isMyMessage) return null;
+
+      let iconName = "checkmark-outline";
+      let color = "#667781"; // Gray for sent
+
+      if (item.read) {
+        iconName = "checkmark-done-outline";
+        color = "#34B7F1"; // Blue for seen
+      } else if (item.delivered) {
+        iconName = "checkmark-done-outline";
+        color = "#667781"; // Gray for delivered
+      }
+
+      return <Ionicons name={iconName} size={16} color={color} style={styles.tickIcon} />;
+    };
 
     return (
       <View style={[
@@ -624,23 +649,22 @@ export default function GroupChatScreen({ route, navigation }) {
                 </Text>
               )}
             </View>
-            {isUserOnline && <View style={styles.onlineStatusDot} />}
           </View>
         )}
 
-        <View style={[
-          styles.messageContainer,
-          isMyMessage ? styles.myMessage : styles.otherMessage
-        ]}>
-          {/* Message Header with Dropdown */}
+        <View
+          style={[
+            styles.messageContainer,
+            isMyMessage ? styles.myMessage : styles.otherMessage
+          ]}
+        >
           <View style={styles.messageHeader}>
             {!isMyMessage && (
               <Text style={styles.senderName}>
                 {item.senderId.profile?.name || "Unknown"}
               </Text>
             )}
-            
-            {/* Dropdown Arrow inside message */}
+
             <TouchableOpacity
               style={styles.messageDropdownInside}
               onPress={() => showMessageActionSheet(item)}
@@ -659,7 +683,10 @@ export default function GroupChatScreen({ route, navigation }) {
           )}
 
           {item.messageType === "image" && item.fileData ? (
-            <View style={styles.imageContainer}>
+            <TouchableOpacity
+              style={styles.imageContainer}
+              onPress={() => handleLinkPress(item.fileData)}
+            >
               <Image source={{ uri: item.fileData }} style={styles.messageImage} />
               {item.messageText && item.messageText !== "📷 Image" && (
                 <Text style={[
@@ -669,37 +696,28 @@ export default function GroupChatScreen({ route, navigation }) {
                   {item.messageText}
                 </Text>
               )}
-            </View>
+            </TouchableOpacity>
           ) : null}
 
           {item.messageType === "file" && item.fileData ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.fileMessage}
               onPress={() => handleFileDownload(item.fileData)}
             >
-              <Text style={styles.fileIcon}>📎</Text>
+              <Text style={styles.fileIcon}>📄</Text>
               <View style={styles.fileInfo}>
-                <Text style={styles.fileName}>
-                  {item.fileData.name || "Unknown File"}
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {item.fileData.name || "Document"}
                 </Text>
                 <Text style={styles.fileSize}>
-                  {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : "Document"}
-                  {item.fileData.type && ` • ${item.fileData.type.split('/')[1]?.toUpperCase() || 'FILE'}`}
+                  {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : ""}
+                  {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
                 </Text>
               </View>
-              <Text style={styles.downloadIcon}>⬇️</Text>
             </TouchableOpacity>
-          ) : item.messageType === "file" ? (
-            <View style={styles.fileMessage}>
-              <Text style={styles.fileIcon}>📎</Text>
-              <View style={styles.fileInfo}>
-                <Text style={styles.fileName}>File</Text>
-                <Text style={styles.fileSize}>File data not available</Text>
-              </View>
-            </View>
           ) : null}
 
-          {(item.messageType === "text" || (!item.fileData)) && (
+          {(item.messageType === "text" || !item.fileData) && (
             renderMessageText(item.messageText, isMyMessage)
           )}
 
@@ -710,9 +728,7 @@ export default function GroupChatScreen({ route, navigation }) {
             ]}>
               {formatMessageTime(item.createdAt)}
             </Text>
-            {isMyMessage && (
-              <Text style={styles.messageStatus}>✓✓</Text>
-            )}
+            {renderTicks()}
           </View>
         </View>
       </View>
@@ -735,12 +751,22 @@ export default function GroupChatScreen({ route, navigation }) {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+
+          <View style={styles.groupDetails}>
+            <Text style={styles.headerTitle}>{groupName}</Text>
+            <Text style={styles.memberCount}>
+              {groupInfo?.members?.length || 0} members
+              {onlineUsers.length > 0 && `, ${onlineUsers.length} online`}
+            </Text>
+          </View>
+        </View>
 
         <TouchableOpacity
-          style={styles.groupInfo}
+          style={styles.headerRight}
           onPress={() => navigation.navigate("GroupInfo", { groupId, groupName })}
         >
           <View style={styles.groupAvatar}>
@@ -756,27 +782,13 @@ export default function GroupChatScreen({ route, navigation }) {
                 </Text>
               </View>
             )}
-            {onlineUsers.length > 0 && (
-              <View style={styles.onlineIndicator}>
-                <Text style={styles.onlineCount}>{onlineUsers.length}</Text>
-              </View>
-            )}
           </View>
-
-          <View style={styles.groupDetails}>
-            <Text style={styles.headerTitle}>{groupName}</Text>
-            <Text style={styles.memberCount}>
-              {groupInfo?.members?.length || 0} members
-              {onlineUsers.length > 0 && `, ${onlineUsers.length} online`}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setShowGroupMenu(true)}
-          style={styles.menuButton}
-        >
-          <Text style={styles.menuButtonText}>⋮</Text>
+          <TouchableOpacity
+            onPress={() => setShowGroupMenu(true)}
+            style={styles.menuButton}
+          >
+            <Text style={styles.menuButtonText}>⋮</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       </View>
 
@@ -814,30 +826,31 @@ export default function GroupChatScreen({ route, navigation }) {
 
       {/* Message Input */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity
-          style={styles.attachButton}
-          onPress={() => setShowAttachmentOptions(true)}
-        >
-          <Text style={styles.attachButtonText}>📎</Text>
-        </TouchableOpacity>
+        <View style={styles.inputWrapper}>
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={() => setShowAttachmentOptions(true)}
+          >
+            <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
+          </TouchableOpacity>
 
-        <TextInput
-          style={styles.textInput}
-          placeholder="Type a message..."
-          value={newMessage}
-          onChangeText={setNewMessage}
-          multiline
-          maxLength={1000}
-        />
+          <TextInput
+            style={styles.textInput}
+            placeholder="Type a message..."
+            value={newMessage}
+            onChangeText={setNewMessage}
+            multiline
+            maxLength={1000}
+            placeholderTextColor="#888"
+          />
+        </View>
 
         <TouchableOpacity
-          style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
+          style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
           onPress={handleSendText}
-          disabled={!newMessage.trim() || sending}
+          disabled={!newMessage.trim() && !sending}
         >
-          <Text style={styles.sendButtonText}>
-            {sending ? "..." : "Send"}
-          </Text>
+          <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
         </TouchableOpacity>
       </View>
 
@@ -892,7 +905,7 @@ export default function GroupChatScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.messageActionsModal}>
             <Text style={styles.modalTitle}>Message Options</Text>
-            
+
             {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
               <TouchableOpacity
                 style={styles.actionOption}
@@ -933,6 +946,19 @@ export default function GroupChatScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
 
+            {selectedMessage && (
+              <TouchableOpacity
+                style={styles.actionOption}
+                onPress={() => {
+                  setShowMessageActions(false);
+                  handleViewInfo(selectedMessage);
+                }}
+              >
+                <Text style={styles.actionIcon}>ℹ️</Text>
+                <Text style={styles.actionText}>Info</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowMessageActions(false)}
@@ -942,54 +968,80 @@ export default function GroupChatScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
-      {/* Group Menu Modal */}
+
+      {/* Message Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.messageInfoModal}>
+            <Text style={styles.modalTitle}>Message Info</Text>
+
+            <View style={styles.infoSection}>
+              <Text style={styles.infoLabel}>Delivered</Text>
+              <Text style={styles.infoValue}>
+                {selectedMessage ? new Date(selectedMessage.createdAt).toLocaleString() : ""}
+              </Text>
+            </View>
+
+            <View style={styles.infoSection}>
+              <Text style={styles.infoLabel}>Seen by</Text>
+              <View style={styles.seenList}>
+                {groupInfo?.members?.slice(0, 3).map((member, index) => (
+                  <View key={index} style={styles.seenItem}>
+                    <Text style={styles.seenName}>{member.user?.profile?.name || "Member"}</Text>
+                    <Text style={styles.seenTime}>Seen</Text>
+                  </View>
+                ))}
+                {groupInfo?.members?.length > 3 && (
+                  <Text style={styles.moreSeen}>+ {groupInfo.members.length - 3} more</Text>
+                )}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.closeInfoButton}
+              onPress={() => setShowInfoModal(false)}
+            >
+              <Text style={styles.closeInfoButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {/* Group Menu Bottom Sheet */}
       <Modal
         visible={showGroupMenu}
         transparent={true}
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowGroupMenu(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.groupMenuModal}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalGroupInfo}>
-                <View style={styles.modalGroupAvatar}>
-                  {groupInfo?.profilePhoto ? (
-                    <Image
-                      source={{ uri: groupInfo.profilePhoto }}
-                      style={styles.modalGroupAvatarImage}
-                    />
-                  ) : (
-                    <View style={styles.modalGroupAvatarPlaceholder}>
-                      <Text style={styles.modalGroupAvatarText}>
-                        {groupName?.charAt(0)?.toUpperCase() || "G"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <View>
-                  <Text style={styles.modalGroupName}>{groupName}</Text>
-                  <Text style={styles.modalGroupMembers}>
-                    {groupInfo?.members?.length || 0} members
-                  </Text>
-                </View>
+        <Pressable
+          style={styles.bottomSheetOverlay}
+          onPress={() => setShowGroupMenu(false)}
+        >
+          <Pressable style={styles.bottomSheet} onPress={(e) => e.stopPropagation()}>
+            {/* Menu Options */}
+            <TouchableOpacity
+              style={styles.bottomSheetOption}
+              onPress={() => {
+                setShowGroupMenu(false);
+                navigation.navigate("GroupInfo", { groupId, groupName });
+              }}
+            >
+              <View style={styles.bottomSheetIconContainer}>
+                <Ionicons name="information-circle-outline" size={24} color="#6B7280" />
               </View>
-            </View>
+              <Text style={styles.bottomSheetOptionText}>Group Info</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
 
             {isAdmin ? (
               <>
                 <TouchableOpacity
-                  style={styles.menuOption}
-                  onPress={() => {
-                    setShowGroupMenu(false);
-                    navigation.navigate("GroupInfo", { groupId, groupName });
-                  }}
-                >
-                  <Text style={styles.menuIcon}>ℹ️</Text>
-                  <Text style={styles.menuText}>Group Info</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuOption}
+                  style={styles.bottomSheetOption}
                   onPress={() => {
                     setShowGroupMenu(false);
                     navigation.navigate("EditGroup", {
@@ -1000,41 +1052,15 @@ export default function GroupChatScreen({ route, navigation }) {
                     });
                   }}
                 >
-                  <Text style={styles.menuIcon}>✏️</Text>
-                  <Text style={styles.menuText}>Edit Group</Text>
+                  <View style={styles.bottomSheetIconContainer}>
+                    <Ionicons name="pencil-outline" size={24} color="#6B7280" />
+                  </View>
+                  <Text style={styles.bottomSheetOptionText}>Edit Group</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
+
                 <TouchableOpacity
-                  style={styles.menuOption}
-                  onPress={() => {
-                    setShowGroupMenu(false);
-                    navigation.navigate("EditGroup", {
-                      groupId,
-                      groupName,
-                      groupDescription: groupInfo?.description,
-                      groupPhoto: groupInfo?.profilePhoto
-                    });
-                  }}
-                >
-                  <Text style={styles.menuIcon}>👥</Text>
-                  <Text style={styles.menuText}>Manage Members</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuOption}
-                  onPress={() => {
-                    setShowGroupMenu(false);
-                    navigation.navigate("EditGroup", {
-                      groupId,
-                      groupName,
-                      groupDescription: groupInfo?.description,
-                      groupPhoto: groupInfo?.profilePhoto
-                    });
-                  }}
-                >
-                  <Text style={styles.menuIcon}>📷</Text>
-                  <Text style={styles.menuText}>Change Group Photo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuOption}
+                  style={styles.bottomSheetOption}
                   onPress={() => {
                     setShowGroupMenu(false);
                     Alert.alert(
@@ -1069,34 +1095,30 @@ export default function GroupChatScreen({ route, navigation }) {
                     );
                   }}
                 >
-                  <Text style={[styles.menuIcon, styles.deleteText]}>🗑️</Text>
-                  <Text style={[styles.menuText, styles.deleteText]}>Delete Group</Text>
+                  <View style={styles.bottomSheetIconContainer}>
+                    <Ionicons name="trash-outline" size={24} color="#DC2626" />
+                  </View>
+                  <Text style={[styles.bottomSheetOptionText, { color: "#DC2626" }]}>Delete Group</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </>
             ) : (
               <>
                 <TouchableOpacity
-                  style={styles.menuOption}
-                  onPress={() => {
-                    setShowGroupMenu(false);
-                    navigation.navigate("GroupInfo", { groupId, groupName });
-                  }}
-                >
-                  <Text style={styles.menuIcon}>ℹ️</Text>
-                  <Text style={styles.menuText}>Group Info</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuOption}
+                  style={styles.bottomSheetOption}
                   onPress={() => {
                     setShowGroupMenu(false);
                     Alert.alert("Feature Coming Soon", "Mute notifications feature will be available soon!");
                   }}
                 >
-                  <Text style={styles.menuIcon}>🔇</Text>
-                  <Text style={styles.menuText}>Mute Notifications</Text>
+                  <View style={styles.bottomSheetIconContainer}>
+                    <Ionicons name="notifications-off-outline" size={24} color="#6B7280" />
+                  </View>
+                  <Text style={styles.bottomSheetOptionText}>Mute Notifications</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.menuOption}
+                  style={styles.bottomSheetOption}
                   onPress={() => {
                     setShowGroupMenu(false);
                     Alert.alert(
@@ -1131,20 +1153,16 @@ export default function GroupChatScreen({ route, navigation }) {
                     );
                   }}
                 >
-                  <Text style={[styles.menuIcon, styles.leaveText]}>🚪</Text>
-                  <Text style={[styles.menuText, styles.leaveText]}>Leave Group</Text>
+                  <View style={styles.bottomSheetIconContainer}>
+                    <Ionicons name="log-out-outline" size={24} color="#DC2626" />
+                  </View>
+                  <Text style={[styles.bottomSheetOptionText, { color: "#DC2626" }]}>Leave Group</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </>
             )}
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowGroupMenu(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </KeyboardAvoidingView>
   );
@@ -1168,17 +1186,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: 50,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center"
   },
   backButton: {
     padding: 8,
@@ -1189,14 +1212,23 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "600"
   },
-  groupInfo: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center"
+  groupDetails: {
+    flex: 1
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827"
+  },
+  memberCount: {
+    fontSize: 12,
+    color: "#64748B"
   },
   groupAvatar: {
-    position: "relative",
-    marginRight: 12
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10
   },
   groupAvatarImage: {
     width: 40,
@@ -1207,101 +1239,49 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#00664F",
     justifyContent: "center",
     alignItems: "center"
   },
   groupAvatarText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff"
-  },
-  onlineIndicator: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    backgroundColor: "#10B981",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff"
-  },
-  onlineCount: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#fff"
-  },
-  groupDetails: {
-    flex: 1
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2
-  },
-  memberCount: {
-    fontSize: 12,
-    color: "#6B7280"
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600"
   },
   menuButton: {
     padding: 8
   },
   menuButtonText: {
-    fontSize: 20,
-    color: "#6B7280",
-    fontWeight: "bold"
+    fontSize: 24,
+    color: "#64748B"
   },
   messagesListContainer: {
-    flex: 1,
+    flex: 1
   },
   messagesList: {
-    padding: 10,
-    paddingBottom: 20
+    paddingHorizontal: 16,
+    paddingVertical: 20
   },
   messageWrapper: {
+    marginBottom: 12,
     flexDirection: "row",
-    marginVertical: 4,
-    maxWidth: "85%",
     alignItems: "flex-end"
   },
   myMessageWrapper: {
-    alignSelf: "flex-end",
     justifyContent: "flex-end"
   },
   otherMessageWrapper: {
-    alignSelf: "flex-start",
     justifyContent: "flex-start"
   },
-  messageHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4
-  },
-  messageDropdownInside: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    marginLeft: 8
-  },
-  dropdownArrowInside: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    fontWeight: "bold"
-  },
   senderAvatarContainer: {
-    position: "relative",
     marginRight: 8,
-    alignSelf: "flex-end"
+    position: "relative"
   },
   senderAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center"
   },
@@ -1322,103 +1302,70 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#10B981",
+    backgroundColor: "#22C55E",
     borderWidth: 2,
     borderColor: "#F0F2F5"
   },
   messageContainer: {
-    padding: 12,
+    maxWidth: "80%",
+    padding: 10,
     borderRadius: 16,
-    marginVertical: 1,
-    maxWidth: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1
+    position: "relative"
   },
   myMessage: {
-    backgroundColor: "#DCF8C6",
-    borderBottomRightRadius: 4,
-    marginLeft: 8
+    backgroundColor: "#DCF8C6", // WhatsApp green bubble
+    borderTopRightRadius: 4
   },
   otherMessage: {
-    backgroundColor: "#fff",
-    borderBottomLeftRadius: 4
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 4
   },
   senderName: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#2563EB",
-    marginBottom: 4
+    fontWeight: "700",
+    color: "#00664F",
+    marginRight: 16
   },
-  repliedMessage: {
-    backgroundColor: "rgba(0,0,0,0.05)",
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: "#2563EB"
+  messageDropdownInside: {
+    padding: 2
   },
-  repliedSender: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#2563EB",
-    marginBottom: 2
-  },
-  repliedText: {
-    fontSize: 11,
-    color: "#64748B",
-    fontStyle: "italic"
-  },
-  imageContainer: {
-    marginBottom: 4
-  },
-  messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 8
-  },
-  imageCaption: {
+  dropdownArrowInside: {
     fontSize: 14,
-    lineHeight: 18
+    color: "#64748B"
   },
   messageText: {
     fontSize: 15,
     lineHeight: 20,
-    marginBottom: 4
+    color: "#111827"
   },
   myMessageText: {
-    color: "#000"
+    color: "#111827"
   },
   otherMessageText: {
-    color: "#000"
+    color: "#111827"
   },
   linkText: {
-    color: "#2563EB",
+    color: "#00664F",
     textDecorationLine: "underline"
   },
   messageFooter: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "flex-end",
-    marginTop: 2
+    alignItems: "center",
+    marginTop: 4
   },
   messageTime: {
-    fontSize: 11,
-    marginRight: 4
+    fontSize: 10,
+    color: "#64748B"
   },
-  myMessageTime: {
-    color: "#4B5563"
-  },
-  otherMessageTime: {
-    color: "#9CA3AF"
+  tickIcon: {
+    marginLeft: 4
   },
   messageStatus: {
     fontSize: 12,
     color: "#10B981"
   },
+  // ... Keep emptyContainer and replyPreview ...
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1464,36 +1411,44 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    padding: 10,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB"
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#fff"
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 25,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    minHeight: 44
   },
   attachButton: {
-    padding: 10,
-    marginRight: 5
+    padding: 8
   },
-  attachButtonText: {
-    fontSize: 20
+  pinIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "#64748B"
   },
   textInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: 10,
-    maxHeight: 100,
     fontSize: 16,
-    backgroundColor: "#F9FAFB"
+    color: "#111827",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    maxHeight: 120
   },
   sendButton: {
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#00664F",
+    justifyContent: "center",
+    alignItems: "center"
   },
   sendButtonDisabled: {
     backgroundColor: "#9CA3AF"
@@ -1506,14 +1461,16 @@ const styles = StyleSheet.create({
   fileMessage: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(0,0,0,0.05)",
     padding: 10,
-    borderRadius: 8,
-    marginBottom: 8
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)"
   },
   fileIcon: {
-    fontSize: 20,
-    marginRight: 10
+    fontSize: 24,
+    marginRight: 12
   },
   fileInfo: {
     flex: 1
@@ -1521,16 +1478,16 @@ const styles = StyleSheet.create({
   fileName: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151"
+    color: "#111827"
   },
   fileSize: {
-    fontSize: 12,
-    color: "#6B7280"
+    fontSize: 11,
+    color: "#64748B"
   },
   downloadIcon: {
-    fontSize: 16,
-    marginLeft: 8,
-    color: "#2563EB"
+    fontSize: 18,
+    marginLeft: 10,
+    color: "#00664F"
   },
   modalOverlay: {
     flex: 1,
@@ -1611,6 +1568,16 @@ const styles = StyleSheet.create({
   deleteText: {
     color: "#DC2626"
   },
+  cancelButton: {
+    marginTop: 10,
+    paddingVertical: 15,
+    alignItems: "center"
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "600"
+  },
   groupMenuModal: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -1622,48 +1589,25 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8
   },
-  modalHeader: {
-    backgroundColor: "#F9FAFB",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB"
+  // Bottom Sheet Styles
+  bottomSheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end"
   },
-  modalGroupInfo: {
-    flexDirection: "row",
-    alignItems: "center"
+  bottomSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8
   },
-  modalGroupAvatar: {
-    marginRight: 12
-  },
-  modalGroupAvatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25
-  },
-  modalGroupAvatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#F59E0B",
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  modalGroupAvatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#fff"
-  },
-  modalGroupName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2
-  },
-  modalGroupMembers: {
-    fontSize: 12,
-    color: "#6B7280"
-  },
-  menuOption: {
+  bottomSheetOption: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 16,
@@ -1671,28 +1615,78 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6"
   },
-  menuIcon: {
-    fontSize: 18,
-    marginRight: 12,
-    width: 24,
-    textAlign: "center"
+  bottomSheetIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12
   },
-  menuText: {
+  bottomSheetOptionText: {
     fontSize: 16,
-    color: "#374151",
-    flex: 1
+    color: "#111827",
+    flex: 1,
+    fontWeight: "500"
   },
-  leaveText: {
-    color: "#F59E0B"
+  messageInfoModal: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    margin: 20,
+    padding: 24,
+    width: "85%",
+    alignSelf: "center"
   },
-  cancelButton: {
-    marginTop: 10,
-    paddingVertical: 15
+  infoSection: {
+    marginBottom: 20
   },
-  cancelButtonText: {
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#00664F",
+    marginBottom: 8,
+    textTransform: "uppercase"
+  },
+  infoValue: {
     fontSize: 16,
-    color: "#6B7280",
-    textAlign: "center",
+    color: "#111827"
+  },
+  seenList: {
+    marginTop: 8
+  },
+  seenItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6"
+  },
+  seenName: {
+    fontSize: 16,
+    color: "#111827"
+  },
+  seenTime: {
+    fontSize: 14,
+    color: "#64748B"
+  },
+  moreSeen: {
+    fontSize: 14,
+    color: "#64748B",
+    marginTop: 8,
+    fontStyle: "italic"
+  },
+  closeInfoButton: {
+    backgroundColor: "#00664F",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8
+  },
+  closeInfoButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "600"
   }
 });
