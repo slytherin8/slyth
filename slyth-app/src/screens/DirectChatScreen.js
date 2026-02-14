@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+// Force rebuild date: 2026-02-14
 import {
   View,
   Text,
@@ -13,10 +14,12 @@ import {
   Image,
   Modal,
   ActionSheetIOS,
-  Linking
+  Linking,
+  Pressable
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
+import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import socketService from '../services/socketService';
 
@@ -52,6 +55,7 @@ export default function DirectChatScreen({ route, navigation }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showMessageActions, setShowMessageActions] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [showAttachmentOptions, setShowAttachmentOptions] = useState(false);
   const flatListRef = useRef(null);
 
@@ -68,7 +72,7 @@ export default function DirectChatScreen({ route, navigation }) {
       // Only add message if it's from the current conversation
       if (message.senderId._id === userId || message.receiverId === userId) {
         setMessages(prev => [...prev, message]);
-        
+
         // Scroll to bottom
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
@@ -202,7 +206,7 @@ export default function DirectChatScreen({ route, navigation }) {
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         fullUrl = 'https://' + url;
       }
-      
+
       const supported = await Linking.canOpenURL(fullUrl);
       if (supported) {
         await Linking.openURL(fullUrl);
@@ -217,7 +221,7 @@ export default function DirectChatScreen({ route, navigation }) {
   const renderMessageText = (text, isMyMessage) => {
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}[^\s]*)/gi;
     const parts = text.split(urlRegex);
-    
+
     return (
       <Text style={[
         styles.messageText,
@@ -240,6 +244,11 @@ export default function DirectChatScreen({ route, navigation }) {
       </Text>
     );
   };
+  const handleViewInfo = (message) => {
+    setSelectedMessage(message);
+    setShowInfoModal(true);
+  };
+
   const showMessageActionSheet = (message) => {
     const isMyMessage = message.senderId._id === currentUserId;
     const options = [];
@@ -253,6 +262,7 @@ export default function DirectChatScreen({ route, navigation }) {
     }
 
     if (isMyMessage) {
+      options.push("Info");
       options.push("Delete");
     }
 
@@ -279,6 +289,8 @@ export default function DirectChatScreen({ route, navigation }) {
                 { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(message._id) }
               ]
             );
+          } else if (options[buttonIndex] === "Info") {
+            handleViewInfo(message);
           }
         }
       );
@@ -307,12 +319,12 @@ export default function DirectChatScreen({ route, navigation }) {
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
-        
+
         if (!asset.base64) {
           Alert.alert("Error", "Failed to convert image to base64. Please try a different image.");
           return;
         }
-        
+
         const base64Image = `data:image/jpeg;base64,${asset.base64}`;
 
         if (base64Image.length > 5 * 1024 * 1024) {
@@ -370,11 +382,11 @@ export default function DirectChatScreen({ route, navigation }) {
 
         if (!result.canceled && result.assets && result.assets[0]) {
           const file = result.assets[0];
-          
+
           try {
             const response = await fetch(file.uri);
             const blob = await response.blob();
-            
+
             const reader = new FileReader();
             reader.onload = () => {
               const base64Data = reader.result;
@@ -385,13 +397,13 @@ export default function DirectChatScreen({ route, navigation }) {
                 data: base64Data
               });
             };
-            
+
             reader.onerror = (error) => {
               Alert.alert("Error", "Failed to read file");
             };
-            
+
             reader.readAsDataURL(blob);
-            
+
           } catch (fileError) {
             Alert.alert("Error", "Failed to read file: " + fileError.message);
           }
@@ -444,6 +456,23 @@ export default function DirectChatScreen({ route, navigation }) {
   const renderMessage = ({ item }) => {
     const isMyMessage = item.senderId._id === currentUserId;
 
+    const renderTicks = () => {
+      if (!isMyMessage) return null;
+
+      let iconName = "checkmark-outline";
+      let color = "#667781";
+
+      if (item.read) {
+        iconName = "checkmark-done-outline";
+        color = "#34B7F1";
+      } else if (item.delivered) {
+        iconName = "checkmark-done-outline";
+        color = "#667781";
+      }
+
+      return <Ionicons name={iconName} size={16} color={color} style={styles.tickIcon} />;
+    };
+
     return (
       <View style={[
         styles.messageWrapper,
@@ -466,17 +495,13 @@ export default function DirectChatScreen({ route, navigation }) {
           </View>
         )}
 
-        <View style={[
-          styles.messageContainer,
-          isMyMessage ? styles.myMessage : styles.otherMessage
-        ]}>
+        <View
+          style={[
+            styles.messageContainer,
+            isMyMessage ? styles.myMessage : styles.otherMessage
+          ]}
+        >
           <View style={styles.messageHeader}>
-            {!isMyMessage && (
-              <Text style={styles.senderName}>
-                {userName || "Unknown"}
-              </Text>
-            )}
-            
             <TouchableOpacity
               style={styles.messageDropdownInside}
               onPress={() => showMessageActionSheet(item)}
@@ -495,7 +520,10 @@ export default function DirectChatScreen({ route, navigation }) {
           )}
 
           {item.messageType === "image" && item.fileData ? (
-            <View style={styles.imageContainer}>
+            <TouchableOpacity
+              style={styles.imageContainer}
+              onPress={() => handleLinkPress(item.fileData)}
+            >
               <Image source={{ uri: item.fileData }} style={styles.messageImage} />
               {item.messageText && item.messageText !== "📷 Image" && (
                 <Text style={[
@@ -505,37 +533,28 @@ export default function DirectChatScreen({ route, navigation }) {
                   {item.messageText}
                 </Text>
               )}
-            </View>
+            </TouchableOpacity>
           ) : null}
 
           {item.messageType === "file" && item.fileData ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.fileMessage}
               onPress={() => handleFileDownload(item.fileData)}
             >
-              <Text style={styles.fileIcon}>📎</Text>
+              <Text style={styles.fileIcon}>📄</Text>
               <View style={styles.fileInfo}>
-                <Text style={styles.fileName}>
-                  {item.fileData.name || "Unknown File"}
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {item.fileData.name || "Document"}
                 </Text>
                 <Text style={styles.fileSize}>
-                  {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : "Document"}
-                  {item.fileData.type && ` • ${item.fileData.type.split('/')[1]?.toUpperCase() || 'FILE'}`}
+                  {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : ""}
+                  {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
                 </Text>
               </View>
-              <Text style={styles.downloadIcon}>⬇️</Text>
             </TouchableOpacity>
-          ) : item.messageType === "file" ? (
-            <View style={styles.fileMessage}>
-              <Text style={styles.fileIcon}>📎</Text>
-              <View style={styles.fileInfo}>
-                <Text style={styles.fileName}>File</Text>
-                <Text style={styles.fileSize}>File data not available</Text>
-              </View>
-            </View>
           ) : null}
 
-          {(item.messageType === "text" || (!item.fileData)) && (
+          {(item.messageType === "text" || !item.fileData) && (
             renderMessageText(item.messageText, isMyMessage)
           )}
 
@@ -546,9 +565,7 @@ export default function DirectChatScreen({ route, navigation }) {
             ]}>
               {formatMessageTime(item.createdAt)}
             </Text>
-            {isMyMessage && (
-              <Text style={styles.messageStatus}>✓✓</Text>
-            )}
+            {renderTicks()}
           </View>
         </View>
       </View>
@@ -570,11 +587,18 @@ export default function DirectChatScreen({ route, navigation }) {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
 
-        <View style={styles.userInfo}>
+          <View style={styles.userDetails}>
+            <Text style={styles.headerTitle}>{userName || "Unknown User"}</Text>
+            <Text style={styles.userRole}>Direct Message</Text>
+          </View>
+        </View>
+
+        <View style={styles.headerRight}>
           <View style={styles.userAvatar}>
             {userAvatar ? (
               <Image
@@ -588,11 +612,6 @@ export default function DirectChatScreen({ route, navigation }) {
                 </Text>
               </View>
             )}
-          </View>
-
-          <View style={styles.userDetails}>
-            <Text style={styles.headerTitle}>{userName || "Unknown User"}</Text>
-            <Text style={styles.userRole}>Direct Message</Text>
           </View>
         </View>
       </View>
@@ -631,30 +650,31 @@ export default function DirectChatScreen({ route, navigation }) {
 
       {/* Message Input */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity
-          style={styles.attachButton}
-          onPress={() => setShowAttachmentOptions(true)}
-        >
-          <Text style={styles.attachButtonText}>📎</Text>
-        </TouchableOpacity>
+        <View style={styles.inputWrapper}>
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={() => setShowAttachmentOptions(true)}
+          >
+            <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
+          </TouchableOpacity>
 
-        <TextInput
-          style={styles.textInput}
-          placeholder="Type a message..."
-          value={newMessage}
-          onChangeText={setNewMessage}
-          multiline
-          maxLength={1000}
-        />
+          <TextInput
+            style={styles.textInput}
+            placeholder="Type a message..."
+            value={newMessage}
+            onChangeText={setNewMessage}
+            multiline
+            maxLength={1000}
+            placeholderTextColor="#888"
+          />
+        </View>
 
         <TouchableOpacity
-          style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
+          style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
           onPress={handleSendText}
-          disabled={!newMessage.trim() || sending}
+          disabled={!newMessage.trim() && !sending}
         >
-          <Text style={styles.sendButtonText}>
-            {sending ? "..." : "Send"}
-          </Text>
+          <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
         </TouchableOpacity>
       </View>
       {/* Attachment Options Modal */}
@@ -708,7 +728,7 @@ export default function DirectChatScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.messageActionsModal}>
             <Text style={styles.modalTitle}>Message Options</Text>
-            
+
             {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
               <TouchableOpacity
                 style={styles.actionOption}
@@ -748,11 +768,60 @@ export default function DirectChatScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
 
+            {selectedMessage && (
+              <TouchableOpacity
+                style={styles.actionOption}
+                onPress={() => {
+                  setShowMessageActions(false);
+                  handleViewInfo(selectedMessage);
+                }}
+              >
+                <Text style={styles.actionIcon}>ℹ️</Text>
+                <Text style={styles.actionText}>Info</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowMessageActions(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Message Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.messageInfoModal}>
+            <Text style={styles.modalTitle}>Message Info</Text>
+
+            <View style={styles.infoSection}>
+              <Text style={styles.infoLabel}>Delivered</Text>
+              <Text style={styles.infoValue}>
+                {selectedMessage ? new Date(selectedMessage.createdAt).toLocaleString() : ""}
+              </Text>
+            </View>
+
+            <View style={styles.infoSection}>
+              <Text style={styles.infoLabel}>Read</Text>
+              <View style={styles.seenItem}>
+                <Text style={styles.seenName}>{userName}</Text>
+                <Text style={styles.seenTime}>{selectedMessage?.read ? "Read" : "Delivered"}</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.closeInfoButton}
+              onPress={() => setShowInfoModal(false)}
+            >
+              <Text style={styles.closeInfoButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -778,17 +847,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: 50,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center"
   },
   backButton: {
     padding: 8,
@@ -799,13 +873,22 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "600"
   },
-  userInfo: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center"
+  userDetails: {
+    flex: 1
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827"
+  },
+  userRole: {
+    fontSize: 12,
+    color: "#64748B"
   },
   userAvatar: {
-    marginRight: 12
+    width: 40,
+    height: 40,
+    borderRadius: 20
   },
   userAvatarImage: {
     width: 40,
@@ -816,74 +899,41 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#00664F",
     justifyContent: "center",
     alignItems: "center"
   },
   userAvatarText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff"
-  },
-  userDetails: {
-    flex: 1
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2
-  },
-  userRole: {
-    fontSize: 12,
-    color: "#6B7280"
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600"
   },
   messagesListContainer: {
-    flex: 1,
+    flex: 1
   },
   messagesList: {
-    padding: 10,
-    paddingBottom: 20
+    paddingHorizontal: 16,
+    paddingVertical: 20
   },
   messageWrapper: {
+    marginBottom: 12,
     flexDirection: "row",
-    marginVertical: 4,
-    maxWidth: "85%",
     alignItems: "flex-end"
   },
   myMessageWrapper: {
-    alignSelf: "flex-end",
     justifyContent: "flex-end"
   },
   otherMessageWrapper: {
-    alignSelf: "flex-start",
     justifyContent: "flex-start"
   },
-  messageHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4
-  },
-  messageDropdownInside: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    marginLeft: 8
-  },
-  dropdownArrowInside: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    fontWeight: "bold"
-  },
   senderAvatarContainer: {
-    marginRight: 8,
-    alignSelf: "flex-end"
+    marginRight: 8
   },
   senderAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center"
   },
@@ -893,102 +943,172 @@ const styles = StyleSheet.create({
     borderRadius: 16
   },
   avatarText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B"
+    fontSize: 14,
+    color: "#64748B",
+    fontWeight: "600"
   },
   messageContainer: {
-    padding: 12,
+    maxWidth: "80%",
+    padding: 10,
     borderRadius: 16,
-    marginVertical: 1,
-    maxWidth: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1
+    position: "relative"
   },
   myMessage: {
     backgroundColor: "#DCF8C6",
-    borderBottomRightRadius: 4,
-    marginLeft: 8
+    borderTopRightRadius: 4
   },
   otherMessage: {
-    backgroundColor: "#fff",
-    borderBottomLeftRadius: 4
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 4
   },
-  senderName: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2563EB",
+  messageHeader: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
     marginBottom: 4
+  },
+  messageDropdownInside: {
+    padding: 2
+  },
+  dropdownArrowInside: {
+    fontSize: 14,
+    color: "#64748B"
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: "#111827"
+  },
+  myMessageText: {
+    color: "#111827"
+  },
+  otherMessageText: {
+    color: "#111827"
+  },
+  linkText: {
+    color: "#00664F",
+    textDecorationLine: "underline"
+  },
+  messageFooter: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginTop: 4
+  },
+  messageTime: {
+    fontSize: 10,
+    color: "#64748B"
+  },
+  myMessageTime: {
+    color: "#64748B"
+  },
+  otherMessageTime: {
+    color: "#64748B"
+  },
+  tickIcon: {
+    marginLeft: 4
   },
   repliedMessage: {
     backgroundColor: "rgba(0,0,0,0.05)",
     padding: 8,
     borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: "#2563EB"
+    borderLeftWidth: 4,
+    borderLeftColor: "#00664F",
+    marginBottom: 8
   },
   repliedSender: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#2563EB",
-    marginBottom: 2
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#00664F"
   },
   repliedText: {
-    fontSize: 11,
-    color: "#64748B",
-    fontStyle: "italic"
+    fontSize: 13,
+    color: "#64748B"
   },
   imageContainer: {
+    borderRadius: 8,
+    overflow: "hidden",
     marginBottom: 4
   },
   messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 8
+    width: 250,
+    height: 180,
+    resizeMode: "cover"
   },
   imageCaption: {
     fontSize: 14,
-    lineHeight: 18
+    marginTop: 4,
+    paddingHorizontal: 4
   },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-    marginBottom: 4
-  },
-  myMessageText: {
-    color: "#000"
-  },
-  otherMessageText: {
-    color: "#000"
-  },
-  linkText: {
-    color: "#2563EB",
-    textDecorationLine: "underline"
-  },
-  messageFooter: {
+  fileMessage: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: 2
+    backgroundColor: "rgba(0,0,0,0.05)",
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)"
   },
-  messageTime: {
+  fileIcon: {
+    fontSize: 24,
+    marginRight: 12
+  },
+  fileInfo: {
+    flex: 1
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827"
+  },
+  fileSize: {
     fontSize: 11,
-    marginRight: 4
+    color: "#64748B"
   },
-  myMessageTime: {
-    color: "#4B5563"
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#fff"
   },
-  otherMessageTime: {
-    color: "#9CA3AF"
+  inputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 25,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    minHeight: 44
   },
-  messageStatus: {
-    fontSize: 12,
-    color: "#10B981"
+  attachButton: {
+    padding: 8
+  },
+  pinIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "#64748B"
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16,
+    color: "#111827",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    maxHeight: 120
+  },
+  sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#00664F",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  sendButtonDisabled: {
+    backgroundColor: "#9CA3AF"
   },
   emptyContainer: {
     flex: 1,
@@ -1021,7 +1141,7 @@ const styles = StyleSheet.create({
   replyLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#2563EB",
+    color: "#00664F",
     marginBottom: 2
   },
   replyText: {
@@ -1032,76 +1152,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#6B7280",
     paddingLeft: 10
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    padding: 10,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB"
-  },
-  attachButton: {
-    padding: 10,
-    marginRight: 5
-  },
-  attachButtonText: {
-    fontSize: 20
-  },
-  textInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: 10,
-    maxHeight: 100,
-    fontSize: 16,
-    backgroundColor: "#F9FAFB"
-  },
-  sendButton: {
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20
-  },
-  sendButtonDisabled: {
-    backgroundColor: "#9CA3AF"
-  },
-  sendButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600"
-  },
-  fileMessage: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F3F4F6",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8
-  },
-  fileIcon: {
-    fontSize: 20,
-    marginRight: 10
-  },
-  fileInfo: {
-    flex: 1
-  },
-  fileName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151"
-  },
-  fileSize: {
-    fontSize: 12,
-    color: "#6B7280"
-  },
-  downloadIcon: {
-    fontSize: 16,
-    marginLeft: 8,
-    color: "#2563EB"
   },
   modalOverlay: {
     flex: 1,
@@ -1184,12 +1234,62 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: 10,
-    paddingVertical: 15
+    paddingVertical: 15,
+    alignItems: "center"
   },
   cancelButtonText: {
     fontSize: 16,
-    color: "#6B7280",
-    textAlign: "center",
+    color: "#64748B",
+    fontWeight: "600"
+  },
+  messageInfoModal: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    margin: 20,
+    padding: 24,
+    width: "85%",
+    alignSelf: "center"
+  },
+  infoSection: {
+    marginBottom: 20
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#00664F",
+    marginBottom: 8,
+    textTransform: "uppercase"
+  },
+  infoValue: {
+    fontSize: 16,
+    color: "#111827"
+  },
+  seenItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6"
+  },
+  seenName: {
+    fontSize: 16,
+    color: "#111827"
+  },
+  seenTime: {
+    fontSize: 14,
+    color: "#64748B"
+  },
+  closeInfoButton: {
+    backgroundColor: "#00664F",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8
+  },
+  closeInfoButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "600"
   }
 });
