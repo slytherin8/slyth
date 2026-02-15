@@ -1,5 +1,4 @@
-/* global atob */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,14 +12,17 @@ import {
   Modal,
   TextInput
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import AppLayout from "../components/AppLayout";
 import { workService } from "../services/workService";
 import AsyncStorage from "../utils/storage";
+import { useSmartLoader } from "../hooks/useSmartLoader";
 
 export default function EmployeeWorkScreen({ navigation }) {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState({}); // { projectId: [tasks] }
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const showLoader = useSmartLoader(loading);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
 
@@ -54,6 +56,12 @@ export default function EmployeeWorkScreen({ navigation }) {
 
     return cleanup;
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) fetchData(userId);
+    }, [userId])
+  );
 
   const updateTaskInState = (updatedTask) => {
     setTasks(prev => {
@@ -99,14 +107,22 @@ export default function EmployeeWorkScreen({ navigation }) {
       const empProjects = await workService.getEmployeeProjects(uId);
       setProjects(empProjects);
 
+      // Fetch all tasks for all projects concurrently
+      const taskPromises = empProjects.map(project =>
+        workService.getProjectTasks(project._id)
+          .then(projectTasks => ({ projectId: project._id, tasks: projectTasks }))
+      );
+
+      const results = await Promise.all(taskPromises);
+
       const allTasks = {};
-      for (const project of empProjects) {
-        const projectTasks = await workService.getProjectTasks(project._id);
-        allTasks[project._id] = projectTasks;
-      }
+      results.forEach(result => {
+        allTasks[result.projectId] = result.tasks;
+      });
+
       setTasks(allTasks);
     } catch (error) {
-      console.error(error);
+      console.error("Fetch work data error:", error);
     }
   };
 
@@ -168,7 +184,12 @@ export default function EmployeeWorkScreen({ navigation }) {
           <Text style={styles.arrowIcon}>›</Text>
         </TouchableOpacity>
       ))}
-      {projects.length === 0 && (
+      {showLoader && projects.length === 0 && (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color="#115E59" />
+        </View>
+      )}
+      {projects.length === 0 && !showLoader && (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No projects assigned yet</Text>
         </View>
@@ -212,13 +233,7 @@ export default function EmployeeWorkScreen({ navigation }) {
     );
   };
 
-  if (loading) {
-    return (
-      <AppLayout navigation={navigation} role="employee">
-        <View style={styles.center}><ActivityIndicator size="large" color="#2563EB" /></View>
-      </AppLayout>
-    );
-  }
+
 
   return (
     <AppLayout navigation={navigation} role="employee">
