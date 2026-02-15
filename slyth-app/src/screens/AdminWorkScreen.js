@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
   Modal,
   Platform
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import AppLayout from "../components/AppLayout";
 import { workService } from "../services/workService";
+import { useSmartLoader } from "../hooks/useSmartLoader";
 import AsyncStorage from "../utils/storage";
 import api from "../services/api"; // Changed from import { API } from "../constants/api";
 
@@ -22,7 +24,8 @@ export default function AdminWorkScreen({ navigation }) {
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const showLoader = useSmartLoader(loading);
 
   // Navigation State
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -55,6 +58,12 @@ export default function AdminWorkScreen({ navigation }) {
     });
     return cleanup;
   }, [selectedEmployee, selectedProject]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchEmployees();
+    }, [])
+  );
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -292,14 +301,14 @@ export default function AdminWorkScreen({ navigation }) {
   const renderProjectScreen = () => (
     <View style={styles.flex1}>
       <View style={styles.customSubHeader}>
-        <Text style={styles.wsHeaderTitle}>{selectedEmployee.name || "Employee"}'s workspace</Text>
+        <Text style={styles.wsHeaderTitle}>{selectedEmployee?.name || "Employee"}'s workspace</Text>
         <TouchableOpacity style={styles.refreshBtn} onPress={() => openEmployeeWorkspace(selectedEmployee)}>
           <Image source={require("../../assets/images/react-logo.png")} style={styles.refreshIcon} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.workspaceContent}>
-        {projects.map(project => (
+        {projects?.map(project => (
           <View key={project._id} style={styles.folderRow}>
             <TouchableOpacity
               style={styles.folderCard}
@@ -392,11 +401,11 @@ export default function AdminWorkScreen({ navigation }) {
   return (
     <AppLayout navigation={navigation} role="admin" onBack={handleBack}>
       <View style={styles.container}>
-        {loading && !selectedEmployee && (
-          <View style={styles.center}><ActivityIndicator size="large" color="#2563EB" /></View>
+        {showLoader && employees.length === 0 && !selectedEmployee && (
+          <View style={styles.center}><ActivityIndicator size="large" color="#00664F" /></View>
         )}
 
-        {!selectedEmployee ? renderMemberScreen() :
+        {!selectedEmployee && (employees.length > 0 || !showLoader) ? renderMemberScreen() :
           (!selectedProject ? renderProjectScreen() : renderTaskScreen())
         }
       </View>
