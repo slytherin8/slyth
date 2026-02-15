@@ -49,7 +49,7 @@ export default function DirectChatScreen({ route, navigation }) {
   const { userId, userName, userAvatar } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -571,14 +571,7 @@ export default function DirectChatScreen({ route, navigation }) {
       </View>
     );
   };
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Loading messages...</Text>
-      </View>
-    );
-  }
+
 
   return (
     <KeyboardAvoidingView
