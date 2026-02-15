@@ -17,10 +17,12 @@ import * as DocumentPicker from "expo-document-picker";
 import { useFocusEffect } from "@react-navigation/native";
 import AppLayout from "../components/AppLayout";
 import { vaultService } from "../services/vaultService";
+import { useSmartLoader } from "../hooks/useSmartLoader";
 
 const AdminVaultScreen = ({ navigation, route }) => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const showLoader = useSmartLoader(loading);
     const [uploading, setUploading] = useState(false);
     const { isVerified, folderId, folderName } = route.params || {};
 
@@ -164,8 +166,10 @@ const AdminVaultScreen = ({ navigation, route }) => {
             logoPosition="right"
         >
             <View style={styles.container}>
-                {loading ? (
-                    <ActivityIndicator size="large" color="#00664F" style={{ marginTop: 20 }} />
+                {showLoader && items.length === 0 ? (
+                    <View style={styles.center}>
+                        <ActivityIndicator size="large" color="#00664F" style={{ marginTop: 20 }} />
+                    </View>
                 ) : (
                     <FlatList
                         data={items}
@@ -272,6 +276,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8FAFC" },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
     listContent: { padding: 20 },
     card: {
         flexDirection: "row",
