@@ -13,6 +13,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
+import AppLayout from "../components/AppLayout";
 
 
 const { width, height } = Dimensions.get('window');
@@ -82,8 +83,8 @@ export default function AdminMeetScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <AppLayout role="admin" hideHeader={true}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
 
         {/* Header */}
@@ -133,8 +134,8 @@ export default function AdminMeetScreen({ navigation }) {
             <Text style={styles.connectButtonText}>Connect to Meet</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </SafeAreaProvider>
+      </View>
+    </AppLayout>
   );
 }
 
