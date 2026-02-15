@@ -38,7 +38,7 @@ export default function LoginScreen({ navigation }) {
   const [role, setRole] = useState("admin");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Error states
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -56,18 +56,18 @@ export default function LoginScreen({ navigation }) {
 
   const login = async () => {
     clearErrors();
-    
+
     // Input validation
     if (!email.trim()) {
       setEmailError("Please enter your email address");
       return;
     }
-    
+
     if (!validateEmail(email)) {
       setEmailError("Please enter a valid email address");
       return;
     }
-    
+
     if (!password.trim()) {
       setPasswordError("Please enter your password");
       return;
@@ -79,20 +79,31 @@ export default function LoginScreen({ navigation }) {
       const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          email: email.trim().toLowerCase(), 
-          password: password.trim(), 
-          role 
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+          role
         })
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get("content-type");
+      let data = {};
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { message: text };
+      }
+
       if (!res.ok) {
         // Handle specific error messages
         if (res.status === 404) {
           setEmailError("Account not found. Please sign up");
         } else if (res.status === 401) {
           setPasswordError("Invalid email or password");
+        } else if (res.status === 429) {
+          Alert.alert("Locked Out", "Too many login attempts. Please wait 15 minutes before trying again or contact your admin.");
         } else {
           Alert.alert("Login Failed", data.message || "Login failed. Please try again");
         }
@@ -101,15 +112,16 @@ export default function LoginScreen({ navigation }) {
 
       await AsyncStorage.setItem("token", data.token);
       console.log("TOKEN SAVED:", data.token);
-      
-      // Show success message
-      Alert.alert("Success! ", "Login successful");
-      
-      // Skip profile setup for admins, only employees need profile setup
+
+      // Role-based redirect
       if (role === "admin") {
         navigation.replace("AdminDashboard");
       } else {
-        navigation.replace("ProfileSetup");
+        if (data.profileCompleted) {
+          navigation.replace("EmployeeHome");
+        } else {
+          navigation.replace("ProfileSetup");
+        }
       }
 
     } catch (error) {
@@ -124,8 +136,8 @@ export default function LoginScreen({ navigation }) {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="#00664F" />
-        
-        <KeyboardAvoidingView 
+
+        <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
@@ -142,7 +154,7 @@ export default function LoginScreen({ navigation }) {
 
           {/* Bottom White Card */}
           <View style={styles.cardContainer}>
-            <ScrollView 
+            <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -170,7 +182,7 @@ export default function LoginScreen({ navigation }) {
                       Admin
                     </Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={[
                       styles.roleButton,
@@ -222,7 +234,7 @@ export default function LoginScreen({ navigation }) {
                     onPress={() => setShowPassword(!showPassword)}
                   >
                     <Image
-                      source={showPassword 
+                      source={showPassword
                         ? require("../../assets/images/eye-open.png")
                         : require("../../assets/images/eye-close.png")
                       }
