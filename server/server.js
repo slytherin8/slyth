@@ -33,16 +33,16 @@ app.use(helmet({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Increased limit for development
-  message: "Too many requests from this IP, please try again later."
+  max: 1000, // Increased limit for development
+  message: { status: 429, message: "Too many requests from this IP, please try again later." }
 });
 app.use(limiter);
 
 // Auth rate limiting (stricter)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // Increased limit for development
-  message: "Too many authentication attempts, please try again later."
+  max: 100, // Increased limit for development
+  message: { status: 429, message: "Too many authentication attempts, please try again later." }
 });
 
 app.use(cors());
@@ -63,7 +63,7 @@ const PORT = process.env.PORT || 3000;
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-  
+
   socket.on("join_room", (userId) => {
     socket.join(userId.toString());
     console.log(`User ${userId} joined room`);
