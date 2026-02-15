@@ -81,9 +81,9 @@ router.get("/groups", auth, async (req, res) => {
       companyId: req.user.companyId,
       isActive: true
     })
-    .populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
-    .populate("createdBy", "profile.name")
-    .sort({ lastActivity: -1 });
+      .populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
+      .populate("createdBy", "profile.name")
+      .sort({ lastActivity: -1 });
 
     // Get last message for each group and calculate unread count
     const groupsWithLastMessage = await Promise.all(
@@ -92,8 +92,8 @@ router.get("/groups", auth, async (req, res) => {
           groupId: group._id,
           isDeleted: false
         })
-        .populate("senderId", "profile.name")
-        .sort({ createdAt: -1 });
+          .populate("senderId", "profile.name")
+          .sort({ createdAt: -1 });
 
         // Find current user's member data
         const currentUserMember = group.members.find(
@@ -143,19 +143,19 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
       groupId,
       isDeleted: false
     })
-    .populate("senderId", "profile.name profile.avatar role")
-    .sort({ createdAt: -1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
+      .populate("senderId", "profile.name profile.avatar role")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
 
     // Update user's lastReadAt and reset unread count
     await Group.updateOne(
-      { 
-        _id: groupId, 
-        "members.userId": req.user.id 
+      {
+        _id: groupId,
+        "members.userId": req.user.id
       },
-      { 
-        $set: { 
+      {
+        $set: {
           "members.$.lastReadAt": new Date(),
           "members.$.unreadCount": 0
         }
@@ -216,18 +216,18 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
     console.log("Message created:", message._id);
 
     // Update group's last activity and total message count
-    await Group.findByIdAndUpdate(groupId, { 
+    await Group.findByIdAndUpdate(groupId, {
       lastActivity: new Date(),
       $inc: { totalMessages: 1 }
     });
 
     // Increment unread count for all other members
     await Group.updateMany(
-      { 
+      {
         _id: groupId,
         "members.userId": { $ne: req.user.id }
       },
-      { 
+      {
         $inc: { "members.$.unreadCount": 1 }
       }
     );
@@ -244,7 +244,7 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
       group.members.forEach(member => {
         if (member.userId.toString() !== req.user.id) {
           io.to(member.userId.toString()).emit("group_message", populatedMessage);
-          
+
           // Emit unread count update for this specific group
           io.to(member.userId.toString()).emit("unread_count_update", {
             type: "group",
@@ -263,14 +263,14 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
 });
 
 /* =====================
-   GET EMPLOYEES FOR GROUP CREATION (ADMIN ONLY)
+   GET EMPLOYEES FOR GROUP CREATION
 ===================== */
-router.get("/employees", auth, adminOnly, async (req, res) => {
+router.get("/employees", auth, async (req, res) => {
   try {
+    // Both admins and employees need to see the employee list for direct chats/group creation
     const employees = await User.find({
       companyId: req.user.companyId,
       role: "employee"
-      // Removed isActive and profileCompleted filters to show all employees
     }).select("profile.name profile.avatar email isActive profileCompleted");
 
     res.json(employees);
@@ -292,8 +292,8 @@ router.get("/groups/:groupId", auth, async (req, res) => {
       "members.userId": req.user.id,
       companyId: req.user.companyId
     })
-    .populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
-    .populate("createdBy", "profile.name");
+      .populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
+      .populate("createdBy", "profile.name");
 
     if (!group) {
       return res.status(403).json({ message: "Access denied to this group" });
@@ -369,7 +369,7 @@ router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
       },
       { new: true }
     ).populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
-     .populate("createdBy", "profile.name");
+      .populate("createdBy", "profile.name");
 
     res.json({
       message: "Group updated successfully",
@@ -399,7 +399,7 @@ router.delete("/groups/:groupId", auth, adminOnly, async (req, res) => {
     }
 
     // Mark group as inactive instead of deleting
-    await Group.findByIdAndUpdate(groupId, { 
+    await Group.findByIdAndUpdate(groupId, {
       isActive: false,
       lastActivity: new Date()
     });
@@ -439,7 +439,7 @@ router.post("/groups/:groupId/leave", auth, async (req, res) => {
     // Remove user from group members
     await Group.updateOne(
       { _id: groupId },
-      { 
+      {
         $pull: { members: { userId: req.user.id } },
         $set: { lastActivity: new Date() }
       }
