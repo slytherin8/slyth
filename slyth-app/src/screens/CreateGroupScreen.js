@@ -161,22 +161,13 @@ export default function CreateGroupScreen({ navigation }) {
         return;
       }
 
-      Alert.alert("Success! 🎉", "Group created successfully", [
-        { 
-          text: "View Group", 
+      Alert.alert("Success", "Group created successfully", [
+        {
+          text: "OK",
           onPress: () => {
-            navigation.navigate("GroupChat", { 
-              groupId: data._id, 
-              groupName: data.name 
-            });
+            navigation.navigate("AdminChat");
           }
-        },
-        { text: "Create Another", onPress: () => {
-          setGroupName("");
-          setDescription("");
-          setProfilePhoto("");
-          setSelectedMembers([]);
-        }}
+        }
       ]);
     } catch (error) {
       Alert.alert("Group Creation Failed", error.message || "Failed to create group");
