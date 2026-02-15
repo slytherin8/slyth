@@ -6,6 +6,8 @@ import WelcomeScreen from "./src/screens/WelcomeScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import AdminSignupScreen from "./src/screens/AdminSignupScreen";
 import AdminDashboard from "./src/screens/AdminDashboard";
+import AdminSetPinScreen from "./src/screens/AdminSetPinScreen";
+import AdminEditCompanyScreen from "./src/screens/AdminEditCompanyScreen";
 import CreateEmployeeScreen from "./src/screens/CreateEmployeeScreen";
 import CreateGroupScreen from "./src/screens/CreateGroupScreen";
 import GroupChatScreen from "./src/screens/GroupChatScreen";
@@ -30,6 +32,8 @@ import EmployeeChatScreen from "./src/screens/EmployeeChatScreen";
 import EmployeeMeetScreen from "./src/screens/EmployeeMeetScreen";
 import EmployeeWorkScreen from "./src/screens/EmployeeWorkScreen";
 import EmployeeProfileScreen from "./src/screens/EmployeeProfileScreen";
+import EmployeeProfileEditScreen from "./src/screens/EmployeeProfileEditScreen";
+import EmployeeLogoutScreen from "./src/screens/EmployeeLogoutScreen";
 
 const Stack = createStackNavigator();
 
@@ -46,6 +50,8 @@ export default function App() {
 
           {/* Admin */}
           <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+          <Stack.Screen name="AdminSetPin" component={AdminSetPinScreen} />
+          <Stack.Screen name="AdminEditCompany" component={AdminEditCompanyScreen} />
           <Stack.Screen name="CreateEmployee" component={CreateEmployeeScreen} />
           <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
           <Stack.Screen name="EditGroup" component={EditGroupScreen} />
@@ -70,6 +76,8 @@ export default function App() {
           <Stack.Screen name="EmployeeMeet" component={EmployeeMeetScreen} />
           <Stack.Screen name="EmployeeWork" component={EmployeeWorkScreen} />
           <Stack.Screen name="EmployeeProfile" component={EmployeeProfileScreen} />
+          <Stack.Screen name="EmployeeProfileEdit" component={EmployeeProfileEditScreen} />
+          <Stack.Screen name="EmployeeLogout" component={EmployeeLogoutScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </ErrorBoundary>
