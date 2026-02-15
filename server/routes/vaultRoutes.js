@@ -98,6 +98,36 @@ router.post("/set-pin", auth, adminOnly, async (req, res) => {
   }
 });
 
+// Update PIN
+router.post("/update-pin", auth, adminOnly, async (req, res) => {
+  try {
+    const { oldPin, newPin } = req.body;
+
+    if (!oldPin || !newPin || newPin.length < 4) {
+      return res.status(400).json({ message: "Both old and new PINs are required" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user.vaultPin) {
+      return res.status(400).json({ message: "No PIN set yet" });
+    }
+
+    const isMatch = await bcrypt.compare(oldPin, user.vaultPin);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Current PIN is incorrect" });
+    }
+
+    const hashedPin = await bcrypt.hash(newPin, 10);
+    user.vaultPin = hashedPin;
+    await user.save();
+
+    res.json({ message: "PIN updated successfully" });
+  } catch (error) {
+    console.error("UPDATE PIN ERROR:", error);
+    res.status(500).json({ message: "Failed to update PIN" });
+  }
+});
+
 // Verify PIN
 router.post("/verify-pin", auth, adminOnly, async (req, res) => {
   try {
