@@ -83,7 +83,7 @@ router.post("/login", async (req, res) => {
     process.env.JWT_SECRET
   );
 
-  res.json({ token, role: user.role });
+  res.json({ token, role: user.role, profileCompleted: user.profileCompleted });
 });
 
 /* =====================
