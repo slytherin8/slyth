@@ -13,10 +13,12 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
+import { useSmartLoader } from "../hooks/useSmartLoader";
 
 export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const showLoader = useSmartLoader(loading);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [jobRole, setJobRole] = useState("");
@@ -33,7 +35,7 @@ export default function ProfileScreen({ navigation }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      
+
       if (res.ok) {
         setProfile(data);
         setName(data.profile?.name || "");
@@ -87,9 +89,11 @@ export default function ProfileScreen({ navigation }) {
         return;
       }
 
-      Alert.alert("Success! 🎉", "Profile updated successfully");
+      const homeRoute = profile?.role === "admin" ? "AdminDashboard" : "EmployeeHome";
+      Alert.alert("Success! 🎉", "Profile updated successfully", [
+        { text: "OK", onPress: () => navigation.navigate(homeRoute) }
+      ]);
       setEditing(false);
-      fetchProfile();
     } catch (err) {
       Alert.alert("Error", "Failed to save profile. Please try again.");
     } finally {
@@ -115,14 +119,6 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  if (loading && !profile) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
-      </View>
-    );
-  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -214,6 +210,12 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
+      {showLoader && !profile && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
