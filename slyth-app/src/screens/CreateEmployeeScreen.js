@@ -34,7 +34,7 @@ export default function CreateEmployeeScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [company, setCompany] = useState({});
-  
+
   // Error states
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -78,7 +78,7 @@ export default function CreateEmployeeScreen({ navigation }) {
 
   const createEmployee = async () => {
     clearErrors();
-    
+
     // Validation
     if (!name.trim()) {
       setNameError("Employee name is required");
@@ -125,31 +125,31 @@ export default function CreateEmployeeScreen({ navigation }) {
 
     try {
       console.log("Making request to create employee...");
-      console.log("Request data:", { 
-        name: name.trim(), 
-        email: email.trim().toLowerCase(), 
-        password: "***hidden***" 
+      console.log("Request data:", {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password: "***hidden***"
       });
-      
+
       const res = await fetch(`${API}/api/auth/create-employee`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          name: name.trim(), 
-          email: email.trim().toLowerCase(), 
-          password: password.trim() 
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password: password.trim()
         })
       });
 
       console.log("Response status:", res.status);
       console.log("Response headers:", res.headers);
-      
+
       const responseText = await res.text();
       console.log("Raw response:", responseText);
-      
+
       let data;
       try {
         data = JSON.parse(responseText);
@@ -157,7 +157,7 @@ export default function CreateEmployeeScreen({ navigation }) {
         console.log("Failed to parse response as JSON:", parseError);
         data = { message: responseText };
       }
-      
+
       console.log("Parsed response data:", data);
 
       if (!res.ok) {
@@ -185,16 +185,11 @@ export default function CreateEmployeeScreen({ navigation }) {
         return Alert.alert("Error", data.message || "Failed to create employee");
       }
 
-      Alert.alert("Success", "Bro employee created", [
+      Alert.alert("Success", "Employee added successfully", [
         {
           text: "OK",
           onPress: () => {
-            // Reset form
-            setName("");
-            setEmail("");
-            setPassword("");
-            // Navigate back to dashboard
-            navigation.goBack();
+            navigation.navigate("AdminDashboard");
           }
         }
       ]);
@@ -209,10 +204,10 @@ export default function CreateEmployeeScreen({ navigation }) {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
-        
+
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -222,9 +217,9 @@ export default function CreateEmployeeScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          
+
           <Text style={styles.headerTitle}>New Employee</Text>
-          
+
           <View style={styles.companyLogoContainer}>
             {company?.logo ? (
               <Image source={{ uri: company.logo }} style={styles.companyLogo} />
@@ -290,7 +285,7 @@ export default function CreateEmployeeScreen({ navigation }) {
                 onPress={() => setShowPassword(!showPassword)}
               >
                 <Image
-                  source={showPassword 
+                  source={showPassword
                     ? require("../../assets/images/eye-open.png")
                     : require("../../assets/images/eye-close.png")
                   }
