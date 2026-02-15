@@ -13,6 +13,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
+import AppLayout from "../components/AppLayout";
 
 const { width, height } = Dimensions.get('window');
 
@@ -79,8 +80,8 @@ export default function EmployeeMeetScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <AppLayout role="employee" hideHeader={true}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
 
         {/* Header */}
@@ -130,8 +131,8 @@ export default function EmployeeMeetScreen({ navigation }) {
             <Text style={styles.connectButtonText}>Connect to Meet</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </SafeAreaProvider>
+      </View>
+    </AppLayout>
   );
 }
 
