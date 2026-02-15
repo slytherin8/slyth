@@ -24,12 +24,17 @@ const auth = (req, res, next) => {
 /* 👑 ADMIN ONLY */
 const adminOnly = (req, res, next) => {
   const role = (req.user?.role || "").toLowerCase();
+  console.log(`[DEBUG] adminOnly middleware triggered for: ${req.method} ${req.originalUrl}`);
   console.log("AdminOnly Middleware - User Role:", role);
   if (role !== "admin") {
-    console.warn("403 Forbidden: User is not an admin", req.user);
+    console.warn("403 Forbidden: User is not an admin", {
+      url: req.originalUrl,
+      user: req.user
+    });
     return res.status(403).json({
       message: "Admin access only",
-      debug_role: req.user?.role
+      debug_role: req.user?.role,
+      debug_url: req.originalUrl
     });
   }
   next();
