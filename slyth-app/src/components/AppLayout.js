@@ -6,27 +6,50 @@ import {
   TouchableOpacity
 } from "react-native";
 import { useEffect, useState } from "react";
+import { useIsFocused, useNavigation, useNavigationState } from "@react-navigation/native";
 import AsyncStorage from "../utils/storage";
 
 import { API } from "../constants/api";
 
 export default function AppLayout({
-  navigation,
+  navigation: propNavigation,
   children,
-  activeTab,
   role = "admin", // admin | employee
   onBack,
   showProfile = true,
   logoPosition = "left", // left | right
-  title // New prop
+  title, // New prop
+  hideHeader = false // New prop
 }) {
+  const navigation = propNavigation || useNavigation();
+
+  // Automatically detect active tab from current route
+  const currentRouteName = useNavigationState(state => {
+    if (!state) return "";
+    return state.routes[state.index].name;
+  });
+
+  const activeTab = (() => {
+    const name = currentRouteName;
+    if (name === "AdminDashboard" || name === "EmployeeHome") return "home";
+    if (name === "AdminWork" || name === "EmployeeWork") return "work";
+    if (name === "AdminChat" || name === "EmployeeChat" || name === "GroupChat" || name === "DirectChat") return "chat";
+    if (name === "AdminVault" || name === "AdminFiles") return "vault";
+    if (name === "AdminMeet" || name === "EmployeeMeet") return "meet";
+    return "home";
+  })();
+
+  const hideBottomNav = ["AdminDashboard", "EmployeeHome"].includes(currentRouteName);
   const [company, setCompany] = useState({});
   const [profile, setProfile] = useState(null);
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    fetchCompany();
-    fetchProfile();
-  }, []);
+    if (isFocused) {
+      fetchCompany();
+      fetchProfile();
+    }
+  }, [isFocused]);
 
   /* 🔹 FETCH COMPANY */
   const fetchCompany = async () => {
@@ -71,137 +94,136 @@ export default function AppLayout({
   return (
     <View style={styles.container}>
       {/* 🔝 TOP BAR */}
-      <View style={styles.topBar}>
-        {/* 🔙 BACK */}
-        <TouchableOpacity
-          onPress={onBack || (() => navigation.goBack())}
-          style={styles.backButton} // Added style
-        >
-          <Image
-            source={require("../../assets/images/back-arrow.png")}
-            style={styles.backIcon}
-          />
-        </TouchableOpacity>
+      {!hideHeader && (
+        <View style={styles.topBar}>
+          {/* 🔙 BACK */}
+          <TouchableOpacity
+            onPress={onBack || (() => navigation.goBack())}
+            style={styles.backButton} // Added style
+          >
+            <Image
+              source={require("../../assets/images/back-arrow.png")}
+              style={styles.backIcon}
+            />
+          </TouchableOpacity>
 
-        {/* 🏢 COMPANY - CENTER (IF RIGHT ALIGNED) OR LEFT */}
-        {logoPosition === "left" && (
-          <View style={styles.companyRow}>
-            {company?.logo ? (
+          {/* 🏢 COMPANY - CENTER (IF RIGHT ALIGNED) OR LEFT */}
+          {logoPosition === "left" && (
+            <View style={styles.companyRow}>
+              {company?.logo ? (
+                <Image
+                  source={{ uri: company.logo }}
+                  style={styles.companyLogo}
+                />
+              ) : null}
+
+              <Text style={styles.companyName}>
+                {title || company?.name || "Company"}
+              </Text>
+            </View>
+          )}
+
+          {/* 🏢 COMPANY - CENTERED TITLE OR LOGO IF POSITION RIGHT requested, handling layout spacer */}
+          {logoPosition === "right" && (
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
+            </View>
+          )}
+
+          {/* 👤 PROFILE OR RIGHT LOGO */}
+          {showProfile ? (
+            <TouchableOpacity onPress={() => go("Profile")}>
+              {profile?.avatar ? (
+                <Image
+                  source={{ uri: profile.avatar }}
+                  style={styles.profileIcon}
+                />
+              ) : (
+                <Image
+                  source={require("../../assets/images/profile.png")}
+                  style={styles.profileIcon}
+                />
+              )}
+            </TouchableOpacity>
+          ) : (
+            logoPosition === "right" && company?.logo ? (
               <Image
                 source={{ uri: company.logo }}
-                style={styles.companyLogo}
+                style={styles.profileIcon} // Reusing size for consistency
               />
-            ) : null}
-
-            <Text style={styles.companyName}>
-              {title || company?.name || "Company"}
-            </Text>
-          </View>
-        )}
-
-        {/* 🏢 COMPANY - CENTERED TITLE OR LOGO IF POSITION RIGHT requested, handling layout spacer */}
-        {logoPosition === "right" && (
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
-          </View>
-        )}
-
-        {/* 👤 PROFILE OR RIGHT LOGO */}
-        {showProfile ? (
-          <TouchableOpacity onPress={() => go("Profile")}>
-            {profile?.avatar ? (
-              <Image
-                source={{ uri: profile.avatar }}
-                style={styles.profileIcon}
-              />
-            ) : (
-              <Image
-                source={require("../../assets/images/profile.png")}
-                style={styles.profileIcon}
-              />
-            )}
-          </TouchableOpacity>
-        ) : (
-          logoPosition === "right" && company?.logo ? (
-            <Image
-              source={{ uri: company.logo }}
-              style={styles.profileIcon} // Reusing size for consistency
-            />
-          ) : <View style={{ width: 40 }} /> // Spacer matched to back button size
-        )}
-      </View>
+            ) : <View style={{ width: 40 }} /> // Spacer matched to back button size
+          )}
+        </View>
+      )}
 
       {/* 🧩 PAGE CONTENT */}
       <View style={{ flex: 1 }}>{children}</View>
 
-      {/* 🔽 BOTTOM NAV */}
-      <View style={styles.bottomNav}>
-        <Nav
-          label="Home"
-          icon={require("../../assets/images/home.png")}
-          active={activeTab === "home"}
-          onPress={() =>
-            go(role === "admin" ? "AdminDashboard" : "EmployeeHome")
-          }
-        />
+      {/* 🔽 BOTTOM NAV - PILL STYLE - CONDITIONALLY HIDDEN */}
+      {!hideBottomNav && (
+        <View style={styles.navWrapper}>
+          <View style={styles.bottomNav}>
+            <Nav
+              label="Home"
+              iconGray={require("../../assets/images/home-gray.png")}
+              iconWhite={require("../../assets/images/home-white.png")}
+              active={activeTab === "home"}
+              onPress={() => go(role === "admin" ? "AdminDashboard" : "EmployeeHome")}
+            />
 
-        <Nav
-          label="Chat"
-          icon={require("../../assets/images/chat.png")}
-          active={activeTab === "chat"}
-          onPress={() =>
-            go(role === "admin" ? "AdminChat" : "EmployeeChat")
-          }
-        />
+            <Nav
+              label="Work"
+              iconGray={require("../../assets/images/work-gray.png")}
+              iconWhite={require("../../assets/images/work-white.png")}
+              active={activeTab === "work"}
+              onPress={() => go(role === "admin" ? "AdminWork" : "EmployeeWork")}
+            />
 
-        <Nav
-          label="Meet"
-          icon={require("../../assets/images/meet.png")}
-          active={activeTab === "meet"}
-          onPress={() =>
-            go(role === "admin" ? "AdminMeet" : "EmployeeMeet")
-          }
-        />
+            <Nav
+              label="Chat"
+              iconGray={require("../../assets/images/chat-gray.png")}
+              iconWhite={require("../../assets/images/chat-white.png")}
+              active={activeTab === "chat"}
+              onPress={() => go(role === "admin" ? "AdminChat" : "EmployeeChat")}
+            />
 
-        <Nav
-          label="Work"
-          icon={require("../../assets/images/work.png")}
-          active={activeTab === "work"}
-          onPress={() =>
-            go(role === "admin" ? "AdminWork" : "EmployeeWork")
-          }
-        />
+            {role === "admin" && (
+              <Nav
+                label="Vault"
+                iconGray={require("../../assets/images/valut-gray.png")}
+                iconWhite={require("../../assets/images/valut-white.png")}
+                active={activeTab === "files" || activeTab === "vault"}
+                onPress={() => go("AdminVault")}
+              />
+            )}
 
-        {role === "admin" && (
-          <Nav
-            label="Files"
-            icon={require("../../assets/images/files.png")}
-            active={activeTab === "files"}
-            onPress={() => go("AdminFiles")}
-          />
-        )}
-      </View>
+            <Nav
+              label="Meet"
+              iconGray={require("../../assets/images/meet-gray.png")}
+              iconWhite={require("../../assets/images/meet-white.png")}
+              active={activeTab === "meet"}
+              onPress={() => go(role === "admin" ? "AdminMeet" : "EmployeeMeet")}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
 /* 🔹 NAV ITEM */
-function Nav({ icon, label, onPress, active }) {
+function Nav({ iconGray, iconWhite, label, onPress, active }) {
   return (
-    <TouchableOpacity style={styles.navItem} onPress={onPress}>
+    <TouchableOpacity
+      style={[styles.navItem, active && styles.navItemActive]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       <Image
-        source={icon}
-        style={[
-          styles.navIcon,
-          active ? { tintColor: "#2563EB" } : null
-        ]}
+        source={active ? iconWhite : iconGray}
+        style={styles.navIcon}
       />
-      <Text
-        style={[
-          styles.navText,
-          active ? { color: "#2563EB" } : null
-        ]}
-      >
+      <Text style={[styles.navText, active && styles.navTextActive]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -218,7 +240,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40, // More space from top
+    paddingTop: 40,
     paddingBottom: 16,
     alignItems: "center"
   },
@@ -227,7 +249,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6", // Light shade
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center"
   },
@@ -261,24 +283,59 @@ const styles = StyleSheet.create({
     borderRadius: 14
   },
 
+  navWrapper: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 15,
+  },
+
   bottomNav: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderColor: "#E2E8F0"
+    backgroundColor: "#FFFFFF",
+    borderRadius: 50,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    width: '100%',
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    elevation: 0,
   },
 
   navItem: {
-    alignItems: "center"
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 40,
+  },
+
+  navItemActive: {
+    backgroundColor: "#00664F",
+    // Round pill/circle shape
+    minWidth: 70,
+    height: 70,
+    borderRadius: 35,
   },
 
   navIcon: {
-    width: 22,
-    height: 22
+    width: 24,
+    height: 24,
+    marginBottom: 4,
+    resizeMode: 'contain'
   },
 
   navText: {
-    fontSize: 10
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "500"
+  },
+
+  navTextActive: {
+    color: "#FFFFFF"
   }
 });
