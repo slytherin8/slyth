@@ -5,11 +5,13 @@ import { Ionicons } from "@expo/vector-icons";
 import AppLayout from "../components/AppLayout";
 import PinKeypad from "../components/PinKeypad";
 import { vaultService } from "../services/vaultService";
+import { useSmartLoader } from "../hooks/useSmartLoader";
 
 export default function AdminFilesScreen({ navigation }) {
   const [hasPin, setHasPin] = useState(null);
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
+  const showInitialLoader = useSmartLoader(hasPin === null);
   const [error, setError] = useState("");
 
   useFocusEffect(
@@ -75,7 +77,7 @@ export default function AdminFilesScreen({ navigation }) {
   if (hasPin === null) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#00664F" />
+        {showInitialLoader && <ActivityIndicator size="large" color="#00664F" />}
       </View>
     );
   }
