@@ -137,7 +137,7 @@ export default function EditGroupScreen({ route, navigation }) {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Success! 🎉", `Group "${name}" has been updated successfully!`, [
+        Alert.alert("Success", "Group updated successfully", [
           { text: "OK", onPress: () => navigation.goBack() }
         ]);
       } else {
