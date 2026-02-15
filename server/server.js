@@ -41,7 +41,7 @@ app.use(limiter);
 // Auth rate limiting (stricter)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Increased limit for development
+  max: 500, // Significantly increased limit for development
   message: { status: 429, message: "Too many authentication attempts, please try again later." }
 });
 
