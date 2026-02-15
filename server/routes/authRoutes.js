@@ -115,10 +115,8 @@ router.post("/create-employee", auth, adminOnly, async (req, res) => {
   res.json({ message: "Employee created" });
 });
 
-/* =====================
-   GET EMPLOYEES (ADMIN)
-===================== */
-router.get("/employees", auth, adminOnly, async (req, res) => {
+// GET EMPLOYEES (ADMIN + EMPLOYEE)
+router.get("/employees", auth, async (req, res) => {
   const employees = await User.find({
     companyId: req.user.companyId,
     role: "employee"
@@ -143,6 +141,30 @@ router.get("/company", auth, async (req, res) => {
     });
   } catch {
     res.status(500).json({ message: "Company fetch failed" });
+  }
+});
+
+/* =====================
+   UPDATE COMPANY (ADMIN ONLY)
+===================== */
+router.put("/company", auth, adminOnly, async (req, res) => {
+  try {
+    const { name, logo } = req.body;
+
+    const company = await Company.findById(req.user.companyId);
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    if (name) company.name = name;
+    if (logo) company.logo = logo;
+
+    await company.save();
+
+    res.json({ message: "Company updated successfully", company });
+  } catch (err) {
+    console.error("COMPANY UPDATE ERROR:", err);
+    res.status(500).json({ message: "Failed to update company" });
   }
 });
 
