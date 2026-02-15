@@ -9,13 +9,17 @@ import {
   Alert,
   Image,
   Dimensions,
-  StatusBar
+  StatusBar,
+  Modal,
+  ActivityIndicator
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from "../utils/storage";
 import api from "../services/api";
 import { API } from "../constants/api";
+import { useSmartLoader } from "../hooks/useSmartLoader";
+import AppLayout from "../components/AppLayout";
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,16 +39,26 @@ export default function AdminDashboard({ navigation }) {
   const [employees, setEmployees] = useState([]);
   const [company, setCompany] = useState({});
   const [loading, setLoading] = useState(false);
+  const showLoader = useSmartLoader(loading);
+  const [showMenu, setShowMenu] = useState(false);
+
+  const handleLogout = async () => {
+    setShowMenu(false);
+    await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("role");
+    navigation.replace("Welcome");
+  };
 
   useEffect(() => {
     fetchCompany();
     fetchEmployees();
   }, []);
 
-  // Refresh employees when screen comes into focus
+  // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchEmployees();
+      fetchCompany();
     }, [])
   );
 
@@ -71,11 +85,11 @@ export default function AdminDashboard({ navigation }) {
       const res = await fetch(`${API}/api/auth/employees`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
       console.log("EMPLOYEES DATA:", JSON.stringify(data, null, 2)); // Better debug log
       setEmployees(data);
@@ -172,8 +186,8 @@ export default function AdminDashboard({ navigation }) {
   const renderFeatureCard = ({ item }) => (
     <TouchableOpacity
       style={[
-        styles.featureCard, 
-        { 
+        styles.featureCard,
+        {
           backgroundColor: item.backgroundColor,
           height: getResponsiveSize(item.height),
           width: getResponsiveSize(168), // Slightly reduced width to accommodate gaps
@@ -224,11 +238,11 @@ export default function AdminDashboard({ navigation }) {
   );
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <AppLayout role="admin" hideHeader={true}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        
-        {/* Header */}
+
+        {/* Custom Header Integrated into Dashboard logic */}
         <View style={styles.header}>
           <View style={styles.companyInfo}>
             {company?.logo ? (
@@ -240,10 +254,13 @@ export default function AdminDashboard({ navigation }) {
             )}
             <View style={styles.companyDetails}>
               <Text style={styles.companyName}>{company?.name || "Company"}</Text>
-              
             </View>
           </View>
-          <TouchableOpacity style={styles.menuButton}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setShowMenu(true)}
+            activeOpacity={0.7}
+          >
             <Image
               source={require("../../assets/images/three-dot.png")}
               style={styles.menuIcon}
@@ -251,6 +268,69 @@ export default function AdminDashboard({ navigation }) {
             />
           </TouchableOpacity>
         </View>
+
+        <Modal
+          visible={showMenu}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowMenu(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowMenu(false)}
+          >
+            <View style={styles.bottomSheet}>
+              <View style={styles.sheetHandle} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  navigation.navigate("AdminSetPin");
+                }}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: "#F3F4F6" }]}>
+                  <Image source={require("../../assets/images/pin.png")} style={styles.menuIconImage} />
+                </View>
+                <Text style={styles.menuItemText}>Set New pin</Text>
+                <Image source={require("../../assets/images/right-arrow.png")} style={styles.chevronIcon} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  navigation.navigate("AdminEditCompany");
+                }}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: "#F3F4F6" }]}>
+                  <Image source={require("../../assets/images/edit.png")} style={styles.menuIconImage} />
+                </View>
+                <Text style={styles.menuItemText}>Company details edit</Text>
+                <Image source={require("../../assets/images/right-arrow.png")} style={styles.chevronIcon} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleLogout}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: "#F3F4F6" }]}>
+                  <Image source={require("../../assets/images/delete.png")} style={styles.menuIconImage} />
+                </View>
+                <Text style={styles.menuItemText}>Logout</Text>
+                <Image source={require("../../assets/images/right-arrow.png")} style={styles.chevronIcon} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowMenu(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Feature Cards Grid */}
@@ -279,7 +359,11 @@ export default function AdminDashboard({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {employees.length === 0 ? (
+            {showLoader && employees.length === 0 ? (
+              <View style={styles.emptyState}>
+                <ActivityIndicator size="large" color="#00664F" />
+              </View>
+            ) : employees.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>No employees yet</Text>
                 <Text style={styles.emptySubtext}>Add your first employee to get started</Text>
@@ -296,8 +380,8 @@ export default function AdminDashboard({ navigation }) {
             )}
           </View>
         </ScrollView>
-      </SafeAreaView>
-    </SafeAreaProvider>
+      </View>
+    </AppLayout>
   );
 }
 
@@ -526,5 +610,69 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     textAlign: "center",
     fontFamily: "Inter-Regular"
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end"
+  },
+  bottomSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: getResponsiveSize(25),
+    borderTopRightRadius: getResponsiveSize(25),
+    paddingHorizontal: getResponsiveSize(20),
+    paddingBottom: getResponsiveSize(40),
+    paddingTop: getResponsiveSize(10)
+  },
+  sheetHandle: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(5),
+    backgroundColor: "#E5E7EB",
+    borderRadius: getResponsiveSize(3),
+    alignSelf: "center",
+    marginBottom: getResponsiveSize(20)
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: getResponsiveSize(15),
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  menuIconContainer: {
+    width: getResponsiveSize(40),
+    height: getResponsiveSize(40),
+    borderRadius: getResponsiveSize(20),
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: getResponsiveSize(15)
+  },
+  menuIconImage: {
+    width: getResponsiveSize(20),
+    height: getResponsiveSize(20),
+    tintColor: "#6B7280"
+  },
+  menuItemText: {
+    flex: 1,
+    fontSize: getResponsiveSize(16),
+    color: "#111827",
+    fontWeight: "500",
+    fontFamily: "Inter-Medium"
+  },
+  chevronIcon: {
+    width: getResponsiveSize(16),
+    height: getResponsiveSize(16),
+    tintColor: "#9CA3AF"
+  },
+  cancelButton: {
+    marginTop: getResponsiveSize(15),
+    paddingVertical: getResponsiveSize(15),
+    alignItems: "center"
+  },
+  cancelButtonText: {
+    fontSize: getResponsiveSize(16),
+    color: "#6B7280",
+    fontWeight: "600",
+    fontFamily: "Inter-SemiBold"
   }
 });
