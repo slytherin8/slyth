@@ -39,7 +39,7 @@ export default function AdminSignupScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [logo, setLogo] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Error states
   const [companyNameError, setCompanyNameError] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -57,7 +57,7 @@ export default function AdminSignupScreen({ navigation }) {
     const hasLowercase = /[a-z]/.test(password);
     const hasNumber = /\d/.test(password);
     const hasSpecialChar = /[@$!%*?&]/.test(password);
-    
+
     return hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
   };
 
@@ -80,7 +80,7 @@ export default function AdminSignupScreen({ navigation }) {
 
   const signup = async () => {
     clearErrors();
-    
+
     if (!companyName.trim()) {
       setCompanyNameError("Please enter your company name");
       return;
@@ -132,8 +132,9 @@ export default function AdminSignupScreen({ navigation }) {
         return;
       }
 
-      Alert.alert("Success! 🎉", "Company created successfully");
-      navigation.replace("Login");
+      Alert.alert("Success", "Company created successfully", [
+        { text: "OK", onPress: () => navigation.replace("Login") }
+      ]);
     } catch (error) {
       console.log("SIGNUP ERROR:", error);
       Alert.alert("Network Error", `Server not reachable at ${API}. Please check your connection.`);
@@ -146,8 +147,8 @@ export default function AdminSignupScreen({ navigation }) {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="#00664F" />
-        
-        <KeyboardAvoidingView 
+
+        <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
@@ -164,7 +165,7 @@ export default function AdminSignupScreen({ navigation }) {
 
           {/* Bottom White Card */}
           <View style={styles.cardContainer}>
-            <ScrollView 
+            <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -239,7 +240,7 @@ export default function AdminSignupScreen({ navigation }) {
                     onPress={() => setShowPassword(!showPassword)}
                   >
                     <Image
-                      source={showPassword 
+                      source={showPassword
                         ? require("../../assets/images/eye-open.png")
                         : require("../../assets/images/eye-close.png")
                       }
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     fontFamily: "System",
     lineHeight: getResponsiveFontSize(32)
   },
-  
+
   titleAccent: {
     color: "#00664F",
     fontWeight: "700"
