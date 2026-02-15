@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,9 +16,11 @@ import {
   PanResponder,
   TextInput
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import AppLayout from "../components/AppLayout";
 import AsyncStorage from '../utils/storage';
 import socketService from '../services/socketService';
+import { useSmartLoader } from "../hooks/useSmartLoader";
 
 import { API } from '../constants/api';
 
@@ -38,7 +40,8 @@ export default function EmployeeChatScreen({ navigation }) {
   const [conversations, setConversations] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [mergedConversations, setMergedConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const showLoader = useSmartLoader(loading);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showGroupActions, setShowGroupActions] = useState(false);
@@ -79,6 +82,12 @@ export default function EmployeeChatScreen({ navigation }) {
     // Load both tabs data on mount
     loadAllData();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAllData();
+    }, [])
+  );
 
   useEffect(() => {
     // Connect to socket service
@@ -473,19 +482,10 @@ export default function EmployeeChatScreen({ navigation }) {
     );
   };
 
-  if (loading) {
-    return (
-      <AppLayout navigation={navigation} activeTab="chat" role="employee">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#25D366" />
-          <Text style={styles.loadingText}>Loading chats...</Text>
-        </View>
-      </AppLayout>
-    );
-  }
+
 
   return (
-    <AppLayout navigation={navigation} activeTab="chat" role="employee">
+    <AppLayout navigation={navigation} role="employee">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -544,7 +544,11 @@ export default function EmployeeChatScreen({ navigation }) {
           >
             {/* Groups Tab */}
             <View style={styles.tabContent}>
-              {filteredGroups.length === 0 ? (
+              {showLoader && groups.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <ActivityIndicator size="large" color="#00664F" />
+                </View>
+              ) : filteredGroups.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   {searchQuery ? (
                     <Text style={styles.emptyTitle}>No results found</Text>
