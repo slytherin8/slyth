@@ -2,6 +2,7 @@ const express = require("express");
 const DirectMessage = require("../models/DirectMessage");
 const User = require("../models/User");
 const { auth } = require("../middleware/authMiddleware");
+const { sendPushNotification } = require("../utils/notificationHelper");
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.get("/conversations", auth, async (req, res) => {
     console.log("=== GET CONVERSATIONS DEBUG ===");
     console.log("Current user role:", req.user.role);
     console.log("Current user ID:", req.user.id);
-    
+
     // Role-based filtering for Direct Messages
     let userFilter = {
       companyId: req.user.companyId,
@@ -48,8 +49,8 @@ router.get("/conversations", auth, async (req, res) => {
           ],
           isDeleted: false
         })
-        .populate("senderId", "profile.name")
-        .sort({ createdAt: -1 });
+          .populate("senderId", "profile.name")
+          .sort({ createdAt: -1 });
 
         // Count unread messages from this user to current user
         const unreadCount = await DirectMessage.countDocuments({
@@ -78,7 +79,7 @@ router.get("/conversations", auth, async (req, res) => {
       if (a.unreadCount !== b.unreadCount) {
         return b.unreadCount - a.unreadCount;
       }
-      
+
       // Second priority: last message time (most recent first)
       if (!a.lastMessage && !b.lastMessage) return 0;
       if (!a.lastMessage) return 1;
@@ -118,10 +119,10 @@ router.get("/messages/:userId", auth, async (req, res) => {
       ],
       isDeleted: false
     })
-    .populate("senderId", "profile.name profile.avatar role")
-    .sort({ createdAt: -1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
+      .populate("senderId", "profile.name profile.avatar role")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
 
     // Mark messages as read
     await DirectMessage.updateMany(
@@ -184,7 +185,7 @@ router.post("/messages/:userId", auth, async (req, res) => {
     const io = req.app.get("io");
     if (io) {
       io.to(userId.toString()).emit("direct_message", populatedMessage);
-      
+
       // Also emit unread count update to receiver
       const unreadCount = await DirectMessage.countDocuments({
         senderId: req.user.id,
@@ -192,13 +193,27 @@ router.post("/messages/:userId", auth, async (req, res) => {
         readAt: null,
         isDeleted: false
       });
-      
+
       io.to(userId.toString()).emit("unread_count_update", {
         type: "direct",
         userId: req.user.id,
         count: unreadCount
       });
     }
+
+    // Send Push Notification
+    sendPushNotification(
+      userId,
+      populatedMessage.senderId.profile?.name || "New Message",
+      messageText,
+      {
+        type: "direct_chat",
+        senderId: req.user.id,
+        senderName: populatedMessage.senderId.profile?.name || "Someone",
+        senderAvatar: populatedMessage.senderId.profile?.avatar,
+        senderRole: populatedMessage.senderId.role
+      }
+    );
 
     res.status(201).json(populatedMessage);
   } catch (error) {
