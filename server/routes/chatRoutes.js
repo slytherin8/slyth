@@ -3,6 +3,7 @@ const Group = require("../models/Group");
 const Message = require("../models/Message");
 const User = require("../models/User");
 const { auth, adminOnly } = require("../middleware/authMiddleware");
+const { sendPushNotification } = require("../utils/notificationHelper");
 
 const router = express.Router();
 
@@ -251,6 +252,18 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
             groupId: groupId,
             count: member.unreadCount + 1
           });
+
+          // Send Push Notification
+          sendPushNotification(
+            member.userId,
+            group.name,
+            `${populatedMessage.senderId.profile?.name || "Someone"}: ${messageText}`,
+            {
+              type: "group_chat",
+              groupId: groupId,
+              groupName: group.name
+            }
+          );
         }
       });
     }
@@ -267,13 +280,12 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
 ===================== */
 router.get("/employees", auth, async (req, res) => {
   try {
-    // Both admins and employees need to see the employee list for direct chats/group creation
-    const employees = await User.find({
-      companyId: req.user.companyId,
-      role: "employee"
-    }).select("profile.name profile.avatar email isActive profileCompleted");
+    // Return all users in the company so they can chat with each other
+    const users = await User.find({
+      companyId: req.user.companyId
+    }).select("profile.name profile.avatar email role isActive profileCompleted");
 
-    res.json(employees);
+    res.json(users);
   } catch (error) {
     console.error("Get employees error:", error);
     res.status(500).json({ message: "Failed to fetch employees" });
