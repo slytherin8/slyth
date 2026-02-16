@@ -8,7 +8,8 @@ import {
   Dimensions,
   StatusBar,
   Alert,
-  Linking
+  Linking,
+  ScrollView
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
@@ -83,57 +84,33 @@ export default function AdminMeetScreen({ navigation }) {
   };
 
   return (
-    <AppLayout role="admin" hideHeader={true}>
+    <AppLayout role="admin" title="Meet" onBack={() => navigation.goBack()}>
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Image
-              source={require("../../assets/images/back-arrow.png")}
-              style={styles.backIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          {/* Center Content */}
+          <View style={styles.content}>
+            <View style={styles.illustrationContainer}>
+              <Image
+                source={require("../../assets/images/google-meet.png")}
+                style={styles.meetIllustration}
+                resizeMode="contain"
+              />
+            </View>
 
-          <Text style={styles.headerTitle}>Meet</Text>
-
-          <View style={styles.companyLogoContainer}>
-            {company?.logo ? (
-              <Image source={{ uri: company.logo }} style={styles.companyLogo} />
-            ) : (
-              <View style={styles.defaultLogo}>
-                <Text style={styles.defaultLogoText}>$</Text>
-              </View>
-            )}
+            {/* Connect Button - Right below image */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.connectButton}
+                onPress={handleConnectToMeet}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.connectButtonText}>Connect to Meet</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-
-        {/* Center Content */}
-        <View style={styles.centerContent}>
-          <View style={styles.illustrationContainer}>
-            <Image
-              source={require("../../assets/images/google-meet.png")}
-              style={styles.meetIllustration}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-
-        {/* Bottom Button */}
-        <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.connectButton}
-            onPress={handleConnectToMeet}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.connectButtonText}>Connect to Meet</Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     </AppLayout>
   );
@@ -144,86 +121,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F5F5F5"
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: getResponsiveSize(20),
-    paddingVertical: getResponsiveSize(16),
-    backgroundColor: "#F5F5F5"
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: "#F5F5F5",
+    paddingBottom: getResponsiveSize(100),
   },
-  backButton: {
-    padding: getResponsiveSize(8),
-    backgroundColor: "#E5E7EB",
-    borderRadius: getResponsiveSize(20),
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  backIcon: {
-    width: getResponsiveSize(24),
-    height: getResponsiveSize(24),
-    tintColor: "#374151"
-  },
-  headerTitle: {
-    fontSize: getResponsiveFontSize(18),
-    fontWeight: "600",
-    color: "#1F2937",
-    fontFamily: "Inter-SemiBold"
-  },
-  companyLogoContainer: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  companyLogo: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    borderRadius: getResponsiveSize(20)
-  },
-  defaultLogo: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    borderRadius: getResponsiveSize(20),
-    backgroundColor: "#E5F3F0",
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  defaultLogoText: {
-    fontSize: getResponsiveFontSize(16),
-    fontWeight: "700",
-    color: "#00664F",
-    fontFamily: "Inter-Bold"
-  },
-  centerContent: {
+  content: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: getResponsiveSize(20)
+    paddingHorizontal: getResponsiveSize(20),
+    paddingTop: getResponsiveSize(40),
   },
   illustrationContainer: {
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    marginBottom: getResponsiveSize(40),
   },
   meetIllustration: {
     width: Math.min(width * 0.8, 400),
-    height: Math.min(height * 0.4, 300),
+    height: Math.min(height * 0.35, 250),
     maxWidth: 350,
-    maxHeight: 280
   },
-  bottomContainer: {
+  buttonContainer: {
+    width: "100%",
     paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(40),
-    paddingTop: getResponsiveSize(20)
+    marginTop: getResponsiveSize(20),
   },
   connectButton: {
     backgroundColor: "#00664F",
     borderRadius: getResponsiveSize(28),
     paddingVertical: getResponsiveSize(18),
     alignItems: "center",
-    minHeight: getResponsiveSize(56)
+    minHeight: getResponsiveSize(56),
+    shadowColor: "#00664F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   connectButtonText: {
     color: "#FFFFFF",
