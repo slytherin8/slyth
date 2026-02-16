@@ -48,6 +48,7 @@ export default function EmployeeChatScreen({ navigation }) {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showGroupActions, setShowGroupActions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // Animation values
   const translateX = useRef(new Animated.Value(0)).current;
