@@ -22,6 +22,7 @@ import AsyncStorage from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import socketService from '../services/socketService';
+import AppLayout from "../components/AppLayout";
 
 import { API } from '../constants/api';
 
@@ -91,7 +92,23 @@ export default function DirectChatScreen({ route, navigation }) {
     const currentId = await getCurrentUserId();
     setCurrentUserId(currentId);
     fetchMessages();
+    markAsRead();
   };
+
+  const markAsRead = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${API}/api/direct-messages/read/${userId}`, {
+        method: "POST",
+        headers
+      });
+      // Also notify socket if needed, but usually server handles this
+      socketService.emit('mark_direct_read', { senderId: userId });
+    } catch (error) {
+      console.log("Mark as read error:", error);
+    }
+  };
+
   const fetchMessages = async () => {
     try {
       const headers = await getAuthHeaders();
@@ -574,252 +591,230 @@ export default function DirectChatScreen({ route, navigation }) {
 
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <AppLayout
+      navigation={navigation}
+      title={userName || "Chat"}
+      subtitle={route.params.userRole === 'admin' ? 'Admin' : 'Employee'}
+      onBack={() => navigation.goBack()}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-
-          <View style={styles.userDetails}>
-            <Text style={styles.headerTitle}>{userName || "Unknown User"}</Text>
-            <Text style={styles.userRole}>Direct Message</Text>
-          </View>
-        </View>
-
-        <View style={styles.headerRight}>
-          <View style={styles.userAvatar}>
-            {userAvatar ? (
-              <Image
-                source={{ uri: userAvatar }}
-                style={styles.userAvatarImage}
-              />
-            ) : (
-              <View style={styles.userAvatarPlaceholder}>
-                <Text style={styles.userAvatarText}>
-                  {userName?.charAt(0)?.toUpperCase() || "U"}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Messages List */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item._id}
-        renderItem={renderMessage}
-        style={styles.messagesListContainer}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No messages yet</Text>
-            <Text style={styles.emptySubtext}>Start the conversation!</Text>
-          </View>
-        }
-      />
-
-      {/* Reply Preview */}
-      {replyingTo && (
-        <View style={styles.replyPreview}>
-          <View style={styles.replyContent}>
-            <Text style={styles.replyLabel}>Replying to {replyingTo.senderName}</Text>
-            <Text style={styles.replyText} numberOfLines={1}>
-              {replyingTo.messageText}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={cancelReply}>
-            <Text style={styles.cancelReply}>✕</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Message Input */}
-      <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
-          <TouchableOpacity
-            style={styles.attachButton}
-            onPress={() => setShowAttachmentOptions(true)}
-          >
-            <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
-          </TouchableOpacity>
-
-          <TextInput
-            style={styles.textInput}
-            placeholder="Type a message..."
-            value={newMessage}
-            onChangeText={setNewMessage}
-            multiline
-            maxLength={1000}
-            placeholderTextColor="#888"
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
-          onPress={handleSendText}
-          disabled={!newMessage.trim() && !sending}
-        >
-          <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
-        </TouchableOpacity>
-      </View>
-      {/* Attachment Options Modal */}
-      <Modal
-        visible={showAttachmentOptions}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowAttachmentOptions(false)}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.attachmentModal}>
-            <Text style={styles.modalTitle}>Send</Text>
 
-            <TouchableOpacity style={styles.attachmentOption} onPress={pickImage}>
-              <View style={styles.attachmentIconContainer}>
-                <Text style={styles.attachmentIcon}>📷</Text>
-              </View>
-              <View style={styles.attachmentTextContainer}>
-                <Text style={styles.attachmentText}>Photo</Text>
-                <Text style={styles.attachmentSubtext}>Share photos from your gallery</Text>
-              </View>
-            </TouchableOpacity>
+        {/* Messages List */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item._id}
+          renderItem={renderMessage}
+          style={styles.messagesListContainer}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No messages yet</Text>
+              <Text style={styles.emptySubtext}>Start the conversation!</Text>
+            </View>
+          }
+        />
 
-            <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
-              <View style={styles.attachmentIconContainer}>
-                <Text style={styles.attachmentIcon}>📎</Text>
-              </View>
-              <View style={styles.attachmentTextContainer}>
-                <Text style={styles.attachmentText}>Document</Text>
-                <Text style={styles.attachmentSubtext}>Share PDFs, docs, and other files</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowAttachmentOptions(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Message Actions Modal (Android) */}
-      <Modal
-        visible={showMessageActions}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowMessageActions(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.messageActionsModal}>
-            <Text style={styles.modalTitle}>Message Options</Text>
-
-            {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => handleCopyMessage(selectedMessage)}
-              >
-                <Text style={styles.actionIcon}>📋</Text>
-                <Text style={styles.actionText}>Copy</Text>
-              </TouchableOpacity>
-            )}
-
-            {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => handleReply(selectedMessage)}
-              >
-                <Text style={styles.actionIcon}>↩️</Text>
-                <Text style={styles.actionText}>Reply</Text>
-              </TouchableOpacity>
-            )}
-
-            {selectedMessage && selectedMessage.senderId._id === currentUserId && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => {
-                  Alert.alert(
-                    "Delete Message",
-                    "Are you sure you want to delete this message?",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(selectedMessage._id) }
-                    ]
-                  );
-                }}
-              >
-                <Text style={styles.actionIcon}>🗑️</Text>
-                <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
-              </TouchableOpacity>
-            )}
-
-            {selectedMessage && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => {
-                  setShowMessageActions(false);
-                  handleViewInfo(selectedMessage);
-                }}
-              >
-                <Text style={styles.actionIcon}>ℹ️</Text>
-                <Text style={styles.actionText}>Info</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowMessageActions(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Message Info Modal */}
-      <Modal
-        visible={showInfoModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowInfoModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.messageInfoModal}>
-            <Text style={styles.modalTitle}>Message Info</Text>
-
-            <View style={styles.infoSection}>
-              <Text style={styles.infoLabel}>Delivered</Text>
-              <Text style={styles.infoValue}>
-                {selectedMessage ? new Date(selectedMessage.createdAt).toLocaleString() : ""}
+        {/* Reply Preview */}
+        {replyingTo && (
+          <View style={styles.replyPreview}>
+            <View style={styles.replyContent}>
+              <Text style={styles.replyLabel}>Replying to {replyingTo.senderName}</Text>
+              <Text style={styles.replyText} numberOfLines={1}>
+                {replyingTo.messageText}
               </Text>
             </View>
-
-            <View style={styles.infoSection}>
-              <Text style={styles.infoLabel}>Read</Text>
-              <View style={styles.seenItem}>
-                <Text style={styles.seenName}>{userName}</Text>
-                <Text style={styles.seenTime}>{selectedMessage?.read ? "Read" : "Delivered"}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.closeInfoButton}
-              onPress={() => setShowInfoModal(false)}
-            >
-              <Text style={styles.closeInfoButtonText}>Close</Text>
+            <TouchableOpacity onPress={cancelReply}>
+              <Text style={styles.cancelReply}>✕</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* Message Input */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
+            <TouchableOpacity
+              style={styles.attachButton}
+              onPress={() => setShowAttachmentOptions(true)}
+            >
+              <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
+            </TouchableOpacity>
+
+            <TextInput
+              style={styles.textInput}
+              placeholder="Type a message..."
+              value={newMessage}
+              onChangeText={setNewMessage}
+              multiline
+              maxLength={1000}
+              placeholderTextColor="#888"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
+            onPress={handleSendText}
+            disabled={!newMessage.trim() && !sending}
+          >
+            <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </KeyboardAvoidingView>
+        {/* Attachment Options Modal */}
+        <Modal
+          visible={showAttachmentOptions}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowAttachmentOptions(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.attachmentModal}>
+              <Text style={styles.modalTitle}>Send</Text>
+
+              <TouchableOpacity style={styles.attachmentOption} onPress={pickImage}>
+                <View style={styles.attachmentIconContainer}>
+                  <Text style={styles.attachmentIcon}>📷</Text>
+                </View>
+                <View style={styles.attachmentTextContainer}>
+                  <Text style={styles.attachmentText}>Photo</Text>
+                  <Text style={styles.attachmentSubtext}>Share photos from your gallery</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
+                <View style={styles.attachmentIconContainer}>
+                  <Text style={styles.attachmentIcon}>📎</Text>
+                </View>
+                <View style={styles.attachmentTextContainer}>
+                  <Text style={styles.attachmentText}>Document</Text>
+                  <Text style={styles.attachmentSubtext}>Share PDFs, docs, and other files</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowAttachmentOptions(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Message Actions Modal (Android) */}
+        <Modal
+          visible={showMessageActions}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowMessageActions(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.messageActionsModal}>
+              <Text style={styles.modalTitle}>Message Options</Text>
+
+              {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
+                <TouchableOpacity
+                  style={styles.actionOption}
+                  onPress={() => handleCopyMessage(selectedMessage)}
+                >
+                  <Text style={styles.actionIcon}>📋</Text>
+                  <Text style={styles.actionText}>Copy</Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
+                <TouchableOpacity
+                  style={styles.actionOption}
+                  onPress={() => handleReply(selectedMessage)}
+                >
+                  <Text style={styles.actionIcon}>↩️</Text>
+                  <Text style={styles.actionText}>Reply</Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedMessage && selectedMessage.senderId._id === currentUserId && (
+                <TouchableOpacity
+                  style={styles.actionOption}
+                  onPress={() => {
+                    Alert.alert(
+                      "Delete Message",
+                      "Are you sure you want to delete this message?",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(selectedMessage._id) }
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.actionIcon}>🗑️</Text>
+                  <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedMessage && (
+                <TouchableOpacity
+                  style={styles.actionOption}
+                  onPress={() => {
+                    setShowMessageActions(false);
+                    handleViewInfo(selectedMessage);
+                  }}
+                >
+                  <Text style={styles.actionIcon}>ℹ️</Text>
+                  <Text style={styles.actionText}>Info</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowMessageActions(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Message Info Modal */}
+        <Modal
+          visible={showInfoModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowInfoModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.messageInfoModal}>
+              <Text style={styles.modalTitle}>Message Info</Text>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoLabel}>Delivered</Text>
+                <Text style={styles.infoValue}>
+                  {selectedMessage ? new Date(selectedMessage.createdAt).toLocaleString() : ""}
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoLabel}>Read</Text>
+                <View style={styles.seenItem}>
+                  <Text style={styles.seenName}>{userName}</Text>
+                  <Text style={styles.seenTime}>{selectedMessage?.read ? "Read" : "Delivered"}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.closeInfoButton}
+                onPress={() => setShowInfoModal(false)}
+              >
+                <Text style={styles.closeInfoButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </KeyboardAvoidingView>
+    </AppLayout>
   );
 }
 const styles = StyleSheet.create({
