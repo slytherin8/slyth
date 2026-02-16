@@ -182,8 +182,9 @@ export default function AdminChatScreen({ navigation }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Failed to fetch employees");
 
-      // Filter out current user if needed, but normally admin is not in employees list or we handle it
-      setEmployees(data);
+      // Filter to only show employees (not other admins)
+      const users = data.filter(u => u.role === 'employee');
+      setEmployees(users);
     } catch (error) {
       console.error("Failed to fetch employees:", error);
     }
@@ -227,17 +228,17 @@ export default function AdminChatScreen({ navigation }) {
 
     const merged = Array.from(allUsersMap.values());
 
-    // Sort: Unread first, then by last message time, then alphabetical
+    // Sort: By last message time (latest first), then Unread count, then alphabetical
     merged.sort((a, b) => {
-      // 1. Unread count
-      const unreadA = a.unreadCount || 0;
-      const unreadB = b.unreadCount || 0;
-      if (unreadA !== unreadB) return unreadB - unreadA;
-
-      // 2. Last message time
+      // 1. Last message time
       const timeA = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
       const timeB = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
       if (timeA !== timeB) return timeB - timeA;
+
+      // 2. Unread count
+      const unreadA = a.unreadCount || 0;
+      const unreadB = b.unreadCount || 0;
+      if (unreadA !== unreadB) return unreadB - unreadA;
 
       // 3. Alphabetical
       const nameA = a.user?.profile?.name || "";
@@ -385,7 +386,8 @@ export default function AdminChatScreen({ navigation }) {
         onPress={() => navigation.navigate("DirectChat", {
           userId: item.user._id,
           userName: item.user.profile?.name || "Unknown",
-          userAvatar: item.user.profile?.avatar
+          userAvatar: item.user.profile?.avatar,
+          userRole: item.user.role
         })}
       >
         <View style={styles.avatarContainer}>
@@ -405,9 +407,12 @@ export default function AdminChatScreen({ navigation }) {
 
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
-            <Text style={styles.chatName} numberOfLines={1}>
-              {item.user.profile?.name || "Unknown User"}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.chatName} numberOfLines={1}>
+                {item.user.profile?.name || "Unknown User"}
+              </Text>
+              <Text style={styles.roleTag}> • {item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
+            </View>
             {item.lastMessage && (
               <Text style={[styles.messageTime, hasUnread && styles.messageTimeUnread]}>
                 {formatTime(item.lastMessage.createdAt)}
@@ -487,23 +492,16 @@ export default function AdminChatScreen({ navigation }) {
 
 
   return (
-    <AppLayout navigation={navigation} role="admin" showProfile={false} logoPosition="right">
+    <AppLayout
+      navigation={navigation}
+      role="admin"
+      showProfile={false}
+      logoPosition="right"
+      title="Chats"
+    >
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Chats</Text>
-          {activeTab === 0 && (
-            <TouchableOpacity
-              style={styles.createGroupButton}
-              onPress={() => navigation.navigate("CreateGroup")}
-            >
-              <Text style={styles.createGroupButtonText}>+</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
+        {/* Search Bar & Create Button */}
+        <View style={styles.searchRow}>
           <View style={styles.searchBar}>
             <Image source={require("../../assets/images/search.png")} style={styles.searchIcon} />
             <TextInput
@@ -514,6 +512,14 @@ export default function AdminChatScreen({ navigation }) {
               onChangeText={setSearchQuery}
             />
           </View>
+          {activeTab === 0 && (
+            <TouchableOpacity
+              style={styles.createGroupButtonSmall}
+              onPress={() => navigation.navigate("CreateGroup")}
+            >
+              <Text style={styles.createGroupButtonText}>+</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Tabs */}
@@ -667,7 +673,12 @@ export default function AdminChatScreen({ navigation }) {
                 style={styles.actionOption}
                 onPress={() => {
                   setShowGroupActions(false);
-                  handleDeleteGroup(selectedGroup);
+                  navigation.navigate("GroupDelete", {
+                    groupId: selectedGroup?._id,
+                    groupName: selectedGroup?.name,
+                    groupPhoto: selectedGroup?.profilePhoto,
+                    groupDescription: selectedGroup?.description
+                  });
                 }}
               >
                 <Text style={[styles.actionIcon, styles.deleteText]}>🗑️</Text>
@@ -735,12 +746,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff"
   },
-  searchContainer: {
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 10,
     backgroundColor: '#FFFFFF',
   },
+  createGroupButtonSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#00664F",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+  },
   searchBar: {
+    flexGrow: 1,
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
@@ -779,6 +803,11 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: "#00664F",
     fontWeight: "700"
+  },
+  roleTag: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginLeft: 4,
   },
   tabIndicator: {
     position: "absolute",
@@ -1016,5 +1045,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     minHeight: 80
+  },
+  roleTag: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginLeft: 4,
+    fontWeight: "400"
   }
 });
