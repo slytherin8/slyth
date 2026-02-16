@@ -16,6 +16,7 @@ import DebugAuthScreen from "./src/screens/DebugAuthScreen";
 import EmployeeHome from "./src/screens/EmployeeHome";
 import EditGroupScreen from "./src/screens/EditGroupScreen";
 import GroupInfoScreen from "./src/screens/GroupInfoScreen";
+import GroupDeleteScreen from "./src/screens/GroupDeleteScreen";
 
 // Admin pages
 import AdminChatScreen from "./src/screens/AdminChatScreen";
@@ -24,6 +25,9 @@ import AdminWorkScreen from "./src/screens/AdminWorkScreen";
 import AdminFilesScreen from "./src/screens/AdminFilesScreen";
 import AdminVaultScreen from "./src/screens/AdminVaultScreen";
 import AdminProfileScreen from "./src/screens/AdminProfileScreen";
+import AdminLogoutScreen from "./src/screens/AdminLogoutScreen";
+import EmployeeWorkspaceScreen from "./src/screens/EmployeeWorkspaceScreen";
+import ProjectTasksScreen from "./src/screens/ProjectTasksScreen";
 import ProfileSetupScreen from "./src/screens/ProfileSetupScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 
@@ -56,6 +60,7 @@ export default function App() {
           <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
           <Stack.Screen name="EditGroup" component={EditGroupScreen} />
           <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
+          <Stack.Screen name="GroupDelete" component={GroupDeleteScreen} />
           <Stack.Screen name="GroupChat" component={GroupChatScreen} />
           <Stack.Screen name="DirectChat" component={DirectChatScreen} />
           <Stack.Screen name="AdminChat" component={AdminChatScreen} />
@@ -64,6 +69,9 @@ export default function App() {
           <Stack.Screen name="AdminFiles" component={AdminFilesScreen} />
           <Stack.Screen name="AdminVault" component={AdminVaultScreen} />
           <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
+          <Stack.Screen name="AdminLogout" component={AdminLogoutScreen} />
+          <Stack.Screen name="EmployeeWorkspace" component={EmployeeWorkspaceScreen} />
+          <Stack.Screen name="ProjectTasks" component={ProjectTasksScreen} />
           <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
           <Stack.Screen
             name="Profile"
