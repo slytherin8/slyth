@@ -278,9 +278,9 @@ export default function CreateGroupScreen({ navigation }) {
                   </View>
                   <View style={styles.employeeDetails}>
                     <Text style={styles.employeeName}>
-                      {employee.profile?.name || employee.email}
+                      {employee.profile?.name || employee.name || employee.email}
                     </Text>
-                    <Text style={styles.employeeEmail}>{employee.email}</Text>
+                    <Text style={styles.employeeEmail}>{employee.role === 'admin' ? 'Admin' : 'Employee'}</Text>
                     {!employee.isActive && (
                       <Text style={styles.inactiveText}>Not logged in yet</Text>
                     )}
