@@ -51,6 +51,10 @@ const userSchema = new mongoose.Schema({
   vaultPin: {
     type: String,
     default: null
+  },
+  pushToken: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
