@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+// Force reload: 2026-02-16T13:48
 import {
   View,
   Text,
@@ -61,7 +62,7 @@ export default function EmployeeHome({ navigation }) {
         onPress: async () => {
           await AsyncStorage.removeItem("token");
           await AsyncStorage.removeItem("role");
-          navigation.replace("Login");
+          navigation.replace("Welcome");
         }
       }
     ]);
@@ -161,7 +162,7 @@ export default function EmployeeHome({ navigation }) {
       role="employee"
       hideHeader={true}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
         {/* Custom Header */}
@@ -323,12 +324,16 @@ export default function EmployeeHome({ navigation }) {
             </View>
           </TouchableOpacity>
         </Modal>
-      </View>
+      </SafeAreaView>
     </AppLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF"
@@ -338,7 +343,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: getResponsiveSize(20),
-    paddingVertical: getResponsiveSize(15),
+    paddingTop: getResponsiveSize(25),
+    paddingBottom: getResponsiveSize(15),
     backgroundColor: "#FFFFFF"
   },
   companyInfo: {
