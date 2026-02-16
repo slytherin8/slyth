@@ -92,19 +92,19 @@ router.get("/groups", auth, async (req, res) => {
           groupId: group._id,
           isDeleted: false
         })
-          .populate("senderId", "profile.name")
+          .populate("senderId", "profile.name name")
           .sort({ createdAt: -1 });
 
         // Find current user's member data
         const currentUserMember = group.members.find(
-          member => member.userId._id.toString() === req.user.id
+          member => member.userId?._id?.toString() === req.user.id
         );
 
         return {
           ...group.toObject(),
           lastMessage: lastMessage ? {
             messageText: lastMessage.messageText,
-            senderName: lastMessage.senderId.profile.name,
+            senderName: lastMessage.senderId?.profile?.name || lastMessage.senderId?.name || "Unknown",
             createdAt: lastMessage.createdAt
           } : null,
           unreadCount: currentUserMember ? currentUserMember.unreadCount : 0,
