@@ -14,8 +14,10 @@ import {
   Dimensions,
   Animated,
   PanResponder,
-  TextInput
+  TextInput,
+  TouchableWithoutFeedback
 } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from "@react-navigation/native";
 import AppLayout from "../components/AppLayout";
 import AsyncStorage from '../utils/storage';
@@ -224,16 +226,19 @@ export default function EmployeeChatScreen({ navigation }) {
 
     const merged = Array.from(allUsersMap.values());
 
-    // Sort
+    // Sort: Latest message first
     merged.sort((a, b) => {
-      const unreadA = a.unreadCount || 0;
-      const unreadB = b.unreadCount || 0;
-      if (unreadA !== unreadB) return unreadB - unreadA;
-
+      // 1. Last message time
       const timeA = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
       const timeB = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
       if (timeA !== timeB) return timeB - timeA;
 
+      // 2. Unread count
+      const unreadA = a.unreadCount || 0;
+      const unreadB = b.unreadCount || 0;
+      if (unreadA !== unreadB) return unreadB - unreadA;
+
+      // 3. Alphabetical
       const nameA = a.user?.profile?.name || "";
       const nameB = b.user?.profile?.name || "";
       return nameA.localeCompare(nameB);
@@ -378,7 +383,8 @@ export default function EmployeeChatScreen({ navigation }) {
         onPress={() => navigation.navigate("DirectChat", {
           userId: item.user._id,
           userName: item.user.profile?.name || "Unknown",
-          userAvatar: item.user.profile?.avatar
+          userAvatar: item.user.profile?.avatar,
+          userRole: item.user.role
         })}
       >
         <View style={styles.avatarContainer}>
@@ -482,18 +488,47 @@ export default function EmployeeChatScreen({ navigation }) {
     );
   };
 
+  const handleDeleteGroup = (group) => {
+    Alert.alert(
+      "Delete Group",
+      `Are you sure you want to delete this group?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const headers = await getAuthHeaders();
+              const response = await fetch(`${API}/api/chat/groups/${group._id}`, {
+                method: "DELETE",
+                headers
+              });
+
+              if (response.ok) {
+                Alert.alert("Success! 🗑️", `Group "${group.name}" deleted successfully`);
+                updateGroups();
+              } else {
+                const data = await response.json();
+                Alert.alert("Delete Failed", data.message || "Failed to delete group");
+              }
+            } catch (error) {
+              Alert.alert("Delete Failed", "An error occurred while deleting the group");
+            }
+          }
+        }
+      ]
+    );
+  };
+
 
 
   return (
-    <AppLayout navigation={navigation} role="employee">
+    <AppLayout navigation={navigation} role="employee" title="Chats">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Chats</Text>
-        </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
+        {/* Search Bar & Plus Button */}
+        <View style={styles.searchRow}>
           <View style={styles.searchBar}>
             <Image source={require("../../assets/images/search.png")} style={styles.searchIcon} />
             <TextInput
@@ -504,6 +539,15 @@ export default function EmployeeChatScreen({ navigation }) {
               onChangeText={setSearchQuery}
             />
           </View>
+          <TouchableOpacity
+            style={styles.createGroupButtonSmall}
+            onPress={() => {
+              // For employees, maybe "Start Chat" or just UI parity
+              Alert.alert("Feature", "Start a new conversation");
+            }}
+          >
+            <Text style={styles.createGroupButtonText}>+</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Tabs */}
@@ -611,56 +655,70 @@ export default function EmployeeChatScreen({ navigation }) {
           animationType="slide"
           onRequestClose={() => setShowGroupActions(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.groupActionsModal}>
-              <Text style={styles.modalTitle}>
-                {selectedGroup?.name}
-              </Text>
+          <TouchableWithoutFeedback onPress={() => setShowGroupActions(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.bottomSheet}>
+                  <View style={styles.sheetHandle} />
 
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => {
-                  setShowGroupActions(false);
-                  navigation.navigate("GroupInfo", {
-                    groupId: selectedGroup?._id,
-                    groupName: selectedGroup?.name
-                  });
-                }}
-              >
-                <Text style={styles.actionIcon}>ℹ️</Text>
-                <Text style={styles.actionText}>Group Info</Text>
-              </TouchableOpacity>
+                  {/* Group Info */}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setShowGroupActions(false);
+                      navigation.navigate("GroupInfo", {
+                        groupId: selectedGroup?._id,
+                        groupName: selectedGroup?.name
+                      });
+                    }}
+                  >
+                    <View style={styles.menuIconContainer}>
+                      <Ionicons name="information-outline" size={24} color="#6B7280" />
+                    </View>
+                    <Text style={styles.menuItemText}>Group Info</Text>
+                    <Image source={require("../../assets/images/right-arrow.png")} style={styles.chevronIcon} />
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => {
-                  setShowGroupActions(false);
-                  handleMuteGroup(selectedGroup);
-                }}
-              >
-                <Text style={styles.actionIcon}>🔇</Text>
-                <Text style={styles.actionText}>Mute Notifications</Text>
-              </TouchableOpacity>
+                  {/* Mute Notifications */}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setShowGroupActions(false);
+                      Alert.alert("Success", "Notifications muted");
+                    }}
+                  >
+                    <View style={styles.menuIconContainer}>
+                      <Ionicons name="notifications-off-outline" size={24} color="#6B7280" />
+                    </View>
+                    <Text style={styles.menuItemText}>Mute Notifications</Text>
+                    <Image source={require("../../assets/images/right-arrow.png")} style={styles.chevronIcon} />
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => {
-                  setShowGroupActions(false);
-                  handleLeaveGroup(selectedGroup);
-                }}
-              >
-                <Text style={[styles.actionIcon, styles.leaveText]}>🚪</Text>
-                <Text style={[styles.actionText, styles.leaveText]}>Leave Group</Text>
-              </TouchableOpacity>
+                  {/* Leave Group */}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setShowGroupActions(false);
+                      Alert.alert("Coming Soon", "Leave group functionality will be available in next update");
+                    }}
+                  >
+                    <View style={styles.menuIconContainer}>
+                      <Ionicons name="exit-outline" size={24} color="#EF4444" />
+                    </View>
+                    <Text style={[styles.menuItemText, { color: '#EF4444' }]}>Leave Group</Text>
+                    <Image source={require("../../assets/images/right-arrow.png")} style={[styles.chevronIcon, { tintColor: '#EF4444' }]} />
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.cancelActionButton}
-                onPress={() => setShowGroupActions(false)}
-              >
-                <Text style={styles.cancelActionText}>Cancel</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setShowGroupActions(false)}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
         </Modal>
       </View>
     </AppLayout>
@@ -682,34 +740,36 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontSize: 16
   },
-  header: {
+  searchRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 15, // Increased padding
-    backgroundColor: "#FFFFFF",
-    // borderBottomWidth: 1, // Removed border
-    // borderBottomColor: "#E5E7EB"
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#000"
-  },
-  searchContainer: {
     paddingHorizontal: 16,
     paddingBottom: 10,
     backgroundColor: '#FFFFFF',
   },
   searchBar: {
+    flexGrow: 1,
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     borderRadius: 24,
     paddingHorizontal: 12,
     height: 44,
+  },
+  createGroupButtonSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#00664F",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  createGroupButtonText: {
+    fontSize: 28,
+    fontWeight: "600",
+    color: "#fff"
   },
   searchIcon: {
     width: 20,
@@ -910,49 +970,63 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end"
   },
-  groupActionsModal: {
+  bottomSheet: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     padding: 20,
-    paddingBottom: 40
+    paddingBottom: Platform.OS === 'ios' ? 40 : 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 20,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 2,
+    alignSelf: "center",
     marginBottom: 20,
-    color: "#111827"
   },
-  actionOption: {
+  menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6"
-  },
-  actionIcon: {
-    fontSize: 20,
-    marginRight: 15,
-    width: 30
-  },
-  actionText: {
-    fontSize: 16,
-    color: "#374151",
-    flex: 1
-  },
-  leaveText: {
-    color: "#DC2626"
-  },
-  cancelActionButton: {
-    marginTop: 10,
     paddingVertical: 15,
-    alignItems: "center"
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   },
-  cancelActionText: {
+  menuIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F9FAFB",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 15,
+  },
+  menuItemText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#1F2937",
+    textAlign: "left",
+  },
+  chevronIcon: {
+    width: 16,
+    height: 16,
+    tintColor: "#9CA3AF",
+    resizeMode: 'contain'
+  },
+  cancelButton: {
+    marginTop: 15,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+  cancelButtonText: {
     fontSize: 16,
     color: "#6B7280",
-    fontWeight: "600"
+    fontWeight: "600",
   }
 });
