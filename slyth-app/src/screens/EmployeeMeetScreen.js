@@ -8,7 +8,8 @@ import {
   Dimensions,
   StatusBar,
   Alert,
-  Linking
+  Linking,
+  ScrollView
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
@@ -80,38 +81,12 @@ export default function EmployeeMeetScreen({ navigation }) {
   };
 
   return (
-    <AppLayout role="employee" hideHeader={true}>
-      <View style={styles.container}>
+    <AppLayout role="employee" title="Meet">
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Image
-              source={require("../../assets/images/back-arrow.png")}
-              style={styles.backIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Meet</Text>
-
-          <View style={styles.companyLogoContainer}>
-            {company?.logo ? (
-              <Image source={{ uri: company.logo }} style={styles.companyLogo} />
-            ) : (
-              <View style={styles.defaultLogo}>
-                <Text style={styles.defaultLogoText}>$</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
         {/* Center Content */}
-        <View style={styles.centerContent}>
+        <View style={styles.content}>
           <View style={styles.illustrationContainer}>
             <Image
               source={require("../../assets/images/google-meet.png")}
@@ -119,19 +94,19 @@ export default function EmployeeMeetScreen({ navigation }) {
               resizeMode="contain"
             />
           </View>
-        </View>
 
-        {/* Bottom Button */}
-        <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.connectButton}
-            onPress={handleConnectToMeet}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.connectButtonText}>Connect to Meet</Text>
-          </TouchableOpacity>
+          {/* Connect Button - Right below image */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.connectButton}
+              onPress={handleConnectToMeet}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.connectButtonText}>Connect to Meet</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </AppLayout>
   );
 }
@@ -194,33 +169,44 @@ const styles = StyleSheet.create({
     color: "#00664F",
     fontFamily: "Inter-Bold"
   },
-  centerContent: {
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: "#F5F5F5",
+    paddingBottom: getResponsiveSize(100), // Space for bottom nav
+  },
+  content: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: getResponsiveSize(20)
+    paddingHorizontal: getResponsiveSize(20),
+    paddingTop: getResponsiveSize(40),
   },
   illustrationContainer: {
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    marginBottom: getResponsiveSize(40),
   },
   meetIllustration: {
     width: Math.min(width * 0.8, 400),
-    height: Math.min(height * 0.4, 300),
+    height: Math.min(height * 0.35, 250),
     maxWidth: 350,
-    maxHeight: 280
   },
-  bottomContainer: {
+  buttonContainer: {
+    width: "100%",
     paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(40),
-    paddingTop: getResponsiveSize(20)
+    marginTop: getResponsiveSize(20),
   },
   connectButton: {
     backgroundColor: "#00664F",
     borderRadius: getResponsiveSize(28),
     paddingVertical: getResponsiveSize(18),
     alignItems: "center",
-    minHeight: getResponsiveSize(56)
+    minHeight: getResponsiveSize(56),
+    shadowColor: "#00664F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   connectButtonText: {
     color: "#FFFFFF",
