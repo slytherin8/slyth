@@ -1,6 +1,8 @@
+import React, { useEffect, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import ErrorBoundary from "./src/components/ErrorBoundary";
+import notificationService from "./src/services/notificationService";
 
 import WelcomeScreen from "./src/screens/WelcomeScreen";
 import LoginScreen from "./src/screens/LoginScreen";
@@ -42,9 +44,23 @@ import EmployeeLogoutScreen from "./src/screens/EmployeeLogoutScreen";
 const Stack = createStackNavigator();
 
 export default function App() {
+  const navigationRef = useRef();
+
+  useEffect(() => {
+    // Register for push notifications
+    notificationService.registerForPushNotificationsAsync();
+
+    // Initialize listeners with navigation ref
+    notificationService.initListeners(navigationRef.current);
+
+    return () => {
+      notificationService.cleanup();
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {/* Auth */}
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
