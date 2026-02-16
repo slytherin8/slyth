@@ -126,6 +126,15 @@ export default function EmployeeChatScreen({ navigation }) {
 
   const loadAllData = async () => {
     setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setCurrentUserId(payload.id);
+      }
+    } catch (e) {
+      console.log("Token decode error:", e);
+    }
     await Promise.all([fetchGroups(), fetchConversations(), fetchEmployees()]);
     setLoading(false);
   };
