@@ -22,6 +22,7 @@ import AsyncStorage from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import socketService from '../services/socketService';
+import AppLayout from "../components/AppLayout";
 
 import { API } from '../constants/api';
 
@@ -661,7 +662,7 @@ export default function GroupChatScreen({ route, navigation }) {
           <View style={styles.messageHeader}>
             {!isMyMessage && (
               <Text style={styles.senderName}>
-                {item.senderId.profile?.name || "Unknown"}
+                {item.senderId.profile?.name || item.senderId.name || item.senderId.email || "Unknown"}
               </Text>
             )}
 
@@ -738,426 +739,368 @@ export default function GroupChatScreen({ route, navigation }) {
 
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <AppLayout
+      navigation={navigation}
+      title={groupName}
+      onBack={() => navigation.goBack()}
+      onMenu={() => setShowGroupMenu(true)}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-
-          <View style={styles.groupDetails}>
-            <Text style={styles.headerTitle}>{groupName}</Text>
-            <Text style={styles.memberCount}>
-              {groupInfo?.members?.length || 0} members
-              {onlineUsers.length > 0 && `, ${onlineUsers.length} online`}
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.headerRight}
-          onPress={() => navigation.navigate("GroupInfo", { groupId, groupName })}
-        >
-          <View style={styles.groupAvatar}>
-            {groupInfo?.profilePhoto ? (
-              <Image
-                source={{ uri: groupInfo.profilePhoto }}
-                style={styles.groupAvatarImage}
-              />
-            ) : (
-              <View style={styles.groupAvatarPlaceholder}>
-                <Text style={styles.groupAvatarText}>
-                  {groupName?.charAt(0)?.toUpperCase() || "G"}
-                </Text>
-              </View>
-            )}
-          </View>
-          <TouchableOpacity
-            onPress={() => setShowGroupMenu(true)}
-            style={styles.menuButton}
-          >
-            <Text style={styles.menuButtonText}>⋮</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </View>
-
-      {/* Messages List */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item._id}
-        renderItem={renderMessage}
-        style={styles.messagesListContainer}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No messages yet</Text>
-            <Text style={styles.emptySubtext}>Start the conversation!</Text>
-          </View>
-        }
-      />
-
-      {/* Reply Preview */}
-      {replyingTo && (
-        <View style={styles.replyPreview}>
-          <View style={styles.replyContent}>
-            <Text style={styles.replyLabel}>Replying to {replyingTo.senderName}</Text>
-            <Text style={styles.replyText} numberOfLines={1}>
-              {replyingTo.messageText}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={cancelReply}>
-            <Text style={styles.cancelReply}>✕</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Message Input */}
-      <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
-          <TouchableOpacity
-            style={styles.attachButton}
-            onPress={() => setShowAttachmentOptions(true)}
-          >
-            <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
-          </TouchableOpacity>
-
-          <TextInput
-            style={styles.textInput}
-            placeholder="Type a message..."
-            value={newMessage}
-            onChangeText={setNewMessage}
-            multiline
-            maxLength={1000}
-            placeholderTextColor="#888"
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
-          onPress={handleSendText}
-          disabled={!newMessage.trim() && !sending}
-        >
-          <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Attachment Options Modal */}
-      <Modal
-        visible={showAttachmentOptions}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowAttachmentOptions(false)}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.attachmentModal}>
-            <Text style={styles.modalTitle}>Send</Text>
 
-            <TouchableOpacity style={styles.attachmentOption} onPress={pickImage}>
-              <View style={styles.attachmentIconContainer}>
-                <Text style={styles.attachmentIcon}>📷</Text>
-              </View>
-              <View style={styles.attachmentTextContainer}>
-                <Text style={styles.attachmentText}>Photo</Text>
-                <Text style={styles.attachmentSubtext}>Share photos from your gallery</Text>
-              </View>
-            </TouchableOpacity>
+        {/* Messages List */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item._id}
+          renderItem={renderMessage}
+          style={styles.messagesListContainer}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No messages yet</Text>
+              <Text style={styles.emptySubtext}>Start the conversation!</Text>
+            </View>
+          }
+        />
 
-            <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
-              <View style={styles.attachmentIconContainer}>
-                <Text style={styles.attachmentIcon}>📎</Text>
-              </View>
-              <View style={styles.attachmentTextContainer}>
-                <Text style={styles.attachmentText}>Document</Text>
-                <Text style={styles.attachmentSubtext}>Share PDFs, docs, and other files</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowAttachmentOptions(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Message Actions Modal (Android) */}
-      <Modal
-        visible={showMessageActions}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowMessageActions(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.messageActionsModal}>
-            <Text style={styles.modalTitle}>Message Options</Text>
-
-            {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => handleCopyMessage(selectedMessage)}
-              >
-                <Text style={styles.actionIcon}>📋</Text>
-                <Text style={styles.actionText}>Copy</Text>
-              </TouchableOpacity>
-            )}
-
-            {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => handleReply(selectedMessage)}
-              >
-                <Text style={styles.actionIcon}>↩️</Text>
-                <Text style={styles.actionText}>Reply</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Always show delete option - backend handles permissions */}
-            {selectedMessage && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => {
-                  Alert.alert(
-                    "Delete Message",
-                    "Are you sure you want to delete this message?",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(selectedMessage._id) }
-                    ]
-                  );
-                }}
-              >
-                <Text style={styles.actionIcon}>🗑️</Text>
-                <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
-              </TouchableOpacity>
-            )}
-
-            {selectedMessage && (
-              <TouchableOpacity
-                style={styles.actionOption}
-                onPress={() => {
-                  setShowMessageActions(false);
-                  handleViewInfo(selectedMessage);
-                }}
-              >
-                <Text style={styles.actionIcon}>ℹ️</Text>
-                <Text style={styles.actionText}>Info</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowMessageActions(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Message Info Modal */}
-      <Modal
-        visible={showInfoModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowInfoModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.messageInfoModal}>
-            <Text style={styles.modalTitle}>Message Info</Text>
-
-            <View style={styles.infoSection}>
-              <Text style={styles.infoLabel}>Delivered</Text>
-              <Text style={styles.infoValue}>
-                {selectedMessage ? new Date(selectedMessage.createdAt).toLocaleString() : ""}
+        {/* Reply Preview */}
+        {replyingTo && (
+          <View style={styles.replyPreview}>
+            <View style={styles.replyContent}>
+              <Text style={styles.replyLabel}>Replying to {replyingTo.senderName}</Text>
+              <Text style={styles.replyText} numberOfLines={1}>
+                {replyingTo.messageText}
               </Text>
             </View>
-
-            <View style={styles.infoSection}>
-              <Text style={styles.infoLabel}>Seen by</Text>
-              <View style={styles.seenList}>
-                {groupInfo?.members?.slice(0, 3).map((member, index) => (
-                  <View key={index} style={styles.seenItem}>
-                    <Text style={styles.seenName}>{member.user?.profile?.name || "Member"}</Text>
-                    <Text style={styles.seenTime}>Seen</Text>
-                  </View>
-                ))}
-                {groupInfo?.members?.length > 3 && (
-                  <Text style={styles.moreSeen}>+ {groupInfo.members.length - 3} more</Text>
-                )}
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.closeInfoButton}
-              onPress={() => setShowInfoModal(false)}
-            >
-              <Text style={styles.closeInfoButtonText}>Close</Text>
+            <TouchableOpacity onPress={cancelReply}>
+              <Text style={styles.cancelReply}>✕</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-      {/* Group Menu Bottom Sheet */}
-      <Modal
-        visible={showGroupMenu}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowGroupMenu(false)}
-      >
-        <Pressable
-          style={styles.bottomSheetOverlay}
-          onPress={() => setShowGroupMenu(false)}
-        >
-          <Pressable style={styles.bottomSheet} onPress={(e) => e.stopPropagation()}>
-            {/* Menu Options */}
+        )}
+
+        {/* Message Input */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
             <TouchableOpacity
-              style={styles.bottomSheetOption}
-              onPress={() => {
-                setShowGroupMenu(false);
-                navigation.navigate("GroupInfo", { groupId, groupName });
-              }}
+              style={styles.attachButton}
+              onPress={() => setShowAttachmentOptions(true)}
             >
-              <View style={styles.bottomSheetIconContainer}>
-                <Ionicons name="information-circle-outline" size={24} color="#6B7280" />
-              </View>
-              <Text style={styles.bottomSheetOptionText}>Group Info</Text>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
             </TouchableOpacity>
 
-            {isAdmin ? (
-              <>
-                <TouchableOpacity
-                  style={styles.bottomSheetOption}
-                  onPress={() => {
-                    setShowGroupMenu(false);
-                    navigation.navigate("EditGroup", {
-                      groupId,
-                      groupName,
-                      groupDescription: groupInfo?.description,
-                      groupPhoto: groupInfo?.profilePhoto
-                    });
-                  }}
-                >
-                  <View style={styles.bottomSheetIconContainer}>
-                    <Ionicons name="pencil-outline" size={24} color="#6B7280" />
-                  </View>
-                  <Text style={styles.bottomSheetOptionText}>Edit Group</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Type a message..."
+              value={newMessage}
+              onChangeText={setNewMessage}
+              multiline
+              maxLength={1000}
+              placeholderTextColor="#888"
+            />
+          </View>
 
+          <TouchableOpacity
+            style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
+            onPress={handleSendText}
+            disabled={!newMessage.trim() && !sending}
+          >
+            <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Attachment Options Modal */}
+        <Modal
+          visible={showAttachmentOptions}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowAttachmentOptions(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.attachmentModal}>
+              <Text style={styles.modalTitle}>Send</Text>
+
+              <TouchableOpacity style={styles.attachmentOption} onPress={pickImage}>
+                <View style={styles.attachmentIconContainer}>
+                  <Text style={styles.attachmentIcon}>📷</Text>
+                </View>
+                <View style={styles.attachmentTextContainer}>
+                  <Text style={styles.attachmentText}>Photo</Text>
+                  <Text style={styles.attachmentSubtext}>Share photos from your gallery</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
+                <View style={styles.attachmentIconContainer}>
+                  <Text style={styles.attachmentIcon}>📎</Text>
+                </View>
+                <View style={styles.attachmentTextContainer}>
+                  <Text style={styles.attachmentText}>Document</Text>
+                  <Text style={styles.attachmentSubtext}>Share PDFs, docs, and other files</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowAttachmentOptions(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Message Actions Modal (Android) */}
+        <Modal
+          visible={showMessageActions}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowMessageActions(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.messageActionsModal}>
+              <Text style={styles.modalTitle}>Message Options</Text>
+
+              {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
                 <TouchableOpacity
-                  style={styles.bottomSheetOption}
+                  style={styles.actionOption}
+                  onPress={() => handleCopyMessage(selectedMessage)}
+                >
+                  <Text style={styles.actionIcon}>📋</Text>
+                  <Text style={styles.actionText}>Copy</Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
+                <TouchableOpacity
+                  style={styles.actionOption}
+                  onPress={() => handleReply(selectedMessage)}
+                >
+                  <Text style={styles.actionIcon}>↩️</Text>
+                  <Text style={styles.actionText}>Reply</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Always show delete option - backend handles permissions */}
+              {selectedMessage && (
+                <TouchableOpacity
+                  style={styles.actionOption}
                   onPress={() => {
-                    setShowGroupMenu(false);
                     Alert.alert(
-                      "Delete Group",
-                      "Are you sure you want to delete this group? This action cannot be undone.",
+                      "Delete Message",
+                      "Are you sure you want to delete this message?",
                       [
                         { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Delete",
-                          style: "destructive",
-                          onPress: async () => {
-                            try {
-                              const headers = await getAuthHeaders();
-                              const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
-                                method: "DELETE",
-                                headers
-                              });
-
-                              if (response.ok) {
-                                Alert.alert("Success! 🗑️", "Group has been deleted successfully!", [
-                                  { text: "OK", onPress: () => navigation.goBack() }
-                                ]);
-                              } else {
-                                Alert.alert("Error", "Failed to delete group");
-                              }
-                            } catch (error) {
-                              Alert.alert("Error", "Failed to delete group");
-                            }
-                          }
-                        }
+                        { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(selectedMessage._id) }
                       ]
                     );
                   }}
                 >
-                  <View style={styles.bottomSheetIconContainer}>
-                    <Ionicons name="trash-outline" size={24} color="#DC2626" />
-                  </View>
-                  <Text style={[styles.bottomSheetOptionText, { color: "#DC2626" }]}>Delete Group</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Text style={styles.actionIcon}>🗑️</Text>
+                  <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
                 </TouchableOpacity>
-              </>
-            ) : (
-              <>
+              )}
+
+              {selectedMessage && (
                 <TouchableOpacity
-                  style={styles.bottomSheetOption}
+                  style={styles.actionOption}
                   onPress={() => {
-                    setShowGroupMenu(false);
-                    Alert.alert("Feature Coming Soon", "Mute notifications feature will be available soon!");
+                    setShowMessageActions(false);
+                    handleViewInfo(selectedMessage);
                   }}
                 >
-                  <View style={styles.bottomSheetIconContainer}>
-                    <Ionicons name="notifications-off-outline" size={24} color="#6B7280" />
-                  </View>
-                  <Text style={styles.bottomSheetOptionText}>Mute Notifications</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Text style={styles.actionIcon}>ℹ️</Text>
+                  <Text style={styles.actionText}>Info</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.bottomSheetOption}
-                  onPress={() => {
-                    setShowGroupMenu(false);
-                    Alert.alert(
-                      "Leave Group",
-                      "Are you sure you want to leave this group?",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Leave",
-                          style: "destructive",
-                          onPress: async () => {
-                            try {
-                              const headers = await getAuthHeaders();
-                              const response = await fetch(`${API}/api/chat/groups/${groupId}/leave`, {
-                                method: "POST",
-                                headers
-                              });
+              )}
 
-                              if (response.ok) {
-                                Alert.alert("Success! 👋", "You have left the group successfully!", [
-                                  { text: "OK", onPress: () => navigation.goBack() }
-                                ]);
-                              } else {
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowMessageActions(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Message Info Modal */}
+        <Modal
+          visible={showInfoModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowInfoModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.messageInfoModal}>
+              <Text style={styles.modalTitle}>Message Info</Text>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoLabel}>Delivered</Text>
+                <Text style={styles.infoValue}>
+                  {selectedMessage ? new Date(selectedMessage.createdAt).toLocaleString() : ""}
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoLabel}>Seen by</Text>
+                <View style={styles.seenList}>
+                  {groupInfo?.members?.slice(0, 3).map((member, index) => (
+                    <View key={index} style={styles.seenItem}>
+                      <Text style={styles.seenName}>{member.user?.profile?.name || "Member"}</Text>
+                      <Text style={styles.seenTime}>Seen</Text>
+                    </View>
+                  ))}
+                  {groupInfo?.members?.length > 3 && (
+                    <Text style={styles.moreSeen}>+ {groupInfo.members.length - 3} more</Text>
+                  )}
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.closeInfoButton}
+                onPress={() => setShowInfoModal(false)}
+              >
+                <Text style={styles.closeInfoButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        {/* Group Menu Bottom Sheet */}
+        <Modal
+          visible={showGroupMenu}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowGroupMenu(false)}
+        >
+          <Pressable
+            style={styles.bottomSheetOverlay}
+            onPress={() => setShowGroupMenu(false)}
+          >
+            <Pressable style={styles.bottomSheet} onPress={(e) => e.stopPropagation()}>
+              {/* Menu Options */}
+              <TouchableOpacity
+                style={styles.bottomSheetOption}
+                onPress={() => {
+                  setShowGroupMenu(false);
+                  navigation.navigate("GroupInfo", { groupId, groupName });
+                }}
+              >
+                <View style={styles.bottomSheetIconContainer}>
+                  <Ionicons name="information-circle-outline" size={24} color="#6B7280" />
+                </View>
+                <Text style={styles.bottomSheetOptionText}>Group Info</Text>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+
+              {isAdmin ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.bottomSheetOption}
+                    onPress={() => {
+                      setShowGroupMenu(false);
+                      navigation.navigate("EditGroup", {
+                        groupId,
+                        groupName,
+                        groupDescription: groupInfo?.description,
+                        groupPhoto: groupInfo?.profilePhoto
+                      });
+                    }}
+                  >
+                    <View style={styles.bottomSheetIconContainer}>
+                      <Ionicons name="pencil-outline" size={24} color="#6B7280" />
+                    </View>
+                    <Text style={styles.bottomSheetOptionText}>Edit Group</Text>
+                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.bottomSheetOption}
+                    onPress={() => {
+                      setShowGroupMenu(false);
+                      navigation.navigate("GroupDelete", {
+                        groupId,
+                        groupName,
+                        groupPhoto: groupInfo?.profilePhoto,
+                        groupDescription: groupInfo?.description
+                      });
+                    }}
+                  >
+                    <View style={styles.bottomSheetIconContainer}>
+                      <Ionicons name="trash-outline" size={24} color="#DC2626" />
+                    </View>
+                    <Text style={[styles.bottomSheetOptionText, { color: "#DC2626" }]}>Delete Group</Text>
+                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.bottomSheetOption}
+                    onPress={() => {
+                      setShowGroupMenu(false);
+                      Alert.alert("Feature Coming Soon", "Mute notifications feature will be available soon!");
+                    }}
+                  >
+                    <View style={styles.bottomSheetIconContainer}>
+                      <Ionicons name="notifications-off-outline" size={24} color="#6B7280" />
+                    </View>
+                    <Text style={styles.bottomSheetOptionText}>Mute Notifications</Text>
+                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.bottomSheetOption}
+                    onPress={() => {
+                      setShowGroupMenu(false);
+                      Alert.alert(
+                        "Leave Group",
+                        "Are you sure you want to leave this group?",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Leave",
+                            style: "destructive",
+                            onPress: async () => {
+                              try {
+                                const headers = await getAuthHeaders();
+                                const response = await fetch(`${API}/api/chat/groups/${groupId}/leave`, {
+                                  method: "POST",
+                                  headers
+                                });
+
+                                if (response.ok) {
+                                  Alert.alert("Success! 👋", "You have left the group successfully!", [
+                                    { text: "OK", onPress: () => navigation.goBack() }
+                                  ]);
+                                } else {
+                                  Alert.alert("Error", "Failed to leave group");
+                                }
+                              } catch (error) {
                                 Alert.alert("Error", "Failed to leave group");
                               }
-                            } catch (error) {
-                              Alert.alert("Error", "Failed to leave group");
                             }
                           }
-                        }
-                      ]
-                    );
-                  }}
-                >
-                  <View style={styles.bottomSheetIconContainer}>
-                    <Ionicons name="log-out-outline" size={24} color="#DC2626" />
-                  </View>
-                  <Text style={[styles.bottomSheetOptionText, { color: "#DC2626" }]}>Leave Group</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              </>
-            )}
+                        ]
+                      );
+                    }}
+                  >
+                    <View style={styles.bottomSheetIconContainer}>
+                      <Ionicons name="log-out-outline" size={24} color="#DC2626" />
+                    </View>
+                    <Text style={[styles.bottomSheetOptionText, { color: "#DC2626" }]}>Leave Group</Text>
+                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </>
+              )}
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-    </KeyboardAvoidingView>
+        </Modal>
+      </KeyboardAvoidingView>
+    </AppLayout>
   );
 }
 
