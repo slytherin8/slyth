@@ -210,8 +210,10 @@ export default function EmployeeChatScreen({ navigation }) {
 
     const allUsersMap = new Map();
 
-    // 1. Add all employees
+    // 1. Add all employees (except self)
     employees.forEach(emp => {
+      if (emp._id === currentUserId) return;
+
       allUsersMap.set(emp._id, {
         _id: `temp_${emp._id}`,
         user: emp,
