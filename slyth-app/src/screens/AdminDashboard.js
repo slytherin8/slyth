@@ -44,9 +44,7 @@ export default function AdminDashboard({ navigation }) {
 
   const handleLogout = async () => {
     setShowMenu(false);
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("role");
-    navigation.replace("Welcome");
+    navigation.navigate("AdminLogout");
   };
 
   useEffect(() => {
@@ -220,7 +218,7 @@ export default function AdminDashboard({ navigation }) {
         </View>
         <View style={styles.employeeInfo}>
           <Text style={styles.employeeName}>{item.profile?.name || item.name || "Unknown"}</Text>
-          <Text style={styles.employeeEmail}>{item.email}</Text>
+          <Text style={styles.employeeEmail}>{item.role === 'admin' ? 'Admin' : 'Employee'}</Text>
         </View>
       </View>
       <TouchableOpacity
@@ -238,36 +236,14 @@ export default function AdminDashboard({ navigation }) {
   );
 
   return (
-    <AppLayout role="admin" hideHeader={true}>
+    <AppLayout
+      role="admin"
+      title={company?.name || "Company"}
+      logoPosition="right"
+      onMenu={() => setShowMenu(true)}
+    >
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-        {/* Custom Header Integrated into Dashboard logic */}
-        <View style={styles.header}>
-          <View style={styles.companyInfo}>
-            {company?.logo ? (
-              <Image source={{ uri: company.logo }} style={styles.companyLogo} />
-            ) : (
-              <View style={styles.defaultLogo}>
-                <Text style={styles.defaultLogoText}>$</Text>
-              </View>
-            )}
-            <View style={styles.companyDetails}>
-              <Text style={styles.companyName}>{company?.name || "Company"}</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => setShowMenu(true)}
-            activeOpacity={0.7}
-          >
-            <Image
-              source={require("../../assets/images/three-dot.png")}
-              style={styles.menuIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
 
         <Modal
           visible={showMenu}
