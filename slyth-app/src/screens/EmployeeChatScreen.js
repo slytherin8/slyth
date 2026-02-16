@@ -421,9 +421,12 @@ export default function EmployeeChatScreen({ navigation }) {
 
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
-            <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>
-              {item.user.profile?.name || "Unknown User"}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]} numberOfLines={1}>
+                {item.user.profile?.name || "Unknown User"}
+              </Text>
+              <Text style={styles.roleTag}> • {item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
+            </View>
             {item.lastMessage && (
               <Text style={styles.messageTime}>
                 {formatTime(item.lastMessage.createdAt)}
@@ -1040,5 +1043,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#6B7280",
     fontWeight: "600",
+  },
+  roleTag: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginLeft: 4,
+    fontWeight: "400"
   }
 });
