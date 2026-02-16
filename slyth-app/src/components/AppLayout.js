@@ -17,11 +17,16 @@ export default function AppLayout({
   role = "admin", // admin | employee
   onBack,
   showProfile = true,
-  logoPosition = "left", // left | right
+  logoPosition, // left | right
   title, // New prop
-  hideHeader = false // New prop
+  subtitle, // New prop
+  hideHeader = false, // New prop
+  onMenu // New prop for three-dot menu
 }) {
   const navigation = propNavigation || useNavigation();
+
+  // For admins, default logo to right if not explicitly set
+  const effectiveLogoPosition = logoPosition || (role === "admin" ? "right" : "left");
 
   // Automatically detect active tab from current route
   const currentRouteName = useNavigationState(state => {
@@ -39,7 +44,14 @@ export default function AppLayout({
     return "home";
   })();
 
-  const hideBottomNav = ["AdminDashboard", "EmployeeHome"].includes(currentRouteName);
+  const showBottomNavScreens = [
+    "AdminDashboard", "EmployeeHome",
+    "AdminWork", "EmployeeWork",
+    "AdminChat", "EmployeeChat",
+    "AdminVault", "AdminFiles",
+    "AdminMeet", "EmployeeMeet"
+  ];
+  const hideBottomNav = !showBottomNavScreens.includes(currentRouteName);
   const [company, setCompany] = useState({});
   const [profile, setProfile] = useState(null);
   const isFocused = useIsFocused();
@@ -107,52 +119,53 @@ export default function AppLayout({
             />
           </TouchableOpacity>
 
-          {/* 🏢 COMPANY - CENTER (IF RIGHT ALIGNED) OR LEFT */}
-          {logoPosition === "left" && (
-            <View style={styles.companyRow}>
-              {company?.logo ? (
-                <Image
-                  source={{ uri: company.logo }}
-                  style={styles.companyLogo}
-                />
-              ) : null}
-
-              <Text style={styles.companyName}>
-                {title || company?.name || "Company"}
-              </Text>
-            </View>
-          )}
-
-          {/* 🏢 COMPANY - CENTERED TITLE OR LOGO IF POSITION RIGHT requested, handling layout spacer */}
-          {logoPosition === "right" && (
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
-            </View>
-          )}
-
-          {/* 👤 PROFILE OR RIGHT LOGO */}
-          {showProfile ? (
-            <TouchableOpacity onPress={() => go("Profile")}>
-              {profile?.avatar ? (
-                <Image
-                  source={{ uri: profile.avatar }}
-                  style={styles.profileIcon}
-                />
+          {/* 🏢 CONTENT ROW (COMPANY OR TITLE) */}
+          <View style={styles.companyRow}>
+            {role === "employee" ? (
+              currentRouteName === "EmployeeHome" ? (
+                // 1️⃣ Employee Home: Company Info (Left)
+                <>
+                  {company?.logo ? <Image source={{ uri: company.logo }} style={styles.companyLogo} /> : null}
+                  <Text style={styles.companyName}>{company?.name || "Company"}</Text>
+                </>
               ) : (
+                // 2️⃣ Other Employee Screens: Just Title (if any)
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={styles.companyName}>{title || ""}</Text>
+                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                </View>
+              )
+            ) : (
+              // Admin: Company Info - Handle effectiveLogoPosition
+              <View style={styles.adminHeaderContent}>
+                {effectiveLogoPosition === "left" && company?.logo && (
+                  <Image source={{ uri: company.logo }} style={styles.companyLogo} />
+                )}
+                <View style={{ alignItems: effectiveLogoPosition === 'left' ? 'flex-start' : 'center' }}>
+                  <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
+                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* 👤 RIGHT SLOT (LOGO OR MENU) */}
+          <View style={styles.rightSlot}>
+            {onMenu ? (
+              <TouchableOpacity onPress={onMenu} style={styles.menuButton}>
                 <Image
-                  source={require("../../assets/images/profile.png")}
-                  style={styles.profileIcon}
+                  source={require("../../assets/images/three-dot.png")}
+                  style={styles.menuIcon}
                 />
-              )}
-            </TouchableOpacity>
-          ) : (
-            logoPosition === "right" && company?.logo ? (
-              <Image
-                source={{ uri: company.logo }}
-                style={styles.profileIcon} // Reusing size for consistency
-              />
-            ) : <View style={{ width: 40 }} /> // Spacer matched to back button size
-          )}
+              </TouchableOpacity>
+            ) : effectiveLogoPosition === "right" && company?.logo ? (
+              <View style={styles.rightLogoContainer}>
+                <Image source={{ uri: company.logo }} style={styles.companyLogoRight} />
+              </View>
+            ) : (
+              <View style={{ width: 44 }} />
+            )}
+          </View>
         </View>
       )}
 
@@ -240,9 +253,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 50, // Increased for more space
     paddingBottom: 16,
-    alignItems: "center"
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
   },
 
   backButton: {
@@ -261,26 +275,71 @@ const styles = StyleSheet.create({
   },
 
   companyRow: {
+    flex: 1,
     flexDirection: "row",
-    alignItems: "center"
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  adminHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  rightSlot: {
+    width: 44,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+
+  rightLogoContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7', // Light green background from design
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   companyLogo: {
     width: 34,
     height: 34,
-    borderRadius: 6,
+    borderRadius: 17,
     marginRight: 8
   },
 
-  companyName: {
-    fontSize: 20,
-    fontWeight: "700"
+  companyLogoRight: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    resizeMode: 'contain',
   },
 
+  companyName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+    marginTop: -2,
+  },
   profileIcon: {
     width: 28,
     height: 28,
     borderRadius: 14
+  },
+  menuButton: {
+    padding: 8,
+  },
+  menuIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "#6B7280",
+    resizeMode: 'contain',
   },
 
   navWrapper: {
