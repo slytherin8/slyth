@@ -257,4 +257,18 @@ router.delete("/employees/:id", auth, adminOnly, async (req, res) => {
   }
 });
 
+// 🔹 SAVE PUSH TOKEN
+router.post("/push-token", auth, async (req, res) => {
+  try {
+    const { pushToken } = req.body;
+    if (!pushToken) return res.status(400).json({ message: "Token required" });
+
+    await User.findByIdAndUpdate(req.user.id, { pushToken });
+    res.json({ message: "Push token saved" });
+  } catch (err) {
+    console.error("PUSH TOKEN ERROR:", err);
+    res.status(500).json({ message: "Failed to save push token" });
+  }
+});
+
 module.exports = router;
