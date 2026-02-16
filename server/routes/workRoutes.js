@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
+const { auth, adminOnly } = require("../middleware/authMiddleware");
+const { sendPushNotification } = require("../utils/notificationHelper");
 const Project = require("../models/Project");
 const Task = require("../models/Task");
 const User = require("../models/User");
-const { auth, adminOnly } = require("../middleware/authMiddleware");
 
 // Real-time helper
 const emitUpdate = (req, employeeId, type, data) => {
@@ -36,6 +37,15 @@ router.post("/projects", auth, adminOnly, async (req, res) => {
         });
 
         emitUpdate(req, employeeId, "PROJECT_CREATED", project);
+
+        // Notify Employee
+        sendPushNotification(
+            employeeId,
+            "New Work Assigned",
+            `A new project "${name}" has been assigned to you.`,
+            { type: "work_assigned" }
+        );
+
         res.status(201).json(project);
     } catch (error) {
         console.error("Create project error:", error);
@@ -107,6 +117,15 @@ router.post("/tasks", auth, adminOnly, async (req, res) => {
         });
 
         emitUpdate(req, employeeId, "TASK_CREATED", task);
+
+        // Notify Employee
+        sendPushNotification(
+            employeeId,
+            "New Task Assigned",
+            `task: "${title}"`,
+            { type: "work_assigned" }
+        );
+
         res.status(201).json(task);
     } catch (error) {
         console.error("Create task error:", error);
@@ -151,6 +170,22 @@ router.put("/tasks/:taskId", auth, async (req, res) => {
         await task.save();
 
         emitUpdate(req, task.employeeId, "TASK_UPDATED", task);
+
+        // If employee updated status, notify admin
+        if (req.user.role === "employee" && status) {
+            // Get the admin who created the project
+            const project = await Project.findById(task.projectId);
+            if (project && project.createdBy) {
+                const employeeName = req.user.name || "Employee";
+                sendPushNotification(
+                    project.createdBy,
+                    "Work Status Updated",
+                    `${employeeName} marked "${task.title}" as ${status}`,
+                    { type: "work_updated" }
+                );
+            }
+        }
+
         res.json(task);
     } catch (error) {
         console.error("Update task error:", error);
