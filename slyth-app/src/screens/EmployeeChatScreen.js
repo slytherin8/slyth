@@ -40,7 +40,6 @@ export default function EmployeeChatScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Groups, 1 = Direct Messages
   const [groups, setGroups] = useState([]);
   const [conversations, setConversations] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [mergedConversations, setMergedConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const showLoader = useSmartLoader(loading);
@@ -135,7 +134,7 @@ export default function EmployeeChatScreen({ navigation }) {
     } catch (e) {
       console.log("Token decode error:", e);
     }
-    await Promise.all([fetchGroups(), fetchConversations(), fetchEmployees()]);
+    await Promise.all([fetchGroups(), fetchConversations()]);
     setLoading(false);
   };
 
@@ -184,59 +183,16 @@ export default function EmployeeChatScreen({ navigation }) {
     }
   };
 
-  const fetchEmployees = async () => {
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${API}/api/chat/employees`, {
-        method: "GET",
-        headers
-      });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to fetch employees");
-
-      setEmployees(data);
-    } catch (error) {
-      console.error("Failed to fetch employees:", error);
-    }
-  };
 
   useEffect(() => {
-    // Merge conversations and employees
-    if (!employees.length && !conversations.length) {
+    // Merged conversations already contains all users (from the directMessage endpoint)
+    if (!conversations.length) {
       setMergedConversations([]);
       return;
     }
 
-    const allUsersMap = new Map();
-
-    // 1. Add all employees (except self)
-    employees.forEach(emp => {
-      if (emp._id === currentUserId) return;
-
-      allUsersMap.set(emp._id, {
-        _id: `temp_${emp._id}`,
-        user: emp,
-        lastMessage: null,
-        unreadCount: 0
-      });
-    });
-
-    // 2. Merge existing conversations
-    conversations.forEach(conv => {
-      if (conv.user && conv.user._id) {
-        if (allUsersMap.has(conv.user._id)) {
-          allUsersMap.set(conv.user._id, {
-            ...conv,
-            _id: conv._id || `temp_${conv.user._id}`
-          });
-        } else {
-          allUsersMap.set(conv.user._id, conv);
-        }
-      }
-    });
-
-    const merged = Array.from(allUsersMap.values());
+    const merged = [...conversations];
 
     // Sort: Latest message first
     merged.sort((a, b) => {
@@ -258,7 +214,7 @@ export default function EmployeeChatScreen({ navigation }) {
 
     setMergedConversations(merged);
 
-  }, [employees, conversations]);
+  }, [conversations]);
 
   const updateGroups = () => {
     fetchGroups();
@@ -314,7 +270,7 @@ export default function EmployeeChatScreen({ navigation }) {
   );
 
   const filteredConversations = mergedConversations.filter(conv =>
-    (conv.user?.profile?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (conv.user?.profile?.name || conv.user?.displayName || conv.user?.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (conv.lastMessage && conv.lastMessage.messageText.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -365,7 +321,7 @@ export default function EmployeeChatScreen({ navigation }) {
 
           {item.lastMessage ? (
             <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
-              {item.lastMessage.senderName}: {item.lastMessage.messageText}
+              {item.lastMessage.messageType === 'system' ? '' : `${item.lastMessage.senderName}: `}{item.lastMessage.messageText}
             </Text>
           ) : (
             <Text style={styles.noMessages}>No messages yet</Text>
@@ -396,7 +352,8 @@ export default function EmployeeChatScreen({ navigation }) {
           userId: item.user._id,
           userName: item.user.profile?.name || "Unknown",
           userAvatar: item.user.profile?.avatar,
-          userRole: item.user.role
+          userRole: item.user.role,
+          userEmail: item.user.email
         })}
       >
         <View style={styles.avatarContainer}>
@@ -421,22 +378,18 @@ export default function EmployeeChatScreen({ navigation }) {
 
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]} numberOfLines={1}>
-                {item.user.profile?.name || "Unknown User"}
-              </Text>
-              <Text style={styles.roleTag}> • {item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
+            <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]} numberOfLines={1}>
+              {item.user.profile?.name || item.user.displayName || item.user.email?.split('@')[0] || "Unknown"}
+            </Text>
+            <View style={styles.rightContent}>
+              <Text style={styles.roleTag}>{item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
+              {item.lastMessage && (
+                <Text style={styles.messageTime}>
+                  {formatTime(item.lastMessage.createdAt)}
+                </Text>
+              )}
             </View>
-            {item.lastMessage && (
-              <Text style={styles.messageTime}>
-                {formatTime(item.lastMessage.createdAt)}
-              </Text>
-            )}
           </View>
-
-          <Text style={styles.userRole} numberOfLines={1}>
-            {item.user.role === 'admin' ? 'Admin' : 'Employee'}
-          </Text>
 
           {item.lastMessage ? (
             <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
@@ -544,7 +497,7 @@ export default function EmployeeChatScreen({ navigation }) {
 
         {/* Search Bar & Plus Button */}
         <View style={styles.searchRow}>
-          <View style={styles.searchBar}>
+          <View style={[styles.searchBar, { flex: 1, marginRight: 0 }]}>
             <Image source={require("../../assets/images/search.png")} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
@@ -554,15 +507,6 @@ export default function EmployeeChatScreen({ navigation }) {
               onChangeText={setSearchQuery}
             />
           </View>
-          <TouchableOpacity
-            style={styles.createGroupButtonSmall}
-            onPress={() => {
-              // For employees, maybe "Start Chat" or just UI parity
-              Alert.alert("Feature", "Start a new conversation");
-            }}
-          >
-            <Text style={styles.createGroupButtonText}>+</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Tabs */}
@@ -714,7 +658,12 @@ export default function EmployeeChatScreen({ navigation }) {
                     style={styles.menuItem}
                     onPress={() => {
                       setShowGroupActions(false);
-                      Alert.alert("Coming Soon", "Leave group functionality will be available in next update");
+                      navigation.navigate("GroupExit", {
+                        groupId: selectedGroup?._id,
+                        groupName: selectedGroup?.name,
+                        groupPhoto: selectedGroup?.profilePhoto,
+                        groupDescription: selectedGroup?.description
+                      });
                     }}
                   >
                     <View style={styles.menuIconContainer}>
@@ -1045,9 +994,18 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   roleTag: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginLeft: 4,
-    fontWeight: "400"
+    fontSize: 11,
+    color: "#00664F",
+    fontWeight: "600",
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 4,
+    overflow: 'hidden'
+  },
+  rightContent: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   }
 });
