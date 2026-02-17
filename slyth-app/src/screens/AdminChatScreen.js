@@ -120,8 +120,20 @@ export default function AdminChatScreen({ navigation }) {
     };
   }, []);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(null);
+
   const loadAllData = async () => {
     setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setCurrentUserId(payload.id);
+      }
+    } catch (e) {
+      console.log("Token decode error:", e);
+    }
     await Promise.all([fetchGroups(), fetchConversations(), fetchEmployees()]);
     setLoading(false);
   };
@@ -248,7 +260,7 @@ export default function AdminChatScreen({ navigation }) {
 
     setMergedConversations(merged);
 
-  }, [employees, conversations]);
+  }, [employees, conversations, currentUserId]);
 
   const updateGroups = () => {
     fetchGroups();
@@ -298,8 +310,6 @@ export default function AdminChatScreen({ navigation }) {
     }
   };
 
-  const [searchQuery, setSearchQuery] = useState("");
-
   // Filtered data based on search
   const filteredGroups = groups.filter(group =>
     group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -307,7 +317,7 @@ export default function AdminChatScreen({ navigation }) {
   );
 
   const filteredConversations = mergedConversations.filter(conv =>
-    (conv.user?.profile?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (conv.user?.profile?.name || conv.user?.displayName || conv.user?.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (conv.lastMessage && conv.lastMessage.messageText.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -350,7 +360,7 @@ export default function AdminChatScreen({ navigation }) {
           <View style={styles.messagePreviewContainer}>
             {item.lastMessage ? (
               <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
-                {item.lastMessage.senderName}: {item.lastMessage.messageText}
+                {item.lastMessage.messageType === 'system' ? '' : `${item.lastMessage.senderName}: `}{item.lastMessage.messageText}
               </Text>
             ) : (
               <Text style={styles.noMessages}>No messages yet</Text>
@@ -387,7 +397,8 @@ export default function AdminChatScreen({ navigation }) {
           userId: item.user._id,
           userName: item.user.profile?.name || "Unknown",
           userAvatar: item.user.profile?.avatar,
-          userRole: item.user.role
+          userRole: item.user.role,
+          userEmail: item.user.email
         })}
       >
         <View style={styles.avatarContainer}>
@@ -407,17 +418,17 @@ export default function AdminChatScreen({ navigation }) {
 
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.chatName} numberOfLines={1}>
-                {item.user.profile?.name || "Unknown User"}
-              </Text>
-              <Text style={styles.roleTag}> • {item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
+            <Text style={styles.chatName} numberOfLines={1}>
+              {item.user.profile?.name || item.user.displayName || item.user.email?.split('@')[0] || "Unknown"}
+            </Text>
+            <View style={styles.rightContent}>
+              <Text style={styles.roleTag}>{item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
+              {item.lastMessage && (
+                <Text style={[styles.messageTime, hasUnread && styles.messageTimeUnread]}>
+                  {formatTime(item.lastMessage.createdAt)}
+                </Text>
+              )}
             </View>
-            {item.lastMessage && (
-              <Text style={[styles.messageTime, hasUnread && styles.messageTimeUnread]}>
-                {formatTime(item.lastMessage.createdAt)}
-              </Text>
-            )}
           </View>
 
           <View style={styles.messagePreviewContainer}>
@@ -963,7 +974,7 @@ const styles = StyleSheet.create({
     lineHeight: 22
   },
   emptyButton: {
-    backgroundColor: "#25D366",
+    backgroundColor: "#00664F",
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 25
@@ -1047,9 +1058,18 @@ const styles = StyleSheet.create({
     minHeight: 80
   },
   roleTag: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginLeft: 4,
-    fontWeight: "400"
+    fontSize: 11,
+    color: "#00664F",
+    fontWeight: "600",
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 4,
+    overflow: 'hidden'
+  },
+  rightContent: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   }
 });
