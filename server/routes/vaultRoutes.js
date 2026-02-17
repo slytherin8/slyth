@@ -104,7 +104,7 @@ router.post("/update-pin", auth, adminOnly, async (req, res) => {
     const { oldPin, newPin } = req.body;
 
     if (!oldPin || !newPin || newPin.length < 4) {
-      return res.status(400).json({ message: "Both old and new PINs are required" });
+      return res.status(400).json({ message: "PIN must be at least 4 digits" });
     }
 
     const user = await User.findById(req.user.id);
@@ -114,7 +114,8 @@ router.post("/update-pin", auth, adminOnly, async (req, res) => {
 
     const isMatch = await bcrypt.compare(oldPin, user.vaultPin);
     if (!isMatch) {
-      return res.status(401).json({ message: "Current PIN is incorrect" });
+      console.log("PIN Mismatch: Old PIN provided was wrong"); // Logging for debug
+      return res.status(401).json({ message: "Incorrect old PIN" });
     }
 
     const hashedPin = await bcrypt.hash(newPin, 10);
