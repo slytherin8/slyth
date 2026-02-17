@@ -611,6 +611,16 @@ export default function GroupChatScreen({ route, navigation }) {
   };
 
   const renderMessage = ({ item }) => {
+    if (item.messageType === 'system') {
+      return (
+        <View style={styles.systemMessageContainer}>
+          <View style={styles.systemMessageBadge}>
+            <Text style={styles.systemMessageText}>{item.messageText}</Text>
+          </View>
+        </View>
+      );
+    }
+
     const isMyMessage = item.senderId._id === currentUserId;
 
     // Read receipts logic (simulated for UI)
@@ -639,39 +649,44 @@ export default function GroupChatScreen({ route, navigation }) {
         {!isMyMessage && (
           <View style={styles.senderAvatarContainer}>
             <View style={styles.senderAvatar}>
-              {item.senderId.profile?.avatar ? (
+              {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
                 <Image
-                  source={{ uri: item.senderId.profile.avatar }}
+                  source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
                   style={styles.avatarImage}
                 />
               ) : (
                 <Text style={styles.avatarText}>
-                  {item.senderId.profile?.name?.charAt(0)?.toUpperCase() || "?"}
+                  {item.senderId.profile?.name?.charAt(0)?.toUpperCase() || ""}
                 </Text>
               )}
             </View>
           </View>
         )}
 
-        <View
+        <Pressable
           style={[
             styles.messageContainer,
             isMyMessage ? styles.myMessage : styles.otherMessage
           ]}
+          onLongPress={() => showMessageActionSheet(item)}
         >
+          {/* Dropdown Menu Button */}
+          <TouchableOpacity
+            style={styles.messageDropdown}
+            onPress={() => showMessageActionSheet(item)}
+          >
+            <Image
+              source={require("../../assets/images/drop-down.png")}
+              style={styles.threeDotIcon}
+            />
+          </TouchableOpacity>
+
           <View style={styles.messageHeader}>
             {!isMyMessage && (
               <Text style={styles.senderName}>
                 {item.senderId.profile?.name || item.senderId.name || item.senderId.email || "Unknown"}
               </Text>
             )}
-
-            <TouchableOpacity
-              style={styles.messageDropdownInside}
-              onPress={() => showMessageActionSheet(item)}
-            >
-              <Text style={styles.dropdownArrowInside}>⌄</Text>
-            </TouchableOpacity>
           </View>
 
           {item.repliedMessage && (
@@ -702,10 +717,13 @@ export default function GroupChatScreen({ route, navigation }) {
 
           {item.messageType === "file" && item.fileData ? (
             <TouchableOpacity
-              style={styles.fileMessage}
+              style={styles.fileContainer}
               onPress={() => handleFileDownload(item.fileData)}
             >
-              <Text style={styles.fileIcon}>📄</Text>
+              <Image
+                source={require("../../assets/images/pdf.png")}
+                style={styles.fileImage}
+              />
               <View style={styles.fileInfo}>
                 <Text style={styles.fileName} numberOfLines={1}>
                   {item.fileData.name || "Document"}
@@ -715,6 +733,12 @@ export default function GroupChatScreen({ route, navigation }) {
                   {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
                 </Text>
               </View>
+              <TouchableOpacity onPress={() => handleFileDownload(item.fileData)}>
+                <Image
+                  source={require("../../assets/images/download.png")}
+                  style={styles.downloadIcon}
+                />
+              </TouchableOpacity>
             </TouchableOpacity>
           ) : null}
 
@@ -731,7 +755,24 @@ export default function GroupChatScreen({ route, navigation }) {
             </Text>
             {renderTicks()}
           </View>
-        </View>
+        </Pressable>
+
+        {isMyMessage && (
+          <View style={[styles.senderAvatarContainer, { marginLeft: 8, marginRight: 0 }]}>
+            <View style={styles.senderAvatar}>
+              {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
+                <Image
+                  source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {(item.senderId?.profile?.name || item.senderId?.name || "").charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -785,14 +826,22 @@ export default function GroupChatScreen({ route, navigation }) {
 
         {/* Message Input */}
         <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TouchableOpacity
-              style={styles.attachButton}
-              onPress={() => setShowAttachmentOptions(true)}
-            >
-              <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
-            </TouchableOpacity>
+          {/* Upload Options */}
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickImage}
+          >
+            <Image source={require("../../assets/images/add_photo.png")} style={styles.uploadIcon} />
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickDocument}
+          >
+            <Image source={require("../../assets/images/pin.png")} style={styles.uploadIcon} />
+          </TouchableOpacity>
+
+          <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message..."
@@ -854,42 +903,36 @@ export default function GroupChatScreen({ route, navigation }) {
           </View>
         </Modal>
 
-        {/* Message Actions Modal (Android) */}
+        {/* Message Actions Modal */}
         <Modal
           visible={showMessageActions}
           transparent={true}
           animationType="fade"
           onRequestClose={() => setShowMessageActions(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.messageActionsModal}>
-              <Text style={styles.modalTitle}>Message Options</Text>
-
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowMessageActions(false)}
+          >
+            <View style={styles.messageActionsDropdown}>
               {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
                 <TouchableOpacity
-                  style={styles.actionOption}
+                  style={styles.dropdownOption}
                   onPress={() => handleCopyMessage(selectedMessage)}
                 >
-                  <Text style={styles.actionIcon}>📋</Text>
-                  <Text style={styles.actionText}>Copy</Text>
+                  <Image
+                    source={require("../../assets/images/copy.png")}
+                    style={styles.dropdownIcon}
+                  />
+                  <Text style={styles.dropdownText}>Copy</Text>
                 </TouchableOpacity>
               )}
 
-              {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
-                <TouchableOpacity
-                  style={styles.actionOption}
-                  onPress={() => handleReply(selectedMessage)}
-                >
-                  <Text style={styles.actionIcon}>↩️</Text>
-                  <Text style={styles.actionText}>Reply</Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Always show delete option - backend handles permissions */}
               {selectedMessage && (
                 <TouchableOpacity
-                  style={styles.actionOption}
+                  style={styles.dropdownOption}
                   onPress={() => {
+                    setShowMessageActions(false);
                     Alert.alert(
                       "Delete Message",
                       "Are you sure you want to delete this message?",
@@ -900,32 +943,15 @@ export default function GroupChatScreen({ route, navigation }) {
                     );
                   }}
                 >
-                  <Text style={styles.actionIcon}>🗑️</Text>
-                  <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
+                  <Image
+                    source={require("../../assets/images/delete.png")}
+                    style={styles.dropdownIcon}
+                  />
+                  <Text style={[styles.dropdownText, styles.deleteText]}>Delete</Text>
                 </TouchableOpacity>
               )}
-
-              {selectedMessage && (
-                <TouchableOpacity
-                  style={styles.actionOption}
-                  onPress={() => {
-                    setShowMessageActions(false);
-                    handleViewInfo(selectedMessage);
-                  }}
-                >
-                  <Text style={styles.actionIcon}>ℹ️</Text>
-                  <Text style={styles.actionText}>Info</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowMessageActions(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
             </View>
-          </View>
+          </Pressable>
         </Modal>
 
         {/* Message Info Modal */}
@@ -1056,36 +1082,12 @@ export default function GroupChatScreen({ route, navigation }) {
                     style={styles.bottomSheetOption}
                     onPress={() => {
                       setShowGroupMenu(false);
-                      Alert.alert(
-                        "Leave Group",
-                        "Are you sure you want to leave this group?",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Leave",
-                            style: "destructive",
-                            onPress: async () => {
-                              try {
-                                const headers = await getAuthHeaders();
-                                const response = await fetch(`${API}/api/chat/groups/${groupId}/leave`, {
-                                  method: "POST",
-                                  headers
-                                });
-
-                                if (response.ok) {
-                                  Alert.alert("Success! 👋", "You have left the group successfully!", [
-                                    { text: "OK", onPress: () => navigation.goBack() }
-                                  ]);
-                                } else {
-                                  Alert.alert("Error", "Failed to leave group");
-                                }
-                              } catch (error) {
-                                Alert.alert("Error", "Failed to leave group");
-                              }
-                            }
-                          }
-                        ]
-                      );
+                      navigation.navigate("GroupExit", {
+                        groupId,
+                        groupName,
+                        groupPhoto: groupInfo?.profilePhoto,
+                        groupDescription: groupInfo?.description
+                      });
                     }}
                   >
                     <View style={styles.bottomSheetIconContainer}>
@@ -1352,6 +1354,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: "#fff"
   },
+  uploadButton: {
+    padding: 8,
+    marginRight: 4
+  },
+  uploadIcon: {
+    width: 24,
+    height: 24,
+    tintColor: "#00664F"
+  },
   inputWrapper: {
     flex: 1,
     flexDirection: "row",
@@ -1388,6 +1399,49 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: "#9CA3AF"
+  },
+  messageDropdown: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    padding: 4,
+    zIndex: 10
+  },
+  threeDotIcon: {
+    width: 16,
+    height: 16,
+    tintColor: "#64748B"
+  },
+  messageActionsDropdown: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: "auto",
+    padding: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+    minWidth: 150
+  },
+  dropdownOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8
+  },
+  dropdownIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
+    tintColor: "#374151"
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#374151",
+    fontWeight: "500"
   },
   sendButtonText: {
     color: "#fff",
@@ -1624,5 +1678,23 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600"
+  },
+  systemMessageContainer: {
+    alignItems: 'center',
+    marginVertical: 12,
+    width: '100%'
+  },
+  systemMessageBadge: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+    maxWidth: '85%'
+  },
+  systemMessageText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+    textAlign: 'center'
   }
 });
