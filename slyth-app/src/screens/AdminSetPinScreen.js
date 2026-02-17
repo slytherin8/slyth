@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -8,7 +8,9 @@ import {
     SafeAreaView,
     Dimensions,
     Alert,
-    ActivityIndicator
+    ActivityIndicator,
+    Platform,
+    ToastAndroid
 } from "react-native";
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
@@ -25,12 +27,32 @@ export default function AdminSetPinScreen({ navigation }) {
     const [newPin, setNewPin] = useState("");
     const [activeField, setActiveField] = useState("old"); // "old" or "new"
     const [loading, setLoading] = useState(false);
+    const [companyLogo, setCompanyLogo] = useState(null);
+
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const token = await AsyncStorage.getItem("token");
+            const res = await fetch(`${API}/api/auth/company`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.logo) {
+                setCompanyLogo(data.logo);
+            }
+        } catch (error) {
+            console.log("Error fetching profile", error);
+        }
+    };
 
     const handleKeyPress = (val) => {
         if (activeField === "old") {
-            if (oldPin.length < 4) setOldPin(prev => prev + val);
+            if (oldPin.length < 6) setOldPin(prev => prev + val);
         } else {
-            if (newPin.length < 4) setNewPin(prev => prev + val);
+            if (newPin.length < 6) setNewPin(prev => prev + val);
         }
     };
 
@@ -43,8 +65,8 @@ export default function AdminSetPinScreen({ navigation }) {
     };
 
     const handleSave = async () => {
-        if (oldPin.length !== 4 || newPin.length !== 4) {
-            Alert.alert("Error", "Pins must be 4 digits long");
+        if (oldPin.length < 4 || newPin.length < 4) {
+            Alert.alert("Error", "PINs must be at least 4 digits");
             return;
         }
 
@@ -63,9 +85,12 @@ export default function AdminSetPinScreen({ navigation }) {
             });
 
             if (res.ok) {
-                Alert.alert("Success! 🎉", "PIN updated successfully", [
-                    { text: "OK", onPress: () => navigation.navigate("AdminDashboard") }
-                ]);
+                if (Platform.OS === 'android') {
+                    ToastAndroid.show("PIN Set Successfully", ToastAndroid.SHORT);
+                } else {
+                    Alert.alert("Success", "PIN Set Successfully");
+                }
+                navigation.navigate("AdminDashboard");
             } else {
                 const error = await res.json();
                 Alert.alert("Error", error.message || "Failed to update PIN");
@@ -99,7 +124,11 @@ export default function AdminSetPinScreen({ navigation }) {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Set New Pin</Text>
                 <View style={styles.logoCircle}>
-                    <Text style={styles.logoText}>$</Text>
+                    {companyLogo ? (
+                        <Image source={{ uri: companyLogo }} style={styles.logoImage} />
+                    ) : (
+                        <Text style={styles.logoText}>$</Text>
+                    )}
                 </View>
             </View>
 
@@ -210,6 +239,12 @@ const styles = StyleSheet.create({
         backgroundColor: "#D1E7E0",
         justifyContent: "center",
         alignItems: "center"
+    },
+    logoImage: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        resizeMode: 'cover'
     },
     logoText: {
         fontSize: 18,
