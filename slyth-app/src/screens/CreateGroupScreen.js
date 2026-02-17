@@ -179,7 +179,7 @@ export default function CreateGroupScreen({ navigation }) {
   if (fetchingEmployees) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#00664F" />
         <Text style={styles.loadingText}>Loading employees...</Text>
       </View>
     );
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     color: "#0F172A"
   },
   createButton: {
-    color: "#2563EB",
+    color: "#00664F",
     fontSize: 16,
     fontWeight: "600"
   },
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0"
   },
   selectedEmployee: {
-    borderColor: "#2563EB",
+    borderColor: "#00664F",
     backgroundColor: "#EFF6FF"
   },
   employeeInfo: {
@@ -516,8 +516,8 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   checkedBox: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB"
+    backgroundColor: "#00664F",
+    borderColor: "#00664F"
   },
   checkmark: {
     color: "#fff",
