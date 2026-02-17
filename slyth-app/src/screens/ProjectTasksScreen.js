@@ -11,8 +11,10 @@ import {
     Dimensions,
     StatusBar,
     TextInput,
-    Platform
+    Platform,
+    Modal
 } from "react-native";
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from "@react-navigation/native";
 import AppLayout from "../components/AppLayout";
 import { workService } from "../services/workService";
@@ -40,6 +42,8 @@ export default function ProjectTasksScreen({ navigation, route }) {
     const [updateModalVisible, setUpdateModalVisible] = useState(false);
     const [targetTask, setTargetTask] = useState(null);
     const [targetStatus, setTargetStatus] = useState("");
+    const [attachment, setAttachment] = useState(null);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         fetchTasks();
@@ -49,6 +53,10 @@ export default function ProjectTasksScreen({ navigation, route }) {
             ? workService.onAdminWorkUpdate(({ type, data }) => {
                 if (type === "TASK_UPDATED" && data.projectId === project._id) {
                     setTasks(prev => prev.map(t => t._id === data._id ? data : t));
+                } else if (type === "TASK_DELETED" && tasks.some(t => t._id === data.taskId)) {
+                    setTasks(prev => prev.filter(t => t._id !== data.taskId));
+                } else if (type === "TASK_CREATED" && data.projectId === project._id) {
+                    fetchTasks(); // Fetch fresh to get current list
                 }
             })
             : workService.onWorkUpdate(({ type, data }) => {
@@ -84,19 +92,60 @@ export default function ProjectTasksScreen({ navigation, route }) {
 
     const handleCreateTask = async () => {
         if (!newTaskTitle.trim()) return;
+
+        setLoading(true);
         try {
-            const task = await workService.createTask({
+            await workService.createTask({
                 title: newTaskTitle,
                 projectId: project._id,
-                employeeId: employee?._id || project.employeeId // Fallback if employee obj not passed
+                employeeId: employee._id,
+                attachment
             });
-            setTasks(prev => [task, ...prev]);
             setNewTaskTitle("");
+            setAttachment(null);
+            fetchTasks();
         } catch (error) {
-            Alert.alert("Error", "Failed to assign work");
+            console.log("Create task error:", error);
+            Alert.alert("Error", "Failed to create task: " + (error.response?.data?.message || error.message));
+        } finally {
+            setLoading(false);
         }
     };
 
+    const pickImage = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please grant camera roll permissions');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true, // Allow cropping/resizing
+                aspect: [4, 3],
+                quality: 0.5, // Reduced quality for smaller payload
+                base64: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets[0]) {
+                const asset = result.assets[0];
+
+                // Check size (approx 10MB limit for base64)
+                if (asset.base64 && asset.base64.length > 10 * 1024 * 1024) {
+                    Alert.alert("Error", "Image is too large. Please choose a smaller one.");
+                    return;
+                }
+
+                if (asset.base64) {
+                    setAttachment(`data:image/jpeg;base64,${asset.base64}`);
+                }
+            }
+        } catch (error) {
+            console.log("Pick image error:", error);
+            Alert.alert("Error", "Failed to pick image");
+        }
+    };
     const handleStatusPress = (task, status) => {
         if (role === "admin" || task.status === status) return;
         setTargetTask(task);
@@ -121,7 +170,17 @@ export default function ProjectTasksScreen({ navigation, route }) {
     };
 
     const handleDeleteTask = async (taskId) => {
-        if (role !== "admin") return;
+        // Logic check moved to backend as well, but UI check here
+        const task = tasks.find(t => t._id === taskId);
+        if (!task) return;
+
+        const isAdmin = role === "admin";
+        const isCompleted = task.status === "Completed";
+
+        if (!isAdmin && !isCompleted) {
+            Alert.alert("Action Not Allowed", "You can only delete completed tasks.");
+            return;
+        }
 
         Alert.alert(
             "Delete Task",
@@ -165,7 +224,13 @@ export default function ProjectTasksScreen({ navigation, route }) {
                     {/* Add Work Bar (Admin Only) */}
                     {role === "admin" && (
                         <View style={styles.addWorkContainer}>
-                            <View style={styles.inputWrapper}>
+                            <View style={[styles.inputWrapper, attachment && { borderColor: '#00664F', borderWidth: 1.5 }]}>
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={pickImage}>
+                                    <Image
+                                        source={require("../../assets/images/pin.png")}
+                                        style={[styles.clipIcon, attachment && { tintColor: '#00664F' }]}
+                                    />
+                                </TouchableOpacity>
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Add your work"
@@ -173,10 +238,11 @@ export default function ProjectTasksScreen({ navigation, route }) {
                                     value={newTaskTitle}
                                     onChangeText={setNewTaskTitle}
                                 />
-                                <Image
-                                    source={require("../../assets/images/copy.png")} // Using copy as placeholder for clip if needed
-                                    style={styles.clipIcon}
-                                />
+                                {attachment && (
+                                    <TouchableOpacity onPress={() => setAttachment(null)}>
+                                        <Text style={styles.removeText}>✕</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                             <TouchableOpacity style={styles.sendBtn} onPress={handleCreateTask}>
                                 <Image
@@ -262,8 +328,15 @@ const TaskSection = ({ title, tasks, bg, activeColor, onStatusPress, onDelete, r
         {tasks.map(task => (
             <View key={task._id} style={styles.taskItemRow}>
                 <View style={[styles.taskTextCard, { backgroundColor: bg }]}>
-                    <Text style={styles.taskText}>{task.title}</Text>
-                    {role === "admin" && (
+                    <View style={styles.taskCardContent}>
+                        <Text style={styles.taskText}>{task.title}</Text>
+                        {task.attachment && (
+                            <TouchableOpacity style={styles.attachmentPreview} onPress={() => Alert.alert("Attachment", "Opening file...")}>
+                                <Image source={{ uri: task.attachment }} style={styles.taskAttachmentImage} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    {(role === "admin" || (role === "employee" && task.status === "Completed")) && (
                         <TouchableOpacity onPress={() => onDelete(task._id)} style={styles.deleteTaskBtn}>
                             <Image source={require("../../assets/images/delete.png")} style={styles.smallDeleteIcon} />
                         </TouchableOpacity>
@@ -421,6 +494,30 @@ const styles = StyleSheet.create({
         color: "#D1D5DB",
         fontFamily: "Inter-Medium",
         marginLeft: getResponsiveSize(20),
+    },
+    attachmentBtn: {
+        padding: getResponsiveSize(5),
+        marginRight: getResponsiveSize(5),
+    },
+    removeText: {
+        fontSize: getResponsiveFontSize(16),
+        color: "#EF4444",
+        paddingHorizontal: getResponsiveSize(10),
+    },
+    taskCardContent: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    attachmentPreview: {
+        marginLeft: getResponsiveSize(10),
+    },
+    taskAttachmentImage: {
+        width: getResponsiveSize(30),
+        height: getResponsiveSize(30),
+        borderRadius: getResponsiveSize(4),
+        backgroundColor: "#E5E7EB",
     },
 
     // Modal Styles
