@@ -45,7 +45,7 @@ export default function AdminFilesScreen({ navigation }) {
 
   const handleSubmit = async () => {
     if (pin.length < 4) {
-      setError("PIN must be 4-6 digits");
+      setError("PIN must be at least 4 digits");
       return;
     }
 
