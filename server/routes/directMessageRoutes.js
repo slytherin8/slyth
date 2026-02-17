@@ -49,7 +49,7 @@ router.get("/conversations", auth, async (req, res) => {
           ],
           isDeleted: false
         })
-          .populate("senderId", "profile.name")
+          .populate("senderId", "profile.name email") // Populate email for fallback
           .sort({ createdAt: -1 });
 
         // Count unread messages from this user to current user
@@ -60,11 +60,19 @@ router.get("/conversations", auth, async (req, res) => {
           isDeleted: false
         });
 
+        // Use email as fallback for name if profile.name is missing
+        const displayName = user.profile?.name || user.email.split('@')[0];
+        console.log(`User ${user._id} (email: ${user.email}) displayName: ${displayName}`);
+
+
         return {
-          user: user,
+          user: {
+            ...user.toObject(),
+            displayName // Helper field
+          },
           lastMessage: lastMessage ? {
             messageText: lastMessage.messageText,
-            senderName: lastMessage.senderId.profile.name || "Unknown",
+            senderName: lastMessage.senderId.profile?.name || lastMessage.senderId.email.split('@')[0] || "Unknown",
             createdAt: lastMessage.createdAt,
             isFromMe: lastMessage.senderId._id.toString() === req.user.id
           } : null,
