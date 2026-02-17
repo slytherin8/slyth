@@ -106,6 +106,7 @@ router.get("/groups", auth, async (req, res) => {
           lastMessage: lastMessage ? {
             messageText: lastMessage.messageText,
             senderName: lastMessage.senderId?.profile?.name || lastMessage.senderId?.name || "Unknown",
+            messageType: lastMessage.messageType,
             createdAt: lastMessage.createdAt
           } : null,
           unreadCount: currentUserMember ? currentUserMember.unreadCount : 0,
@@ -456,6 +457,64 @@ router.post("/groups/:groupId/leave", auth, async (req, res) => {
         $set: { lastActivity: new Date() }
       }
     );
+
+    // Create a system message
+    const user = await User.findById(req.user.id).select("profile.name");
+    const userName = user?.profile?.name || "A member";
+
+    const systemMessage = await Message.create({
+      groupId,
+      senderId: req.user.id, // Current user is still technically the "trigger"
+      messageText: `${userName} has left the group`,
+      messageType: "system"
+    });
+
+    const populatedMessage = await Message.findById(systemMessage._id)
+      .populate("senderId", "profile.name profile.avatar role");
+
+    // Emit real-time updates and notifications to remaining group members
+    const io = req.app.get("io");
+
+    // Find updated group to get current members and send notifications
+    const updatedGroup = await Group.findById(groupId);
+    if (updatedGroup) {
+      // Increment unread counts for remaining members
+      await Group.updateMany(
+        {
+          _id: groupId,
+          "members.userId": { $ne: req.user.id }
+        },
+        {
+          $inc: { "members.$.unreadCount": 1 }
+        }
+      );
+
+      updatedGroup.members.forEach(member => {
+        // Skip the person who just left
+        if (member.userId.toString() !== req.user.id) {
+          if (io) {
+            io.to(member.userId.toString()).emit("group_message", populatedMessage);
+            io.to(member.userId.toString()).emit("unread_count_update", {
+              type: "group",
+              groupId: groupId,
+              count: (member.unreadCount || 0) + 1
+            });
+          }
+
+          // Send Push Notification
+          sendPushNotification(
+            member.userId,
+            group.name,
+            `${userName} has left the group`,
+            {
+              type: "group_chat",
+              groupId: groupId,
+              groupName: group.name
+            }
+          );
+        }
+      });
+    }
 
     res.json({ message: "Successfully left the group" });
   } catch (error) {
