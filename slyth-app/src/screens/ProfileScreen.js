@@ -124,7 +124,7 @@ export default function ProfileScreen({ navigation }) {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="chevron-back" size={24} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.title}>Profile</Text>
         <TouchableOpacity onPress={() => setEditing(!editing)} style={styles.editButton}>
@@ -212,7 +212,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
       {showLoader && !profile && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
+          <ActivityIndicator size="large" color="#00664F" />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       )}
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
   editText: {
     fontSize: 16,
-    color: "#2563EB",
+    color: "#00664F",
     fontWeight: "600"
   },
   content: {
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#00664F",
     borderRadius: 15,
     paddingHorizontal: 12,
     paddingVertical: 6
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     color: "#1F2937"
   },
   roleText: {
-    color: "#2563EB",
+    color: "#00664F",
     fontWeight: "600"
   },
   input: {
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB"
   },
   saveButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#00664F",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
