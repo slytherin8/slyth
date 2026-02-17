@@ -102,7 +102,7 @@ router.get("/projects/:employeeId", auth, async (req, res) => {
 // Create Task (Admin Only)
 router.post("/tasks", auth, adminOnly, async (req, res) => {
     try {
-        const { title, projectId, employeeId } = req.body;
+        const { title, projectId, employeeId, attachment } = req.body;
 
         if (!title || !projectId || !employeeId) {
             return res.status(400).json({ message: "Title, project, and employee are required" });
@@ -113,7 +113,8 @@ router.post("/tasks", auth, adminOnly, async (req, res) => {
             projectId,
             employeeId,
             companyId: req.user.companyId,
-            status: "Pending"
+            status: "Pending",
+            attachment
         });
 
         emitUpdate(req, employeeId, "TASK_CREATED", task);
@@ -193,16 +194,26 @@ router.put("/tasks/:taskId", auth, async (req, res) => {
     }
 });
 
-// Delete Task (Admin Only)
-router.delete("/tasks/:taskId", auth, adminOnly, async (req, res) => {
+// Delete Task (Admin or Employee for Completed Tasks)
+router.delete("/tasks/:taskId", auth, async (req, res) => {
     try {
         const { taskId } = req.params;
         const task = await Task.findById(taskId);
 
         if (!task) return res.status(404).json({ message: "Task not found" });
 
+        // Logic: Admin can delete any task. Employee can delete only their own COMPLETED tasks.
+        const isAdmin = req.user.role === "admin";
+        const isOwner = task.employeeId.toString() === req.user.id;
+        const isCompleted = task.status === "Completed";
+
+        if (!isAdmin && !(isOwner && isCompleted)) {
+            return res.status(403).json({ message: "Permission denied. You can only delete completed tasks assigned to you." });
+        }
+
         await Task.findByIdAndDelete(taskId);
 
+        // Notify both sides
         emitUpdate(req, task.employeeId, "TASK_DELETED", { taskId });
         res.json({ message: "Task deleted successfully" });
     } catch (error) {
