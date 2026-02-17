@@ -140,7 +140,7 @@ export default function EmployeeWorkScreen({ navigation }) {
     >
       <View style={styles.folderIconBg}>
         <Image
-          source={require("../../assets/images/files.png")}
+          source={require("../../assets/images/folder.png")}
           style={styles.folderIcon}
         />
       </View>
@@ -198,7 +198,7 @@ export default function EmployeeWorkScreen({ navigation }) {
             <View style={styles.modalContainer}>
               <View style={styles.modalIconBg}>
                 <Image
-                  source={require("../../assets/images/files.png")}
+                  source={require("../../assets/images/folder.png")}
                   style={styles.modalFolderIcon}
                 />
               </View>
