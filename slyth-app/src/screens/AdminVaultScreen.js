@@ -325,14 +325,19 @@ const styles = StyleSheet.create({
     fab: {
         position: "absolute",
         right: 20,
-        bottom: 20,
+        bottom: 100, // Moved slightly higher
         width: 56,
         height: 56,
         borderRadius: 28,
         backgroundColor: "#00664F",
         justifyContent: "center",
         alignItems: "center",
-        elevation: 4
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        zIndex: 999
     },
 
     // Modal
