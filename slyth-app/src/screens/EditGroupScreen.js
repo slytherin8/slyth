@@ -421,17 +421,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff"
   },
   checkboxSelected: {
-    backgroundColor: "#25D366",
-    borderColor: "#25D366"
+    backgroundColor: "#00664F",
+    borderColor: "#00664F"
   },
   saveButton: {
-    backgroundColor: "#25D366",
+    backgroundColor: "#00664F",
     marginHorizontal: 20,
     marginTop: 30,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
-    shadowColor: "#25D366",
+    shadowColor: "#00664F",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
