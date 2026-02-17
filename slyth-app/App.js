@@ -19,6 +19,7 @@ import EmployeeHome from "./src/screens/EmployeeHome";
 import EditGroupScreen from "./src/screens/EditGroupScreen";
 import GroupInfoScreen from "./src/screens/GroupInfoScreen";
 import GroupDeleteScreen from "./src/screens/GroupDeleteScreen";
+import GroupExitScreen from "./src/screens/GroupExitScreen";
 
 // Admin pages
 import AdminChatScreen from "./src/screens/AdminChatScreen";
@@ -77,6 +78,7 @@ export default function App() {
           <Stack.Screen name="EditGroup" component={EditGroupScreen} />
           <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
           <Stack.Screen name="GroupDelete" component={GroupDeleteScreen} />
+          <Stack.Screen name="GroupExit" component={GroupExitScreen} />
           <Stack.Screen name="GroupChat" component={GroupChatScreen} />
           <Stack.Screen name="DirectChat" component={DirectChatScreen} />
           <Stack.Screen name="AdminChat" component={AdminChatScreen} />
