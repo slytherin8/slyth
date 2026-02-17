@@ -58,6 +58,9 @@ export default function DirectChatScreen({ route, navigation }) {
   const [showMessageActions, setShowMessageActions] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showAttachmentOptions, setShowAttachmentOptions] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState({ name: "", logo: "" });
   const flatListRef = useRef(null);
 
   useEffect(() => {
@@ -93,6 +96,20 @@ export default function DirectChatScreen({ route, navigation }) {
     setCurrentUserId(currentId);
     fetchMessages();
     markAsRead();
+    if (route.params.userRole === 'admin') {
+      fetchCompanyInfo();
+    }
+  };
+
+  const fetchCompanyInfo = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API}/api/auth/company`, { headers });
+      const data = await res.json();
+      if (res.ok) setCompanyInfo(data);
+    } catch (err) {
+      console.log("Company fetch error:", err);
+    }
   };
 
   const markAsRead = async () => {
@@ -498,34 +515,37 @@ export default function DirectChatScreen({ route, navigation }) {
         {!isMyMessage && (
           <View style={styles.senderAvatarContainer}>
             <View style={styles.senderAvatar}>
-              {userAvatar ? (
+              {item.senderId?.profile?.profileImage ? (
                 <Image
-                  source={{ uri: userAvatar }}
+                  source={{ uri: item.senderId.profile.profileImage }}
                   style={styles.avatarImage}
                 />
               ) : (
                 <Text style={styles.avatarText}>
-                  {userName?.charAt(0)?.toUpperCase() || "?"}
+                  {(item.senderId?.profile?.name || item.senderId?.name || "?").charAt(0).toUpperCase()}
                 </Text>
               )}
             </View>
           </View>
         )}
 
-        <View
+        <Pressable
           style={[
             styles.messageContainer,
             isMyMessage ? styles.myMessage : styles.otherMessage
           ]}
+          onLongPress={() => showMessageActionSheet(item)}
         >
-          <View style={styles.messageHeader}>
-            <TouchableOpacity
-              style={styles.messageDropdownInside}
-              onPress={() => showMessageActionSheet(item)}
-            >
-              <Text style={styles.dropdownArrowInside}>⌄</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Dropdown Menu Button */}
+          <TouchableOpacity
+            style={styles.messageDropdown}
+            onPress={() => showMessageActionSheet(item)}
+          >
+            <Image
+              source={require("../../assets/images/drop-down.png")}
+              style={styles.threeDotIcon}
+            />
+          </TouchableOpacity>
 
           {item.repliedMessage && (
             <View style={styles.repliedMessage}>
@@ -555,10 +575,13 @@ export default function DirectChatScreen({ route, navigation }) {
 
           {item.messageType === "file" && item.fileData ? (
             <TouchableOpacity
-              style={styles.fileMessage}
+              style={styles.fileContainer}
               onPress={() => handleFileDownload(item.fileData)}
             >
-              <Text style={styles.fileIcon}>📄</Text>
+              <Image
+                source={require("../../assets/images/pdf.png")}
+                style={styles.fileImage}
+              />
               <View style={styles.fileInfo}>
                 <Text style={styles.fileName} numberOfLines={1}>
                   {item.fileData.name || "Document"}
@@ -568,6 +591,12 @@ export default function DirectChatScreen({ route, navigation }) {
                   {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
                 </Text>
               </View>
+              <TouchableOpacity onPress={() => handleFileDownload(item.fileData)}>
+                <Image
+                  source={require("../../assets/images/download.png")}
+                  style={styles.downloadIcon}
+                />
+              </TouchableOpacity>
             </TouchableOpacity>
           ) : null}
 
@@ -584,7 +613,24 @@ export default function DirectChatScreen({ route, navigation }) {
             </Text>
             {renderTicks()}
           </View>
-        </View>
+        </Pressable>
+
+        {isMyMessage && (
+          <View style={[styles.senderAvatarContainer, { marginLeft: 8, marginRight: 0 }]}>
+            <View style={styles.senderAvatar}>
+              {item.senderId?.profile?.profileImage ? (
+                <Image
+                  source={{ uri: item.senderId.profile.profileImage }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {(item.senderId?.profile?.name || item.senderId?.name || "").charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -596,6 +642,7 @@ export default function DirectChatScreen({ route, navigation }) {
       title={userName || "Chat"}
       subtitle={route.params.userRole === 'admin' ? 'Admin' : 'Employee'}
       onBack={() => navigation.goBack()}
+      onMenu={() => setShowChatMenu(true)}
     >
       <KeyboardAvoidingView
         style={styles.container}
@@ -637,14 +684,22 @@ export default function DirectChatScreen({ route, navigation }) {
 
         {/* Message Input */}
         <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TouchableOpacity
-              style={styles.attachButton}
-              onPress={() => setShowAttachmentOptions(true)}
-            >
-              <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
-            </TouchableOpacity>
+          {/* Upload Options */}
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickImage}
+          >
+            <Image source={require("../../assets/images/add_photo.png")} style={styles.uploadIcon} />
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickDocument}
+          >
+            <Image source={require("../../assets/images/pin.png")} style={styles.uploadIcon} />
+          </TouchableOpacity>
+
+          <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message..."
@@ -705,41 +760,36 @@ export default function DirectChatScreen({ route, navigation }) {
           </View>
         </Modal>
 
-        {/* Message Actions Modal (Android) */}
+        {/* Message Actions Modal */}
         <Modal
           visible={showMessageActions}
           transparent={true}
           animationType="fade"
           onRequestClose={() => setShowMessageActions(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.messageActionsModal}>
-              <Text style={styles.modalTitle}>Message Options</Text>
-
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowMessageActions(false)}
+          >
+            <View style={styles.messageActionsDropdown}>
               {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
                 <TouchableOpacity
-                  style={styles.actionOption}
+                  style={styles.dropdownOption}
                   onPress={() => handleCopyMessage(selectedMessage)}
                 >
-                  <Text style={styles.actionIcon}>📋</Text>
-                  <Text style={styles.actionText}>Copy</Text>
-                </TouchableOpacity>
-              )}
-
-              {selectedMessage && selectedMessage.senderId._id !== currentUserId && (
-                <TouchableOpacity
-                  style={styles.actionOption}
-                  onPress={() => handleReply(selectedMessage)}
-                >
-                  <Text style={styles.actionIcon}>↩️</Text>
-                  <Text style={styles.actionText}>Reply</Text>
+                  <Image
+                    source={require("../../assets/images/copy.png")}
+                    style={styles.dropdownIcon}
+                  />
+                  <Text style={styles.dropdownText}>Copy</Text>
                 </TouchableOpacity>
               )}
 
               {selectedMessage && selectedMessage.senderId._id === currentUserId && (
                 <TouchableOpacity
-                  style={styles.actionOption}
+                  style={styles.dropdownOption}
                   onPress={() => {
+                    setShowMessageActions(false);
                     Alert.alert(
                       "Delete Message",
                       "Are you sure you want to delete this message?",
@@ -750,32 +800,15 @@ export default function DirectChatScreen({ route, navigation }) {
                     );
                   }}
                 >
-                  <Text style={styles.actionIcon}>🗑️</Text>
-                  <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
+                  <Image
+                    source={require("../../assets/images/delete.png")}
+                    style={styles.dropdownIcon}
+                  />
+                  <Text style={[styles.dropdownText, styles.deleteText]}>Delete</Text>
                 </TouchableOpacity>
               )}
-
-              {selectedMessage && (
-                <TouchableOpacity
-                  style={styles.actionOption}
-                  onPress={() => {
-                    setShowMessageActions(false);
-                    handleViewInfo(selectedMessage);
-                  }}
-                >
-                  <Text style={styles.actionIcon}>ℹ️</Text>
-                  <Text style={styles.actionText}>Info</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowMessageActions(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
             </View>
-          </View>
+          </Pressable>
         </Modal>
 
         {/* Message Info Modal */}
@@ -809,6 +842,98 @@ export default function DirectChatScreen({ route, navigation }) {
                 onPress={() => setShowInfoModal(false)}
               >
                 <Text style={styles.closeInfoButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Chat Menu Modal (Three-dot) */}
+        <Modal
+          visible={showChatMenu}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowChatMenu(false)}
+        >
+          <TouchableOpacity
+            style={styles.menuOverlay}
+            activeOpacity={1}
+            onPress={() => setShowChatMenu(false)}
+          >
+            <View style={styles.chatMenuCard}>
+              <TouchableOpacity
+                style={styles.chatMenuOption}
+                onPress={() => {
+                  setShowChatMenu(false);
+                  setShowProfileModal(true);
+                }}
+              >
+                <Ionicons name="person-outline" size={20} color="#374151" />
+                <Text style={styles.chatMenuText}>View Profile</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* View Profile Modal */}
+        <Modal
+          visible={showProfileModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowProfileModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.profileModal}>
+              <TouchableOpacity
+                style={styles.closeModalHeader}
+                onPress={() => setShowProfileModal(false)}
+              >
+                <Ionicons name="close" size={28} color="#374151" />
+              </TouchableOpacity>
+
+              <View style={styles.profileContent}>
+                <View style={styles.profileAvatarContainer}>
+                  {route.params.userRole === 'admin' ? (
+                    companyInfo.logo ? (
+                      <Image source={{ uri: companyInfo.logo }} style={styles.largeProfileAvatar} />
+                    ) : (
+                      <View style={[styles.largeProfileAvatar, styles.avatarPlaceholder]}>
+                        <Ionicons name="business" size={60} color="#fff" />
+                      </View>
+                    )
+                  ) : (
+                    userAvatar ? (
+                      <Image source={{ uri: userAvatar }} style={styles.largeProfileAvatar} />
+                    ) : (
+                      <View style={[styles.largeProfileAvatar, styles.avatarPlaceholder]}>
+                        <Text style={styles.largeAvatarText}>{userName?.charAt(0).toUpperCase()}</Text>
+                      </View>
+                    )
+                  )}
+                </View>
+
+                <Text style={styles.profileName}>
+                  {route.params.userRole === 'admin' ? (companyInfo.name || "Admin") : userName}
+                </Text>
+
+                {route.params.userRole !== 'admin' && (
+                  <>
+                    <View style={styles.profileInfoItem}>
+                      <Ionicons name="briefcase-outline" size={20} color="#64748B" />
+                      <Text style={styles.profileInfoText}>Employee</Text>
+                    </View>
+                    <View style={styles.profileInfoItem}>
+                      <Ionicons name="mail-outline" size={20} color="#64748B" />
+                      <Text style={styles.profileInfoText}>{route.params.userEmail || "No email provided"}</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowProfileModal(false)}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1061,6 +1186,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: "#fff"
   },
+  uploadButton: {
+    padding: 8,
+    marginRight: 4
+  },
+  uploadIcon: {
+    width: 24,
+    height: 24,
+    tintColor: "#00664F"
+  },
   inputWrapper: {
     flex: 1,
     flexDirection: "row",
@@ -1097,6 +1231,49 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: "#9CA3AF"
+  },
+  messageDropdown: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    padding: 4,
+    zIndex: 10
+  },
+  threeDotIcon: {
+    width: 16,
+    height: 16,
+    tintColor: "#64748B"
+  },
+  messageActionsDropdown: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: "auto",
+    padding: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+    minWidth: 150
+  },
+  dropdownOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8
+  },
+  dropdownIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
+    tintColor: "#374151"
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#374151",
+    fontWeight: "500"
   },
   emptyContainer: {
     flex: 1,
@@ -1279,5 +1456,105 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600"
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "transparent"
+  },
+  chatMenuCard: {
+    position: "absolute",
+    top: 60,
+    right: 20,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 8,
+    width: 160,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5
+  },
+  chatMenuOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8
+  },
+  chatMenuText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: "#374151",
+    fontWeight: "500"
+  },
+  profileModal: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    height: "100%", // Full screen minus some top space if needed, but the requirements say modal
+    padding: 24,
+    width: "100%",
+  },
+  closeModalHeader: {
+    alignSelf: "flex-end",
+    marginBottom: 20
+  },
+  profileContent: {
+    alignItems: "center",
+    marginTop: 20
+  },
+  profileAvatarContainer: {
+    marginBottom: 24
+  },
+  largeProfileAvatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 70
+  },
+  avatarPlaceholder: {
+    backgroundColor: "#00664F",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  largeAvatarText: {
+    color: "#fff",
+    fontSize: 60,
+    fontWeight: "bold"
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#0F172A",
+    marginBottom: 30,
+    textAlign: "center"
+  },
+  profileInfoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    borderRadius: 16,
+    width: "100%",
+    marginBottom: 12
+  },
+  profileInfoText: {
+    marginLeft: 16,
+    fontSize: 16,
+    color: "#374151"
+  },
+  doneButton: {
+    position: "absolute",
+    bottom: 40,
+    left: 24,
+    right: 24,
+    backgroundColor: "#00664F",
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center"
+  },
+  doneButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold"
   }
 });
