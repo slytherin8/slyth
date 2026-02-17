@@ -78,7 +78,7 @@ export default function GroupInfoScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#25D366" />
+        <ActivityIndicator size="large" color="#00664F" />
         <Text style={styles.loadingText}>Loading group info...</Text>
       </View>
     );
@@ -106,7 +106,7 @@ export default function GroupInfoScreen({ route, navigation }) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={28} color="#111827" />
+          <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
       </View>
 
@@ -136,8 +136,8 @@ export default function GroupInfoScreen({ route, navigation }) {
         </View>
 
         {/* Group Info Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Group Info</Text>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoCardTitle}>Group Info</Text>
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Created</Text>
@@ -146,7 +146,7 @@ export default function GroupInfoScreen({ route, navigation }) {
             </Text>
           </View>
 
-          <View style={styles.infoRow}>
+          <View style={[styles.infoRow, { paddingBottom: 0 }]}>
             <Text style={styles.infoLabel}>Created By</Text>
             <Text style={styles.infoValue}>
               {groupInfo.createdBy?.profile?.name || "Unknown"}
@@ -155,38 +155,61 @@ export default function GroupInfoScreen({ route, navigation }) {
         </View>
 
         {/* Members Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Members</Text>
+        <View style={styles.membersSection}>
+          <Text style={styles.membersTitle}>Members</Text>
 
           {groupInfo.members?.map((member, index) => (
-            <View key={member.userId._id} style={styles.memberRow}>
-              <View style={styles.memberAvatar}>
-                {member.userId.profile?.avatar ? (
-                  <Image
-                    source={{ uri: member.userId.profile.avatar }}
-                    style={styles.memberAvatarImage}
-                  />
-                ) : (
-                  <Text style={styles.memberAvatarText}>
-                    {member.userId.profile?.name?.charAt(0)?.toUpperCase() || "?"}
-                  </Text>
-                )}
-              </View>
+            <View key={member.userId._id} style={styles.memberItemContainer}>
+              <View style={styles.memberRow}>
+                <View style={styles.memberAvatar}>
+                  {member.userId.profile?.avatar ? (
+                    <Image
+                      source={{ uri: member.userId.profile.avatar }}
+                      style={styles.memberAvatarImage}
+                    />
+                  ) : (
+                    <View style={styles.memberAvatarPlaceholder}>
+                      <Text style={styles.memberAvatarText}>
+                        {member.userId.profile?.name?.charAt(0)?.toUpperCase() || "?"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
-              <View style={styles.memberInfo}>
-                <Text style={styles.memberName}>
-                  {member.userId.profile?.name || "No Name"}
-                </Text>
-                <Text style={styles.memberRole}>
-                  {member.userId.role === 'admin' ? 'Admin' : 'Employee'}
-                </Text>
-                <Text style={styles.memberJoined}>
-                  Joined {formatDate(member.joinedAt)}
-                </Text>
+                <View style={styles.memberInfo}>
+                  <Text style={styles.memberName}>
+                    {member.userId.profile?.name || "No Name"}
+                  </Text>
+                  <Text style={styles.memberRole}>
+                    {member.userId.role === 'admin' ? 'Admin' : 'Employee'}
+                  </Text>
+                  <Text style={styles.memberJoined}>
+                    Joined {formatDate(member.joinedAt)}
+                  </Text>
+                </View>
               </View>
+              {index < groupInfo.members.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
         </View>
+
+        {/* Action Buttons */}
+        {!isAdmin && (
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={styles.exitButton}
+              onPress={() => navigation.navigate("GroupExit", {
+                groupId,
+                groupName,
+                groupPhoto: groupInfo.profilePhoto,
+                groupDescription: groupInfo.description
+              })}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+              <Text style={styles.exitButtonText}>Exit Group</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -195,24 +218,178 @@ export default function GroupInfoScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff"
+    backgroundColor: "#ffffff"
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: "#fff"
+    paddingBottom: 10,
   },
   backButton: {
-    padding: 4
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F9FAFB",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileSection: {
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 30,
+    paddingHorizontal: 30
+  },
+  avatarContainer: {
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  avatar: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 4,
+    borderColor: "#fff"
+  },
+  avatarPlaceholder: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "#FDE68A",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 4,
+    borderColor: "#fff"
+  },
+  avatarText: {
+    fontSize: 56,
+    fontWeight: "700",
+    color: "#D97706"
+  },
+  groupName: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 8
+  },
+  groupDescription: {
+    fontSize: 15,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 22,
+    paddingHorizontal: 20
+  },
+  infoCard: {
+    backgroundColor: "#F9FAFB",
+    marginHorizontal: 20,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 30
+  },
+  infoCardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 20
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12
+  },
+  infoLabel: {
+    fontSize: 15,
+    color: "#6B7280",
+    fontWeight: "500"
+  },
+  infoValue: {
+    fontSize: 15,
+    color: "#111827",
+    fontWeight: "700"
+  },
+  membersSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 40
+  },
+  membersTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 20
+  },
+  memberItemContainer: {
+    marginBottom: 16
+  },
+  memberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingBottom: 16
+  },
+  memberAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#FDE68A",
+    marginRight: 16,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  memberAvatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30
+  },
+  memberAvatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  memberAvatarText: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#D97706"
+  },
+  memberInfo: {
+    flex: 1
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 2
+  },
+  memberRole: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 2,
+    fontWeight: "500"
+  },
+  memberJoined: {
+    fontSize: 12,
+    color: "#9CA3AF"
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
+    marginLeft: 76
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff"
+    backgroundColor: "#ffffff"
   },
   loadingText: {
     marginTop: 10,
@@ -223,7 +400,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     padding: 20
   },
   errorText: {
@@ -233,7 +410,7 @@ const styles = StyleSheet.create({
     marginBottom: 20
   },
   retryButton: {
-    backgroundColor: "#25D366",
+    backgroundColor: "#00664F",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8
@@ -243,117 +420,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600"
   },
-  scrollView: {
-    flex: 1
+  actionSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    marginTop: 10
   },
-  profileSection: {
-    alignItems: "center",
-    paddingVertical: 30,
-    paddingHorizontal: 20
+  exitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FEE2E2'
   },
-  avatarContainer: {
-    marginBottom: 16
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60
-  },
-  avatarPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#FCD34D",
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  avatarText: {
-    fontSize: 48,
-    fontWeight: "600",
-    color: "#fff"
-  },
-  groupName: {
-    fontSize: 24,
+  exitButtonText: {
+    color: "#EF4444",
+    fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
-    textAlign: "center",
-    marginBottom: 8
-  },
-  groupDescription: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    lineHeight: 20
-  },
-  section: {
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    borderTopWidth: 8,
-    borderTopColor: "#F3F4F6"
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginBottom: 16,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12
-  },
-  infoLabel: {
-    fontSize: 16,
-    color: "#111827",
-    fontWeight: "500"
-  },
-  infoValue: {
-    fontSize: 16,
-    color: "#6B7280"
-  },
-  memberRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12
-  },
-  memberAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#E5E7EB",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12
-  },
-  memberAvatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24
-  },
-  memberAvatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#6B7280"
-  },
-  memberInfo: {
-    flex: 1
-  },
-  memberName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2
-  },
-  memberRole: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 2
-  },
-  memberJoined: {
-    fontSize: 12,
-    color: "#9CA3AF"
+    marginLeft: 8
   }
 });
