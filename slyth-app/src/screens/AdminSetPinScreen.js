@@ -10,6 +10,7 @@ import {
     Alert,
     ActivityIndicator,
     Platform,
+    StatusBar,
     ToastAndroid
 } from "react-native";
 import AsyncStorage from "../utils/storage";
@@ -201,15 +202,19 @@ export default function AdminSetPinScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#FFFFFF"
+        backgroundColor: "#FFFFFF",
+        paddingTop: Platform.OS === 'android'
+            ? (StatusBar.currentHeight || 24) + 16
+            : 44,
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 20,
-        paddingTop: 10,
-        height: 70
+        paddingTop: 14,
+        paddingBottom: 10,
+        height: 70,
     },
     backButton: {
         padding: 5
