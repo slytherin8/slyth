@@ -28,6 +28,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
 
     const [showFolderModal, setShowFolderModal] = useState(false);
     const [newFolderName, setNewFolderName] = useState("");
+    const [showActionModal, setShowActionModal] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -74,17 +75,35 @@ const AdminVaultScreen = ({ navigation, route }) => {
 
     const handleUpload = async () => {
         try {
-            const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
+            const result = await DocumentPicker.getDocumentAsync({
+                type: "*/*",
+                copyToCacheDirectory: true
+            });
+            console.log("DocumentPicker result:", JSON.stringify(result));
+
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 setUploading(true);
-                await vaultService.uploadFile(result.assets[0], folderId);
+                const asset = result.assets[0];
+                console.log("Uploading asset:", asset.name, asset.mimeType, asset.uri);
+                await vaultService.uploadFile(asset, folderId);
                 Alert.alert("Success", "File encrypted and uploaded securely");
                 loadContent();
             }
         } catch (err) {
-            Alert.alert("Upload Failed", "Could not upload file.");
+            console.log("Upload error:", err);
+            Alert.alert("Upload Failed", err?.message || "Could not upload file.");
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleAddPress = () => {
+        if (folderId) {
+            // Inside a folder — show choice: Upload File or Create Subfolder
+            setShowActionModal(true);
+        } else {
+            // Root level — create folder
+            setShowFolderModal(true);
         }
     };
 
@@ -187,11 +206,51 @@ const AdminVaultScreen = ({ navigation, route }) => {
                 {/* Floating Add Button */}
                 <TouchableOpacity
                     style={styles.fab}
-                    onPress={() => folderId ? handleUpload() : setShowFolderModal(true)}
+                    onPress={handleAddPress}
                     disabled={uploading}
                 >
-                    <Ionicons name={folderId ? "add" : "add"} size={32} color="#FFFFFF" />
+                    <Ionicons name="add" size={32} color="#FFFFFF" />
                 </TouchableOpacity>
+
+                {/* ACTION CHOICE MODAL (inside folder) */}
+                <Modal visible={showActionModal} transparent animationType="fade">
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalCard}>
+                            <Text style={[styles.modalLabel, { fontSize: 18, fontWeight: '700', color: '#111827', alignSelf: 'center', marginBottom: 20 }]}>
+                                What would you like to do?
+                            </Text>
+
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12 }]}
+                                onPress={() => {
+                                    setShowActionModal(false);
+                                    setTimeout(() => handleUpload(), 300);
+                                }}
+                            >
+                                <Ionicons name="cloud-upload-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                                <Text style={styles.createBtnText}>Upload File</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12, backgroundColor: '#1D4ED8' }]}
+                                onPress={() => {
+                                    setShowActionModal(false);
+                                    setTimeout(() => setShowFolderModal(true), 300);
+                                }}
+                            >
+                                <Ionicons name="folder-open-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                                <Text style={styles.createBtnText}>Create Subfolder</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.cancelBtn]}
+                                onPress={() => setShowActionModal(false)}
+                            >
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
 
                 {/* CREATE FOLDER MODAL */}
                 <Modal visible={showFolderModal} transparent animationType="fade">
@@ -325,7 +384,7 @@ const styles = StyleSheet.create({
     fab: {
         position: "absolute",
         right: 20,
-        bottom: 100, // Moved slightly higher
+        bottom: 130, // Moved higher as requested
         width: 56,
         height: 56,
         borderRadius: 28,
@@ -395,9 +454,11 @@ const styles = StyleSheet.create({
     },
     modalBtn: {
         flex: 1,
-        paddingVertical: 12,
+        flexDirection: "row",
+        paddingVertical: 14,
         borderRadius: 24,
-        alignItems: "center"
+        alignItems: "center",
+        justifyContent: "center",
     },
     createBtn: { backgroundColor: "#00664F" },
     cancelBtn: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E5E7EB" },
