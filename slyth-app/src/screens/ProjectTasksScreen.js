@@ -20,7 +20,7 @@ import AppLayout from "../components/AppLayout";
 import { workService } from "../services/workService";
 import { useSmartLoader } from "../hooks/useSmartLoader";
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const getResponsiveSize = (size) => {
     const scale = width / 375;
@@ -34,7 +34,8 @@ const getResponsiveFontSize = (size) => {
 };
 
 export default function ProjectTasksScreen({ navigation, route }) {
-    const { project, employee, role } = route.params;
+    const { project, employee } = route.params;
+    const role = (route.params.role || "").toLowerCase();
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(false);
     const showLoader = useSmartLoader(loading);
@@ -44,6 +45,8 @@ export default function ProjectTasksScreen({ navigation, route }) {
     const [targetStatus, setTargetStatus] = useState("");
     const [attachment, setAttachment] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const [showImageModal, setShowImageModal] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
 
     useEffect(() => {
         fetchTasks();
@@ -191,11 +194,16 @@ export default function ProjectTasksScreen({ navigation, route }) {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
+                        // Optimistic update
+                        const previousTasks = [...tasks];
+                        setTasks(prev => prev.filter(t => t._id !== taskId));
+
                         try {
                             await workService.deleteTask(taskId);
-                            setTasks(prev => prev.filter(t => t._id !== taskId));
                         } catch (error) {
-                            Alert.alert("Error", "Failed to delete task");
+                            // Revert on failure
+                            setTasks(previousTasks);
+                            Alert.alert("Error", "Failed to delete task: " + (error.response?.data?.message || error.message));
                         }
                     }
                 }
@@ -224,25 +232,34 @@ export default function ProjectTasksScreen({ navigation, route }) {
                     {/* Add Work Bar (Admin Only) */}
                     {role === "admin" && (
                         <View style={styles.addWorkContainer}>
-                            <View style={[styles.inputWrapper, attachment && { borderColor: '#00664F', borderWidth: 1.5 }]}>
+                            <View style={styles.inputWrapper}>
                                 <TouchableOpacity style={styles.attachmentBtn} onPress={pickImage}>
                                     <Image
                                         source={require("../../assets/images/pin.png")}
                                         style={[styles.clipIcon, attachment && { tintColor: '#00664F' }]}
                                     />
                                 </TouchableOpacity>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Add your work"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={newTaskTitle}
-                                    onChangeText={setNewTaskTitle}
-                                />
-                                {attachment && (
-                                    <TouchableOpacity onPress={() => setAttachment(null)}>
-                                        <Text style={styles.removeText}>✕</Text>
-                                    </TouchableOpacity>
-                                )}
+
+                                <View style={styles.inputMain}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Add your work"
+                                        placeholderTextColor="#9CA3AF"
+                                        value={newTaskTitle}
+                                        onChangeText={setNewTaskTitle}
+                                    />
+                                    {attachment && (
+                                        <View style={styles.previewContainer}>
+                                            <Image source={{ uri: attachment }} style={styles.previewThumb} />
+                                            <TouchableOpacity
+                                                style={styles.removeBtn}
+                                                onPress={() => setAttachment(null)}
+                                            >
+                                                <Text style={styles.removeX}>✕</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
                             </View>
                             <TouchableOpacity style={styles.sendBtn} onPress={handleCreateTask}>
                                 <Image
@@ -265,6 +282,10 @@ export default function ProjectTasksScreen({ navigation, route }) {
                                 onStatusPress={handleStatusPress}
                                 onDelete={handleDeleteTask}
                                 role={role}
+                                onViewImage={(img) => {
+                                    setSelectedImage(img);
+                                    setShowImageModal(true);
+                                }}
                             />
                             <TaskSection
                                 title="Updating"
@@ -274,6 +295,10 @@ export default function ProjectTasksScreen({ navigation, route }) {
                                 onStatusPress={handleStatusPress}
                                 onDelete={handleDeleteTask}
                                 role={role}
+                                onViewImage={(img) => {
+                                    setSelectedImage(img);
+                                    setShowImageModal(true);
+                                }}
                             />
                             <TaskSection
                                 title="Completed"
@@ -283,6 +308,10 @@ export default function ProjectTasksScreen({ navigation, route }) {
                                 onStatusPress={handleStatusPress}
                                 onDelete={handleDeleteTask}
                                 role={role}
+                                onViewImage={(img) => {
+                                    setSelectedImage(img);
+                                    setShowImageModal(true);
+                                }}
                             />
                         </>
                     )}
@@ -317,27 +346,69 @@ export default function ProjectTasksScreen({ navigation, route }) {
                         </View>
                     </View>
                 </Modal>
+
+                {/* 🖼️ Full Screen Image Viewer Modal */}
+                <Modal
+                    visible={showImageModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowImageModal(false)}
+                >
+                    <TouchableOpacity
+                        style={styles.imageViewerOverlay}
+                        activeOpacity={1}
+                        onPress={() => setShowImageModal(false)}
+                    >
+                        <TouchableOpacity
+                            style={styles.closeImageBtn}
+                            onPress={() => setShowImageModal(false)}
+                        >
+                            <Text style={styles.closeImageText}>✕ Close</Text>
+                        </TouchableOpacity>
+
+                        {selectedImage && (
+                            <Image
+                                source={{ uri: selectedImage }}
+                                style={styles.fullScreenImage}
+                                resizeMode="contain"
+                            />
+                        )}
+                    </TouchableOpacity>
+                </Modal>
             </View>
         </AppLayout>
     );
 }
 
-const TaskSection = ({ title, tasks, bg, activeColor, onStatusPress, onDelete, role }) => (
+const TaskSection = ({ title, tasks, bg, activeColor, onStatusPress, onDelete, role, onViewImage }) => (
     <View style={styles.section}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {tasks.map(task => (
             <View key={task._id} style={styles.taskItemRow}>
                 <View style={[styles.taskTextCard, { backgroundColor: bg }]}>
                     <View style={styles.taskCardContent}>
-                        <Text style={styles.taskText}>{task.title}</Text>
-                        {task.attachment && (
-                            <TouchableOpacity style={styles.attachmentPreview} onPress={() => Alert.alert("Attachment", "Opening file...")}>
-                                <Image source={{ uri: task.attachment }} style={styles.taskAttachmentImage} />
-                            </TouchableOpacity>
-                        )}
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.taskText}>{task.title}</Text>
+                            {task.attachment && (
+                                <TouchableOpacity
+                                    style={styles.attachmentLink}
+                                    onPress={() => onViewImage(task.attachment)}
+                                >
+                                    <View style={styles.attachmentTag}>
+                                        <Image source={{ uri: task.attachment }} style={styles.tinyThumb} />
+                                        <Text style={styles.attachmentText}>View Photo</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
                     {(role === "admin" || (role === "employee" && task.status === "Completed")) && (
-                        <TouchableOpacity onPress={() => onDelete(task._id)} style={styles.deleteTaskBtn}>
+                        <TouchableOpacity
+                            onPress={() => onDelete(task._id)}
+                            style={styles.deleteTaskBtn}
+                            activeOpacity={0.6}
+                            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                        >
                             <Image source={require("../../assets/images/delete.png")} style={styles.smallDeleteIcon} />
                         </TouchableOpacity>
                     )}
@@ -405,11 +476,43 @@ const styles = StyleSheet.create({
         height: getResponsiveSize(50),
         marginRight: getResponsiveSize(15),
     },
+    inputMain: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     input: {
         flex: 1,
         fontSize: getResponsiveFontSize(15),
         color: "#1F2937",
         fontFamily: "Inter-Regular",
+    },
+    previewContainer: {
+        paddingRight: getResponsiveSize(10),
+    },
+    previewThumb: {
+        width: getResponsiveSize(36),
+        height: getResponsiveSize(36),
+        borderRadius: getResponsiveSize(8),
+        backgroundColor: '#E5E7EB',
+    },
+    removeBtn: {
+        position: 'absolute',
+        top: -10,
+        right: 0,
+        backgroundColor: '#EF4444',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+    },
+    removeX: {
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: '700',
+        lineHeight: 18,
     },
     clipIcon: {
         width: getResponsiveSize(18),
@@ -481,12 +584,13 @@ const styles = StyleSheet.create({
         color: "#1F2937",
     },
     deleteTaskBtn: {
-        padding: getResponsiveSize(5),
+        padding: getResponsiveSize(10),
+        marginLeft: getResponsiveSize(5),
     },
     smallDeleteIcon: {
-        width: getResponsiveSize(16),
-        height: getResponsiveSize(16),
-        tintColor: "#9CA3AF",
+        width: getResponsiveSize(20),
+        height: getResponsiveSize(20),
+        tintColor: "#EF4444", // Red for visibility
         resizeMode: 'contain',
     },
     emptyTasks: {
@@ -510,14 +614,54 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-    attachmentPreview: {
-        marginLeft: getResponsiveSize(10),
+    attachmentLink: {
+        marginTop: getResponsiveSize(8),
+        backgroundColor: 'rgba(0,0,0,0.03)',
+        borderRadius: getResponsiveSize(10),
+        padding: getResponsiveSize(8),
+        alignSelf: 'flex-start',
     },
-    taskAttachmentImage: {
-        width: getResponsiveSize(30),
-        height: getResponsiveSize(30),
+    attachmentTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    tinyThumb: {
+        width: getResponsiveSize(24),
+        height: getResponsiveSize(24),
         borderRadius: getResponsiveSize(4),
-        backgroundColor: "#E5E7EB",
+        marginRight: getResponsiveSize(8),
+        backgroundColor: '#E5E7EB',
+    },
+    attachmentText: {
+        fontSize: getResponsiveFontSize(12),
+        color: "#00664F",
+        fontWeight: "600",
+    },
+
+    // Image Viewer Modal
+    imageViewerOverlay: {
+        flex: 1,
+        backgroundColor: "#000000",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    fullScreenImage: {
+        width: width * 0.95,
+        height: height * 0.8,
+    },
+    closeImageBtn: {
+        position: "absolute",
+        top: 50,
+        right: 25,
+        backgroundColor: "rgba(255,255,255,0.2)",
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 20,
+        zIndex: 10,
+    },
+    closeImageText: {
+        color: "#FFFFFF",
+        fontWeight: "600",
     },
 
     // Modal Styles
