@@ -100,21 +100,12 @@ router.get("/projects/:employeeId", auth, async (req, res) => {
 ===================== */
 
 // Create Task (Admin Only)
-// Create Task (Admin Only)
-router.post("/tasks", auth, async (req, res) => {
+router.post("/tasks", auth, adminOnly, async (req, res) => {
     try {
-        console.log("Create Task Request User:", req.user); // Debug log
-
-        // Manual Admin Check for debugging
-        const role = (req.user.role || "").toLowerCase();
-        if (role !== "admin") {
-            return res.status(403).json({
-                message: `Access denied. Your role is '${req.user.role}', expected 'admin'. Please re-login.`
-            });
-        }
         const { title, projectId, employeeId, attachment } = req.body;
 
         if (!title || !projectId || !employeeId) {
+            console.error("Missing fields for task create:", { title, projectId, employeeId });
             return res.status(400).json({ message: "Title, project, and employee are required" });
         }
 
@@ -124,23 +115,32 @@ router.post("/tasks", auth, async (req, res) => {
             employeeId,
             companyId: req.user.companyId,
             status: "Pending",
-            attachment
+            attachment: attachment || null
         });
 
-        emitUpdate(req, employeeId, "TASK_CREATED", task);
+        // Try to update real-time but don't fail if IO is missing
+        try {
+            emitUpdate(req, employeeId, "TASK_CREATED", task);
+        } catch (ioErr) {
+            console.warn("Socket notification failed:", ioErr.message);
+        }
 
         // Notify Employee
-        sendPushNotification(
-            employeeId,
-            "New Task Assigned",
-            `task: "${title}"`,
-            { type: "work_assigned" }
-        );
+        try {
+            sendPushNotification(
+                employeeId,
+                "New Task Assigned",
+                `task: "${title}"`,
+                { type: "work_assigned" }
+            );
+        } catch (pushErr) {
+            console.warn("Push notification failed:", pushErr.message);
+        }
 
         res.status(201).json(task);
     } catch (error) {
-        console.error("Create task error:", error);
-        res.status(500).json({ message: "Failed to create task" });
+        console.error("CRITICAL: Create task error:", error);
+        res.status(500).json({ message: "Failed to create task", error: error.message });
     }
 });
 
@@ -212,23 +212,28 @@ router.delete("/tasks/:taskId", auth, async (req, res) => {
 
         if (!task) return res.status(404).json({ message: "Task not found" });
 
-        // Logic: Admin can delete any task. Employee can delete only their own COMPLETED tasks.
-        const isAdmin = req.user.role === "admin";
+        const isAdmin = (req.user.role || "").toLowerCase() === "admin";
         const isOwner = task.employeeId.toString() === req.user.id;
         const isCompleted = task.status === "Completed";
 
         if (!isAdmin && !(isOwner && isCompleted)) {
+            console.warn(`Unauthorized delete attempt on task ${taskId} by user ${req.user.id}`);
             return res.status(403).json({ message: "Permission denied. You can only delete completed tasks assigned to you." });
         }
 
         await Task.findByIdAndDelete(taskId);
 
         // Notify both sides
-        emitUpdate(req, task.employeeId, "TASK_DELETED", { taskId });
+        try {
+            emitUpdate(req, task.employeeId, "TASK_DELETED", { taskId });
+        } catch (socketErr) {
+            console.warn("Delete socket notify failed:", socketErr.message);
+        }
+
         res.json({ message: "Task deleted successfully" });
     } catch (error) {
         console.error("Delete task error:", error);
-        res.status(500).json({ message: "Failed to delete task" });
+        res.status(500).json({ message: "Failed to delete task", error: error.message });
     }
 });
 
