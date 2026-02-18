@@ -826,6 +826,21 @@ export default function GroupChatScreen({ route, navigation }) {
 
         {/* Message Input */}
         <View style={styles.inputContainer}>
+          {/* Upload Options */}
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickImage}
+          >
+            <Image source={require("../../assets/images/add_photo.png")} style={styles.uploadIcon} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickDocument}
+          >
+            <Image source={require("../../assets/images/pin.png")} style={styles.uploadIcon} />
+          </TouchableOpacity>
+
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
@@ -836,9 +851,6 @@ export default function GroupChatScreen({ route, navigation }) {
               maxLength={1000}
               placeholderTextColor="#888"
             />
-            <TouchableOpacity onPress={() => setShowAttachmentOptions(true)} style={styles.attachButton}>
-              <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
-            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -857,14 +869,13 @@ export default function GroupChatScreen({ route, navigation }) {
           animationType="slide"
           onRequestClose={() => setShowAttachmentOptions(false)}
         >
-          <Pressable style={styles.marginClose} onPress={() => setShowAttachmentOptions(false)}>
-            <View style={styles.bottomSheet}>
-              <View style={styles.sheetHandle} />
-              <Text style={styles.modalTitle}>Share</Text>
+          <View style={styles.modalOverlay}>
+            <View style={styles.attachmentModal}>
+              <Text style={styles.modalTitle}>Send</Text>
 
-              <TouchableOpacity style={styles.bottomSheetOption} onPress={pickImage}>
-                <View style={styles.bottomSheetIconContainer}>
-                  <Image source={require("../../assets/images/add_photo.png")} style={styles.sheetIconImage} />
+              <TouchableOpacity style={styles.attachmentOption} onPress={pickImage}>
+                <View style={styles.attachmentIconContainer}>
+                  <Text style={styles.attachmentIcon}>📷</Text>
                 </View>
                 <View style={styles.attachmentTextContainer}>
                   <Text style={styles.attachmentText}>Photo</Text>
@@ -872,9 +883,9 @@ export default function GroupChatScreen({ route, navigation }) {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.bottomSheetOption} onPress={pickDocument}>
-                <View style={styles.bottomSheetIconContainer}>
-                  <Image source={require("../../assets/images/upload_file.png")} style={styles.sheetIconImage} />
+              <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
+                <View style={styles.attachmentIconContainer}>
+                  <Text style={styles.attachmentIcon}>📎</Text>
                 </View>
                 <View style={styles.attachmentTextContainer}>
                   <Text style={styles.attachmentText}>Document</Text>
@@ -889,7 +900,7 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </Pressable>
+          </View>
         </Modal>
 
         {/* Message Actions Modal */}
@@ -903,46 +914,23 @@ export default function GroupChatScreen({ route, navigation }) {
             style={styles.modalOverlay}
             onPress={() => setShowMessageActions(false)}
           >
-            <View style={[styles.bottomSheet, { paddingBottom: 40 }]}>
-              <View style={styles.sheetHandle} />
-
-              {selectedMessage && (selectedMessage.senderId._id !== currentUserId) && (
-                <TouchableOpacity
-                  style={styles.bottomSheetOption}
-                  onPress={() => {
-                    handleReply(selectedMessage);
-                    setShowMessageActions(false);
-                  }}
-                >
-                  <View style={styles.bottomSheetIconContainer}>
-                    {/* Using back-arrow as reply icon */}
-                    <Image
-                      source={require("../../assets/images/back-arrow.png")}
-                      style={[styles.dropdownIcon, { transform: [{ rotate: '180deg' }] }]}
-                    />
-                  </View>
-                  <Text style={styles.dropdownText}>Reply</Text>
-                </TouchableOpacity>
-              )}
-
+            <View style={styles.messageActionsDropdown}>
               {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
                 <TouchableOpacity
-                  style={styles.bottomSheetOption}
+                  style={styles.dropdownOption}
                   onPress={() => handleCopyMessage(selectedMessage)}
                 >
-                  <View style={styles.bottomSheetIconContainer}>
-                    <Image
-                      source={require("../../assets/images/copy.png")}
-                      style={styles.dropdownIcon}
-                    />
-                  </View>
+                  <Image
+                    source={require("../../assets/images/copy.png")}
+                    style={styles.dropdownIcon}
+                  />
                   <Text style={styles.dropdownText}>Copy</Text>
                 </TouchableOpacity>
               )}
 
               {selectedMessage && (
                 <TouchableOpacity
-                  style={styles.bottomSheetOption}
+                  style={styles.dropdownOption}
                   onPress={() => {
                     setShowMessageActions(false);
                     Alert.alert(
@@ -955,12 +943,10 @@ export default function GroupChatScreen({ route, navigation }) {
                     );
                   }}
                 >
-                  <View style={styles.bottomSheetIconContainer}>
-                    <Image
-                      source={require("../../assets/images/delete.png")}
-                      style={[styles.dropdownIcon, { tintColor: "#DC2626" }]}
-                    />
-                  </View>
+                  <Image
+                    source={require("../../assets/images/delete.png")}
+                    style={styles.dropdownIcon}
+                  />
                   <Text style={[styles.dropdownText, styles.deleteText]}>Delete</Text>
                 </TouchableOpacity>
               )}
@@ -1260,10 +1246,8 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     maxWidth: "80%",
-    paddingHorizontal: 8,
-    paddingTop: 6,
-    paddingBottom: 4,
-    borderRadius: 12,
+    padding: 10,
+    borderRadius: 16,
     position: "relative"
   },
   myMessage: {
@@ -1418,8 +1402,8 @@ const styles = StyleSheet.create({
   },
   messageDropdown: {
     position: "absolute",
-    top: 2,
-    right: 2,
+    top: 4,
+    right: 4,
     padding: 4,
     zIndex: 10
   },
@@ -1735,24 +1719,5 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginLeft: 10,
     tintColor: '#6B7280',
-  },
-  sheetHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 20,
-    marginTop: 10
-  },
-  sheetIconImage: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain'
-  },
-  marginClose: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end"
   }
 });
