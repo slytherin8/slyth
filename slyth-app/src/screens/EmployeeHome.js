@@ -353,15 +353,15 @@ const styles = StyleSheet.create({
     flex: 1
   },
   companyLogo: {
-    width: getResponsiveSize(44),
-    height: getResponsiveSize(44),
-    borderRadius: getResponsiveSize(22),
+    width: getResponsiveSize(54),
+    height: getResponsiveSize(54),
+    borderRadius: getResponsiveSize(27),
     backgroundColor: "#E5F3F0"
   },
   defaultLogo: {
-    width: getResponsiveSize(44),
-    height: getResponsiveSize(44),
-    borderRadius: getResponsiveSize(22),
+    width: getResponsiveSize(54),
+    height: getResponsiveSize(54),
+    borderRadius: getResponsiveSize(27),
     backgroundColor: "#E5F3F0",
     justifyContent: "center",
     alignItems: "center"
