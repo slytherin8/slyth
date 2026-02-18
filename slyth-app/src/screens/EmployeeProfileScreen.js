@@ -145,9 +145,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   avatarContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     backgroundColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center",
@@ -158,14 +158,14 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   avatar: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
   },
   avatarPlaceholder: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     backgroundColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center"
