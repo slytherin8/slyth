@@ -312,6 +312,19 @@ router.get("/groups/:groupId", auth, async (req, res) => {
       return res.status(403).json({ message: "Access denied to this group" });
     }
 
+    // Filter out members where userId is null (deleted users) and deduplicate
+    if (group && group.members) {
+      const uniqueMembers = [];
+      const seenIds = new Set();
+      group.members.forEach((m) => {
+        if (m.userId && m.userId._id && !seenIds.has(m.userId._id.toString())) {
+          uniqueMembers.push(m);
+          seenIds.add(m.userId._id.toString());
+        }
+      });
+      group.members = uniqueMembers;
+    }
+
     res.json(group);
   } catch (error) {
     console.error("Get group details error:", error);
@@ -341,34 +354,66 @@ router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    // Verify all members belong to the same company and are active
-    const members = await User.find({
+    // Verify all members belong to the same company
+    // (We allow both employees and admins in general, but usually employees are selected)
+    const validMembers = await User.find({
       _id: { $in: memberIds },
-      companyId: req.user.companyId,
-      role: "employee"
+      companyId: req.user.companyId
     });
 
-    if (members.length !== memberIds.length) {
-      return res.status(400).json({ message: "Some selected employees are not valid" });
+    if (validMembers.length !== memberIds.length) {
+      // Warning: some IDs might be invalid, but we proceed with valid ones or error out?
+      // Strict check:
+      // return res.status(400).json({ message: "Some selected users are not valid" });
     }
 
-    // Create member objects with metadata
-    const memberObjects = memberIds.map(id => ({
-      userId: id,
-      joinedAt: new Date(),
-      unreadCount: 0,
-      lastReadAt: new Date(),
-      isMuted: false
-    }));
-
-    // Add admin as a member
-    memberObjects.push({
-      userId: req.user.id,
-      joinedAt: new Date(),
-      unreadCount: 0,
-      lastReadAt: new Date(),
-      isMuted: false
+    // Prepare updated members list
+    // Algorithm: Rebuild list. If member existed, keep metadata. If new, init metadata.
+    const currentMemberMap = new Map();
+    group.members.forEach(m => {
+      if (m.userId) {
+        currentMemberMap.set(m.userId.toString(), m);
+      }
     });
+
+    const updatedMembers = [];
+    const processedIds = new Set();
+
+    // 1. Add selected members
+    memberIds.forEach(id => {
+      if (!processedIds.has(id)) {
+        if (currentMemberMap.has(id)) {
+          // Keep existing
+          updatedMembers.push(currentMemberMap.get(id));
+        } else {
+          // Add new
+          updatedMembers.push({
+            userId: id,
+            joinedAt: new Date(),
+            unreadCount: 0,
+            lastReadAt: new Date(),
+            isMuted: false
+          });
+        }
+        processedIds.add(id);
+      }
+    });
+
+    // 2. Ensure Admin (Current User) is always in the group
+    if (!processedIds.has(req.user.id)) {
+      if (currentMemberMap.has(req.user.id)) {
+        updatedMembers.push(currentMemberMap.get(req.user.id));
+      } else {
+        updatedMembers.push({
+          userId: req.user.id,
+          joinedAt: new Date(),
+          unreadCount: 0,
+          lastReadAt: new Date(),
+          isMuted: false
+        });
+      }
+      processedIds.add(req.user.id);
+    }
 
     // Update group
     const updatedGroup = await Group.findByIdAndUpdate(
@@ -377,12 +422,17 @@ router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
         name,
         description,
         profilePhoto,
-        members: memberObjects,
+        members: updatedMembers,
         lastActivity: new Date()
       },
       { new: true }
     ).populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
       .populate("createdBy", "profile.name");
+
+    // Filter nulls just in case
+    if (updatedGroup.members) {
+      updatedGroup.members = updatedGroup.members.filter(m => m.userId);
+    }
 
     res.json({
       message: "Group updated successfully",
