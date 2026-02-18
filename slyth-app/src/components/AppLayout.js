@@ -21,7 +21,8 @@ export default function AppLayout({
   title, // New prop
   subtitle, // New prop
   hideHeader = false, // New prop
-  onMenu // New prop for three-dot menu
+  onMenu, // New prop for three-dot menu
+  menuIcon // 'add' shows a + button, default shows three-dot
 }) {
   const navigation = propNavigation || useNavigation();
 
@@ -103,24 +104,13 @@ export default function AppLayout({
     }
   };
 
-  // Determine if we're on a main tab screen (no back button needed)
-  const mainTabScreens = [
-    "AdminDashboard", "EmployeeHome",
-    "AdminWork", "EmployeeWork",
-    "AdminChat", "EmployeeChat",
-    "AdminVault", "AdminFiles",
-    "AdminMeet", "EmployeeMeet"
-  ];
-  const isMainScreen = mainTabScreens.includes(currentRouteName);
-
   return (
     <View style={styles.container}>
       {/* 🔝 TOP BAR */}
       {!hideHeader && (
         <View style={styles.topBar}>
-
-          {/* 🔙 BACK — hidden on main tab screens */}
-          {!isMainScreen ? (
+          {/* 🔙 BACK (Hidden on AdminDashboard) */}
+          {currentRouteName !== "AdminDashboard" ? (
             <TouchableOpacity
               onPress={onBack || (() => navigation.goBack())}
               style={styles.backButton}
@@ -130,14 +120,31 @@ export default function AppLayout({
                 style={styles.backIcon}
               />
             </TouchableOpacity>
-          ) : null}
+          ) : (
+            <View style={{ width: 12 }} /> // Reduced spacer to shift logo+name further left
+          )}
 
           {/* 🏢 CONTENT ROW (COMPANY OR TITLE) */}
-          <View style={styles.companyRow}>
+          <View style={[
+            styles.companyRow,
+            currentRouteName === "AdminDashboard" && { justifyContent: 'flex-start' }
+          ]}>
             {role === "employee" ? (
               currentRouteName === "EmployeeHome" ? (
-                // 1️⃣ Employee Home: Company Logo + Name
                 <>
+                  {company?.logo ? <Image source={{ uri: company.logo }} style={styles.companyLogo} /> : null}
+                  <Text style={styles.companyName}>{company?.name || "Company"}</Text>
+                </>
+              ) : (
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={styles.companyName}>{title || ""}</Text>
+                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                </View>
+              )
+            ) : (
+              currentRouteName === "AdminDashboard" ? (
+                // Admin Dashboard Special: Logo + Name on the LEFT
+                <View style={[styles.adminHeaderContent, { justifyContent: 'flex-start' }]}>
                   {company?.logo ? (
                     <Image source={{ uri: company.logo }} style={styles.companyLogo} />
                   ) : (
@@ -148,34 +155,14 @@ export default function AppLayout({
                     </View>
                   )}
                   <Text style={styles.companyName}>{company?.name || "Company"}</Text>
-                </>
-              ) : (
-                // 2️⃣ Other Employee Screens: Just Title
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={styles.companyName}>{title || ""}</Text>
-                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-                </View>
-              )
-            ) : (
-              // 3️⃣ Admin: Company Logo + Name side by side
-              currentRouteName === "AdminDashboard" ? (
-                <View style={styles.adminHeaderContent}>
-                  {company?.logo ? (
-                    <Image source={{ uri: company.logo }} style={styles.companyLogo} />
-                  ) : (
-                    <View style={styles.companyLogoPlaceholder}>
-                      <Text style={styles.companyLogoPlaceholderText}>
-                        {(company?.name || title || "C").charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
-                  <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
                 </View>
               ) : (
-                // 4️⃣ Other Admin Screens: Title centered
+                // Other Admin Screens: Title centered, Logo handled by logoPosition or right slot
                 <View style={styles.adminHeaderContent}>
-                  <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
-                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
+                    {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                  </View>
                 </View>
               )
             )}
@@ -191,7 +178,14 @@ export default function AppLayout({
                 />
               </TouchableOpacity>
             ) : (
-              <View style={{ width: 44 }} />
+              // If not on Dashboard, and it's an Admin screen, show logo on right
+              role === "admin" && currentRouteName !== "AdminDashboard" && company?.logo ? (
+                <View style={styles.rightLogoContainer}>
+                  <Image source={{ uri: company.logo }} style={styles.companyLogoRight} />
+                </View>
+              ) : (
+                <View style={{ width: 44 }} />
+              )
             )}
           </View>
         </View>
@@ -200,7 +194,7 @@ export default function AppLayout({
       {/* 🧩 PAGE CONTENT */}
       <View style={{ flex: 1 }}>{children}</View>
 
-      {/* 🔽 BOTTOM NAV - PILL STYLE - CONDITIONALLY HIDDEN */}
+      {/* 🔽 BOTTOM NAV */}
       {!hideBottomNav && (
         <View style={styles.navWrapper}>
           <View style={styles.bottomNav}>
@@ -211,7 +205,6 @@ export default function AppLayout({
               active={activeTab === "home"}
               onPress={() => go(role === "admin" ? "AdminDashboard" : "EmployeeHome")}
             />
-
             <Nav
               label="Work"
               iconGray={require("../../assets/images/work-gray.png")}
@@ -219,7 +212,6 @@ export default function AppLayout({
               active={activeTab === "work"}
               onPress={() => go(role === "admin" ? "AdminWork" : "EmployeeWork")}
             />
-
             <Nav
               label="Chat"
               iconGray={require("../../assets/images/chat-gray.png")}
@@ -227,7 +219,6 @@ export default function AppLayout({
               active={activeTab === "chat"}
               onPress={() => go(role === "admin" ? "AdminChat" : "EmployeeChat")}
             />
-
             {role === "admin" && (
               <Nav
                 label="Vault"
@@ -237,7 +228,6 @@ export default function AppLayout({
                 onPress={() => go("AdminVault")}
               />
             )}
-
             <Nav
               label="Meet"
               iconGray={require("../../assets/images/meet-gray.png")}
@@ -306,14 +296,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
-    paddingLeft: 12,
+    justifyContent: "center",
   },
 
   adminHeaderContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
   },
 
   rightSlot: {
@@ -323,27 +311,25 @@ const styles = StyleSheet.create({
   },
 
   rightLogoContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#DCFCE7',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   companyLogo: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     marginRight: 10,
     resizeMode: 'cover',
   },
 
   companyLogoPlaceholder: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#DCFCE7',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -356,9 +342,9 @@ const styles = StyleSheet.create({
   },
 
   companyLogoRight: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     resizeMode: 'contain',
   },
 
@@ -375,12 +361,26 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   profileIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14
+    width: 40,
+    height: 40,
+    borderRadius: 20
   },
   menuButton: {
     padding: 8,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#00664F',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    lineHeight: 28,
   },
   menuIcon: {
     width: 20,
