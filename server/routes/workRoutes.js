@@ -100,8 +100,18 @@ router.get("/projects/:employeeId", auth, async (req, res) => {
 ===================== */
 
 // Create Task (Admin Only)
-router.post("/tasks", auth, adminOnly, async (req, res) => {
+// Create Task (Admin Only)
+router.post("/tasks", auth, async (req, res) => {
     try {
+        console.log("Create Task Request User:", req.user); // Debug log
+
+        // Manual Admin Check for debugging
+        const role = (req.user.role || "").toLowerCase();
+        if (role !== "admin") {
+            return res.status(403).json({
+                message: `Access denied. Your role is '${req.user.role}', expected 'admin'. Please re-login.`
+            });
+        }
         const { title, projectId, employeeId, attachment } = req.body;
 
         if (!title || !projectId || !employeeId) {
