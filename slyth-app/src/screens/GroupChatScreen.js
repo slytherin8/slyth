@@ -826,21 +826,6 @@ export default function GroupChatScreen({ route, navigation }) {
 
         {/* Message Input */}
         <View style={styles.inputContainer}>
-          {/* Upload Options */}
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={pickImage}
-          >
-            <Image source={require("../../assets/images/add_photo.png")} style={styles.uploadIcon} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={pickDocument}
-          >
-            <Image source={require("../../assets/images/pin.png")} style={styles.uploadIcon} />
-          </TouchableOpacity>
-
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
@@ -851,6 +836,9 @@ export default function GroupChatScreen({ route, navigation }) {
               maxLength={1000}
               placeholderTextColor="#888"
             />
+            <TouchableOpacity onPress={() => setShowAttachmentOptions(true)} style={styles.attachButton}>
+              <Image source={require("../../assets/images/pin.png")} style={styles.pinIcon} />
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -869,13 +857,14 @@ export default function GroupChatScreen({ route, navigation }) {
           animationType="slide"
           onRequestClose={() => setShowAttachmentOptions(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.attachmentModal}>
-              <Text style={styles.modalTitle}>Send</Text>
+          <Pressable style={styles.marginClose} onPress={() => setShowAttachmentOptions(false)}>
+            <View style={styles.bottomSheet}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.modalTitle}>Share</Text>
 
-              <TouchableOpacity style={styles.attachmentOption} onPress={pickImage}>
-                <View style={styles.attachmentIconContainer}>
-                  <Text style={styles.attachmentIcon}>📷</Text>
+              <TouchableOpacity style={styles.bottomSheetOption} onPress={pickImage}>
+                <View style={styles.bottomSheetIconContainer}>
+                  <Image source={require("../../assets/images/add_photo.png")} style={styles.sheetIconImage} />
                 </View>
                 <View style={styles.attachmentTextContainer}>
                   <Text style={styles.attachmentText}>Photo</Text>
@@ -883,9 +872,9 @@ export default function GroupChatScreen({ route, navigation }) {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.attachmentOption} onPress={pickDocument}>
-                <View style={styles.attachmentIconContainer}>
-                  <Text style={styles.attachmentIcon}>📎</Text>
+              <TouchableOpacity style={styles.bottomSheetOption} onPress={pickDocument}>
+                <View style={styles.bottomSheetIconContainer}>
+                  <Image source={require("../../assets/images/upload_file.png")} style={styles.sheetIconImage} />
                 </View>
                 <View style={styles.attachmentTextContainer}>
                   <Text style={styles.attachmentText}>Document</Text>
@@ -900,7 +889,7 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Pressable>
         </Modal>
 
         {/* Message Actions Modal */}
@@ -914,23 +903,46 @@ export default function GroupChatScreen({ route, navigation }) {
             style={styles.modalOverlay}
             onPress={() => setShowMessageActions(false)}
           >
-            <View style={styles.messageActionsDropdown}>
+            <View style={[styles.bottomSheet, { paddingBottom: 40 }]}>
+              <View style={styles.sheetHandle} />
+
+              {selectedMessage && (selectedMessage.senderId._id !== currentUserId) && (
+                <TouchableOpacity
+                  style={styles.bottomSheetOption}
+                  onPress={() => {
+                    handleReply(selectedMessage);
+                    setShowMessageActions(false);
+                  }}
+                >
+                  <View style={styles.bottomSheetIconContainer}>
+                    {/* Using back-arrow as reply icon */}
+                    <Image
+                      source={require("../../assets/images/back-arrow.png")}
+                      style={[styles.dropdownIcon, { transform: [{ rotate: '180deg' }] }]}
+                    />
+                  </View>
+                  <Text style={styles.dropdownText}>Reply</Text>
+                </TouchableOpacity>
+              )}
+
               {selectedMessage && selectedMessage.messageText && selectedMessage.messageText.trim() && (
                 <TouchableOpacity
-                  style={styles.dropdownOption}
+                  style={styles.bottomSheetOption}
                   onPress={() => handleCopyMessage(selectedMessage)}
                 >
-                  <Image
-                    source={require("../../assets/images/copy.png")}
-                    style={styles.dropdownIcon}
-                  />
+                  <View style={styles.bottomSheetIconContainer}>
+                    <Image
+                      source={require("../../assets/images/copy.png")}
+                      style={styles.dropdownIcon}
+                    />
+                  </View>
                   <Text style={styles.dropdownText}>Copy</Text>
                 </TouchableOpacity>
               )}
 
               {selectedMessage && (
                 <TouchableOpacity
-                  style={styles.dropdownOption}
+                  style={styles.bottomSheetOption}
                   onPress={() => {
                     setShowMessageActions(false);
                     Alert.alert(
@@ -943,10 +955,12 @@ export default function GroupChatScreen({ route, navigation }) {
                     );
                   }}
                 >
-                  <Image
-                    source={require("../../assets/images/delete.png")}
-                    style={styles.dropdownIcon}
-                  />
+                  <View style={styles.bottomSheetIconContainer}>
+                    <Image
+                      source={require("../../assets/images/delete.png")}
+                      style={[styles.dropdownIcon, { tintColor: "#DC2626" }]}
+                    />
+                  </View>
                   <Text style={[styles.dropdownText, styles.deleteText]}>Delete</Text>
                 </TouchableOpacity>
               )}
@@ -1246,8 +1260,10 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     maxWidth: "80%",
-    padding: 10,
-    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingTop: 6,
+    paddingBottom: 4,
+    borderRadius: 12,
     position: "relative"
   },
   myMessage: {
@@ -1402,8 +1418,8 @@ const styles = StyleSheet.create({
   },
   messageDropdown: {
     position: "absolute",
-    top: 4,
-    right: 4,
+    top: 2,
+    right: 2,
     padding: 4,
     zIndex: 10
   },
@@ -1696,5 +1712,47 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
     textAlign: 'center'
+  },
+  fileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 5,
+    maxWidth: '100%',
+    minWidth: 200,
+  },
+  fileImage: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+    marginRight: 10,
+  },
+  downloadIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+    marginLeft: 10,
+    tintColor: '#6B7280',
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+    marginTop: 10
+  },
+  sheetIconImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain'
+  },
+  marginClose: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end"
   }
 });
