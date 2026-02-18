@@ -103,49 +103,81 @@ export default function AppLayout({
     }
   };
 
+  // Determine if we're on a main tab screen (no back button needed)
+  const mainTabScreens = [
+    "AdminDashboard", "EmployeeHome",
+    "AdminWork", "EmployeeWork",
+    "AdminChat", "EmployeeChat",
+    "AdminVault", "AdminFiles",
+    "AdminMeet", "EmployeeMeet"
+  ];
+  const isMainScreen = mainTabScreens.includes(currentRouteName);
+
   return (
     <View style={styles.container}>
       {/* 🔝 TOP BAR */}
       {!hideHeader && (
         <View style={styles.topBar}>
-          {/* 🔙 BACK */}
-          <TouchableOpacity
-            onPress={onBack || (() => navigation.goBack())}
-            style={styles.backButton} // Added style
-          >
-            <Image
-              source={require("../../assets/images/back-arrow.png")}
-              style={styles.backIcon}
-            />
-          </TouchableOpacity>
+
+          {/* 🔙 BACK — hidden on main tab screens */}
+          {!isMainScreen ? (
+            <TouchableOpacity
+              onPress={onBack || (() => navigation.goBack())}
+              style={styles.backButton}
+            >
+              <Image
+                source={require("../../assets/images/back-arrow.png")}
+                style={styles.backIcon}
+              />
+            </TouchableOpacity>
+          ) : null}
 
           {/* 🏢 CONTENT ROW (COMPANY OR TITLE) */}
           <View style={styles.companyRow}>
             {role === "employee" ? (
               currentRouteName === "EmployeeHome" ? (
-                // 1️⃣ Employee Home: Company Info (Left)
+                // 1️⃣ Employee Home: Company Logo + Name
                 <>
-                  {company?.logo ? <Image source={{ uri: company.logo }} style={styles.companyLogo} /> : null}
+                  {company?.logo ? (
+                    <Image source={{ uri: company.logo }} style={styles.companyLogo} />
+                  ) : (
+                    <View style={styles.companyLogoPlaceholder}>
+                      <Text style={styles.companyLogoPlaceholderText}>
+                        {(company?.name || "C").charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
                   <Text style={styles.companyName}>{company?.name || "Company"}</Text>
                 </>
               ) : (
-                // 2️⃣ Other Employee Screens: Just Title (if any)
+                // 2️⃣ Other Employee Screens: Just Title
                 <View style={{ alignItems: 'center' }}>
                   <Text style={styles.companyName}>{title || ""}</Text>
                   {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
                 </View>
               )
             ) : (
-              // Admin: Company Info - Handle effectiveLogoPosition
-              <View style={styles.adminHeaderContent}>
-                {effectiveLogoPosition === "left" && company?.logo && (
-                  <Image source={{ uri: company.logo }} style={styles.companyLogo} />
-                )}
-                <View style={{ alignItems: effectiveLogoPosition === 'left' ? 'flex-start' : 'center' }}>
+              // 3️⃣ Admin: Company Logo + Name side by side
+              currentRouteName === "AdminDashboard" ? (
+                <View style={styles.adminHeaderContent}>
+                  {company?.logo ? (
+                    <Image source={{ uri: company.logo }} style={styles.companyLogo} />
+                  ) : (
+                    <View style={styles.companyLogoPlaceholder}>
+                      <Text style={styles.companyLogoPlaceholderText}>
+                        {(company?.name || title || "C").charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
+                </View>
+              ) : (
+                // 4️⃣ Other Admin Screens: Title centered
+                <View style={styles.adminHeaderContent}>
                   <Text style={styles.companyName}>{title || company?.name || "Company"}</Text>
                   {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
                 </View>
-              </View>
+              )
             )}
           </View>
 
@@ -158,10 +190,6 @@ export default function AppLayout({
                   style={styles.menuIcon}
                 />
               </TouchableOpacity>
-            ) : effectiveLogoPosition === "right" && company?.logo ? (
-              <View style={styles.rightLogoContainer}>
-                <Image source={{ uri: company.logo }} style={styles.companyLogoRight} />
-              </View>
             ) : (
               <View style={{ width: 44 }} />
             )}
@@ -278,12 +306,14 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    paddingLeft: 12,
   },
 
   adminHeaderContent: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-start",
   },
 
   rightSlot: {
@@ -296,16 +326,33 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DCFCE7', // Light green background from design
+    backgroundColor: '#DCFCE7',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   companyLogo: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    marginRight: 8
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    marginRight: 10,
+    resizeMode: 'cover',
+  },
+
+  companyLogoPlaceholder: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+
+  companyLogoPlaceholderText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#00664F',
   },
 
   companyLogoRight: {
