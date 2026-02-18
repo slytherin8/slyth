@@ -46,48 +46,77 @@ export const vaultService = {
     const formData = new FormData();
 
     if (Platform.OS === "web") {
-      // On web, Expo DocumentPicker returns a File object in result.assets[0].file
-      // If not present, we can fetch it if necessary, but usually .file is there
-      const fileData = file.file || file;
+      // On web, expo-document-picker returns asset.file as a native File object
+      // If not available, fetch the blob from the URI
+      let fileData = file.file;
+      if (!fileData && file.uri) {
+        const response = await fetch(file.uri);
+        const blob = await response.blob();
+        fileData = new File([blob], file.name || "upload", { type: file.mimeType || blob.type });
+      }
+      if (!fileData) {
+        throw new Error("Could not get file data for upload");
+      }
       formData.append("file", fileData);
+      if (folderId) formData.append("folderId", folderId);
+
+      // Use fetch directly on web for correct multipart/form-data handling
+      const AsyncStorage = (await import("../utils/storage")).default;
+      const token = await AsyncStorage.getItem("token");
+      const { API } = await import("../constants/api");
+
+      const res = await fetch(`${API}/api/vault/files`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        // Do NOT set Content-Type — browser sets it with boundary automatically
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(err.message || "Upload failed");
+      }
+      return res.json();
+
     } else {
+      // Mobile: use axios with uri/type/name
       formData.append("file", {
         uri: file.uri,
-        type: file.mimeType,
-        name: file.name,
+        type: file.mimeType || "application/octet-stream",
+        name: file.name || "upload",
       });
+      if (folderId) formData.append("folderId", folderId);
+
+      const res = await api.post("/vault/files", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data;
     }
-
-    if (folderId) formData.append("folderId", folderId);
-
-    const res = await api.post("/vault/files", formData);
-    return res.data;
   },
 
   downloadFile: async (fileId, fileName, mimeType) => {
     try {
       const res = await api.get(`/vault/files/${fileId}/download`, {
-        responseType: "blob",
+        responseType: "arraybuffer",
       });
 
       if (Platform.OS === "web") {
-        // Web download
-        const blob = new Blob([res.data], { type: mimeType });
+        // Open file in new tab for preview (images, PDFs, etc.)
+        const blob = new Blob([res.data], { type: mimeType || "application/octet-stream" });
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        window.open(url, "_blank"); // Opens in new tab for preview
+        // Clean up after a short delay
+        setTimeout(() => window.URL.revokeObjectURL(url), 10000);
       } else {
-        // Mobile download
+        // Mobile: save to filesystem then share/open with default app
+        const base64 = btoa(
+          new Uint8Array(res.data).reduce((data, byte) => data + String.fromCharCode(byte), "")
+        );
         const fileUri = FileSystem.documentDirectory + fileName;
-        await FileSystem.writeAsStringAsync(fileUri, res.data, {
+        await FileSystem.writeAsStringAsync(fileUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        await Sharing.shareAsync(fileUri);
+        await Sharing.shareAsync(fileUri, { mimeType, dialogTitle: "Open with..." });
       }
     } catch (error) {
       throw error;
