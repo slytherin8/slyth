@@ -88,11 +88,16 @@ export default function EmployeeWorkspaceScreen({ navigation, route }) {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
+                        // Optimistic update
+                        const previousProjects = [...projects];
+                        setProjects(prev => prev.filter(p => p._id !== projectId));
+
                         try {
                             await workService.deleteProject(projectId);
-                            fetchProjects();
                         } catch (error) {
-                            Alert.alert("Error", "Failed to delete folder");
+                            // Revert on failure
+                            setProjects(previousProjects);
+                            Alert.alert("Error", "Failed to delete folder: " + (error.response?.data?.message || error.message));
                         }
                     }
                 }
@@ -101,34 +106,38 @@ export default function EmployeeWorkspaceScreen({ navigation, route }) {
     };
 
     const renderFolderItem = ({ item }) => (
-        <TouchableOpacity
-            style={styles.folderRow}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("ProjectTasks", {
-                project: item,
-                employee: employee,
-                role: "admin"
-            })}
-        >
-            <View style={styles.folderIconBg}>
-                <Image
-                    source={require("../../assets/images/folder.png")}
-                    style={styles.folderIcon}
-                />
-            </View>
-            <View style={styles.folderInfo}>
-                <Text style={styles.folderName} numberOfLines={1}>{item.name}</Text>
-            </View>
+        <View style={styles.folderRowContainer}>
+            <TouchableOpacity
+                style={styles.folderRow}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate("ProjectTasks", {
+                    project: item,
+                    employee: employee,
+                    role: "admin"
+                })}
+            >
+                <View style={styles.folderIconBg}>
+                    <Image
+                        source={require("../../assets/images/folder.png")}
+                        style={styles.folderIcon}
+                    />
+                </View>
+                <View style={styles.folderInfo}>
+                    <Text style={styles.folderName} numberOfLines={1}>{item.name}</Text>
+                </View>
+            </TouchableOpacity>
+
             <TouchableOpacity
                 onPress={() => handleDeleteFolder(item._id)}
                 style={styles.deleteBtn}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
                 <Image
                     source={require("../../assets/images/delete.png")}
                     style={styles.deleteIcon}
                 />
             </TouchableOpacity>
-        </TouchableOpacity>
+        </View>
     );
 
     return (
@@ -236,13 +245,19 @@ const styles = StyleSheet.create({
         paddingTop: getResponsiveSize(20),
         paddingBottom: getResponsiveSize(100),
     },
-    folderRow: {
+    folderRowContainer: {
         flexDirection: "row",
         alignItems: "center",
         marginBottom: getResponsiveSize(15),
         paddingBottom: getResponsiveSize(15),
         borderBottomWidth: 1,
         borderBottomColor: "#F3F4F6",
+        justifyContent: 'space-between',
+    },
+    folderRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1,
     },
     folderMain: {
         flex: 1,
@@ -268,7 +283,6 @@ const styles = StyleSheet.create({
         flex: 1,
         height: '100%',
         justifyContent: 'center',
-        paddingBottom: getResponsiveSize(15),
     },
     folderName: {
         fontSize: getResponsiveFontSize(13),
@@ -277,12 +291,13 @@ const styles = StyleSheet.create({
         fontFamily: "Inter-SemiBold",
     },
     deleteBtn: {
-        padding: getResponsiveSize(8),
+        padding: getResponsiveSize(10),
+        marginLeft: getResponsiveSize(10),
     },
     deleteIcon: {
-        width: getResponsiveSize(18),
-        height: getResponsiveSize(18),
-        tintColor: "#9CA3AF",
+        width: getResponsiveSize(22),
+        height: getResponsiveSize(22),
+        tintColor: "#EF4444",
         resizeMode: 'contain',
     },
     fab: {
