@@ -134,15 +134,15 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor="#00664F" />
 
         <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {/* Background Section with Hand Image */}
-          <View style={styles.backgroundSection}>
+          <View style={styles.topSection}>
             <View style={styles.illustrationContainer}>
               <Image
                 source={require("../../assets/images/hand.png")}
@@ -160,7 +160,7 @@ export default function LoginScreen({ navigation }) {
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              <View style={styles.card}>
+              <View style={styles.cardContent}>
                 {/* Title */}
                 <Text style={styles.cardTitle}>
                   Login with Your <Text style={styles.roleHighlight}>Role</Text>
@@ -287,49 +287,42 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1
   },
-  backgroundSection: {
-    flex: 1,
-    position: "relative",
+  topSection: {
+    height: height * 0.35,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: height * 0.35
+    width: "100%",
+    backgroundColor: "#00664F"
   },
   illustrationContainer: {
-    position: "absolute",
-    top: height * 0.02,
-    left: 0,
-    right: 0,
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
     alignItems: "center",
-    zIndex: 2
+    paddingTop: 20
   },
   handImage: {
-    width: Math.min(width * 0.95, 850),
-    height: Math.min(height * 0.55, 800),
-    maxWidth: 650,
-    maxHeight: 600
+    width: width * 0.8,
+    height: "90%",
   },
   cardContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: Math.max(height * 0.65, 500),
-    zIndex: 3
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: getResponsiveSize(32),
+    borderTopRightRadius: getResponsiveSize(32),
+    overflow: "hidden"
   },
   scrollView: {
     flex: 1
   },
   scrollContent: {
-    flexGrow: 1
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: getResponsiveSize(32),
-    borderTopRightRadius: getResponsiveSize(32),
+    flexGrow: 1,
     paddingHorizontal: Math.max(width * 0.06, 20),
     paddingTop: getResponsiveSize(32),
-    paddingBottom: getResponsiveSize(40),
-    minHeight: Math.max(height * 0.65, 500)
+    paddingBottom: getResponsiveSize(40)
+  },
+  cardContent: {
+    // Wrapper for content inside scrollview if needed
   },
   cardTitle: {
     fontSize: getResponsiveFontSize(26),
