@@ -399,18 +399,6 @@ export default function EmployeeChatScreen({ navigation }) {
             <Text style={styles.noMessages}>No messages yet</Text>
           )}
         </View>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => {
-            // Placeholder for menu
-            console.log("Menu clicked");
-          }}
-        >
-          <Image
-            source={require("../../assets/images/three-dot.png")}
-            style={styles.menuIconImage}
-          />
-        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
