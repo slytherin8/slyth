@@ -59,8 +59,8 @@ router.post("/groups", auth, adminOnly, async (req, res) => {
     });
 
     const populatedGroup = await Group.findById(group._id)
-      .populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
-      .populate("createdBy", "profile.name");
+      .populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen")
+      .populate("createdBy", "name profile.name");
 
     res.status(201).json({
       message: "Group created successfully",
@@ -82,8 +82,8 @@ router.get("/groups", auth, async (req, res) => {
       companyId: req.user.companyId,
       isActive: true
     })
-      .populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
-      .populate("createdBy", "profile.name")
+      .populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen")
+      .populate("createdBy", "name profile.name")
       .sort({ lastActivity: -1 });
 
     // Get last message for each group and calculate unread count
@@ -145,7 +145,7 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
       groupId,
       isDeleted: false
     })
-      .populate("senderId", "profile.name profile.avatar role")
+      .populate("senderId", "name profile.name profile.avatar role")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -235,7 +235,7 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
     );
 
     const populatedMessage = await Message.findById(message._id)
-      .populate("senderId", "profile.name profile.avatar role");
+      .populate("senderId", "name profile.name profile.avatar role");
 
     console.log("Populated message:", populatedMessage);
 
@@ -284,7 +284,7 @@ router.get("/employees", auth, async (req, res) => {
     // Return all users in the company so they can chat with each other
     const users = await User.find({
       companyId: req.user.companyId
-    }).select("profile.name profile.avatar email role isActive profileCompleted");
+    }).select("name profile.name profile.avatar email role isActive profileCompleted");
 
     res.json(users);
   } catch (error) {
@@ -305,8 +305,8 @@ router.get("/groups/:groupId", auth, async (req, res) => {
       "members.userId": req.user.id,
       companyId: req.user.companyId
     })
-      .populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
-      .populate("createdBy", "profile.name");
+      .populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen")
+      .populate("createdBy", "name profile.name");
 
     if (!group) {
       return res.status(403).json({ message: "Access denied to this group" });
@@ -426,8 +426,8 @@ router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
         lastActivity: new Date()
       },
       { new: true }
-    ).populate("members.userId", "profile.name profile.avatar email role isOnline lastSeen")
-      .populate("createdBy", "profile.name");
+    ).populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen")
+      .populate("createdBy", "name profile.name");
 
     // Filter nulls just in case
     if (updatedGroup.members) {
@@ -520,7 +520,7 @@ router.post("/groups/:groupId/leave", auth, async (req, res) => {
     });
 
     const populatedMessage = await Message.findById(systemMessage._id)
-      .populate("senderId", "profile.name profile.avatar role");
+      .populate("senderId", "name profile.name profile.avatar role");
 
     // Emit real-time updates and notifications to remaining group members
     const io = req.app.get("io");
