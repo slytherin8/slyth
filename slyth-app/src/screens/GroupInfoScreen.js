@@ -27,6 +27,9 @@ export default function GroupInfoScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [groupInfo, setGroupInfo] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchGroupInfo();
@@ -38,10 +41,32 @@ export default function GroupInfoScreen({ route, navigation }) {
       const token = await AsyncStorage.getItem("token");
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        setIsAdmin(payload.role === 'admin');
+        const adminStatus = payload.role === 'admin';
+        setIsAdmin(adminStatus);
+
+        if (adminStatus) {
+          fetchEmployees();
+        }
       }
     } catch (error) {
       console.log("Token decode error:", error);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API}/api/chat/employees`, {
+        method: "GET",
+        headers
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setEmployees(data);
+      }
+    } catch (error) {
+      console.log("Failed to fetch employees:", error);
     }
   };
 
@@ -56,6 +81,7 @@ export default function GroupInfoScreen({ route, navigation }) {
       const data = await response.json();
       if (response.ok) {
         setGroupInfo(data);
+        setSelectedMembers(data.members?.map(m => m.userId._id) || []);
       } else {
         Alert.alert("Error", "Failed to fetch group information");
       }
@@ -66,7 +92,52 @@ export default function GroupInfoScreen({ route, navigation }) {
     }
   };
 
+  const toggleMemberSelection = (employeeId) => {
+    if (!isAdmin) return;
+
+    setSelectedMembers(prev =>
+      prev.includes(employeeId)
+        ? prev.filter(id => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
+
+  const handleUpdateMembers = async () => {
+    if (selectedMembers.length === 0) {
+      Alert.alert("Error", "Group must have at least one member");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          name: groupInfo.name,
+          description: groupInfo.description || "",
+          profilePhoto: groupInfo.profilePhoto,
+          memberIds: selectedMembers
+        })
+      });
+
+      if (response.ok) {
+        Alert.alert("Success", "Group members updated successfully");
+        fetchGroupInfo();
+      } else {
+        const data = await response.json();
+        Alert.alert("Error", data.message || "Failed to update members");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Check your connection and try again");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -98,6 +169,10 @@ export default function GroupInfoScreen({ route, navigation }) {
     );
   }
 
+  // Determine which list to show
+  const displayList = isAdmin ? employees : groupInfo.members.map(m => m.userId);
+  const currentMemberIds = groupInfo.members.map(m => m.userId._id);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -108,6 +183,20 @@ export default function GroupInfoScreen({ route, navigation }) {
         >
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
+
+        {isAdmin && (
+          <TouchableOpacity
+            style={[styles.saveButtonHeader, isSubmitting && styles.disabledButton]}
+            onPress={handleUpdateMembers}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#00664F" />
+            ) : (
+              <Text style={styles.saveButtonHeaderText}>Save Changes</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -130,14 +219,14 @@ export default function GroupInfoScreen({ route, navigation }) {
 
           <Text style={styles.groupName}>{groupInfo.name}</Text>
 
-          {groupInfo.description && (
-            <Text style={styles.groupDescription}>{groupInfo.description}</Text>
-          )}
+          <Text style={[styles.groupDescription, !groupInfo.description && styles.emptyDescription]}>
+            {groupInfo.description || "No description provided"}
+          </Text>
         </View>
 
         {/* Group Info Section */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>Group Info</Text>
+          <Text style={styles.infoCardTitle}>Group Statistics</Text>
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Created</Text>
@@ -146,51 +235,92 @@ export default function GroupInfoScreen({ route, navigation }) {
             </Text>
           </View>
 
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Members</Text>
+            <Text style={styles.infoValue}>{groupInfo.members?.length || 0}</Text>
+          </View>
+
           <View style={[styles.infoRow, { paddingBottom: 0 }]}>
             <Text style={styles.infoLabel}>Created By</Text>
             <Text style={styles.infoValue}>
-              {groupInfo.createdBy?.profile?.name || "Unknown"}
+              {groupInfo.createdBy?.profile?.name || "Admin"}
             </Text>
           </View>
         </View>
 
         {/* Members Section */}
         <View style={styles.membersSection}>
-          <Text style={styles.membersTitle}>Members</Text>
+          <View style={styles.membersHeader}>
+            <Text style={styles.membersTitle}>
+              {isAdmin ? "Manage Members" : "Group Members"}
+            </Text>
+            {isAdmin && (
+              <Text style={styles.selectionCount}>
+                {selectedMembers.length} selected
+              </Text>
+            )}
+          </View>
 
-          {groupInfo.members?.map((member, index) => (
-            <View key={member.userId._id} style={styles.memberItemContainer}>
-              <View style={styles.memberRow}>
-                <View style={styles.memberAvatar}>
-                  {member.userId.profile?.avatar ? (
-                    <Image
-                      source={{ uri: member.userId.profile.avatar }}
-                      style={styles.memberAvatarImage}
-                    />
-                  ) : (
-                    <View style={styles.memberAvatarPlaceholder}>
-                      <Text style={styles.memberAvatarText}>
-                        {member.userId.profile?.name?.charAt(0)?.toUpperCase() || "?"}
+          {displayList.map((item, index) => {
+            const memberId = item._id;
+            const isSelected = selectedMembers.includes(memberId);
+            const isActuallyMember = currentMemberIds.includes(memberId);
+
+            return (
+              <TouchableOpacity
+                key={memberId}
+                style={[
+                  styles.memberItemContainer,
+                  isAdmin && isSelected && styles.selectedMemberItem
+                ]}
+                onPress={() => isAdmin && toggleMemberSelection(memberId)}
+                disabled={!isAdmin}
+              >
+                <View style={styles.memberRow}>
+                  <View style={styles.memberAvatar}>
+                    {item.profile?.avatar ? (
+                      <Image
+                        source={{ uri: item.profile.avatar }}
+                        style={styles.memberAvatarImage}
+                      />
+                    ) : (
+                      <View style={styles.memberAvatarPlaceholder}>
+                        <Text style={styles.memberAvatarText}>
+                          {item.profile?.name?.charAt(0)?.toUpperCase() || "?"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberName}>
+                      {item.profile?.name || "No Name"}
+                    </Text>
+                    <Text style={styles.memberRole}>
+                      {item.role === 'admin' ? 'Admin' : 'Employee'}
+                    </Text>
+                    {isActuallyMember && !isAdmin && (
+                      <Text style={styles.memberJoined}>
+                        Already in group
                       </Text>
+                    )}
+                  </View>
+
+                  {isAdmin && (
+                    <View style={[
+                      styles.checkbox,
+                      isSelected && styles.checkedBox
+                    ]}>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={16} color="#fff" />
+                      )}
                     </View>
                   )}
                 </View>
-
-                <View style={styles.memberInfo}>
-                  <Text style={styles.memberName}>
-                    {member.userId.profile?.name || "No Name"}
-                  </Text>
-                  <Text style={styles.memberRole}>
-                    {member.userId.role === 'admin' ? 'Admin' : 'Employee'}
-                  </Text>
-                  <Text style={styles.memberJoined}>
-                    Joined {formatDate(member.joinedAt)}
-                  </Text>
-                </View>
-              </View>
-              {index < groupInfo.members.length - 1 && <View style={styles.divider} />}
-            </View>
-          ))}
+                {index < displayList.length - 1 && <View style={styles.divider} />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Action Buttons */}
@@ -221,6 +351,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff"
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 10,
@@ -237,6 +370,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  saveButtonHeader: {
+    backgroundColor: "#E6F4F1",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#00664F"
+  },
+  saveButtonHeaderText: {
+    color: "#00664F",
+    fontWeight: "700",
+    fontSize: 14
+  },
+  disabledButton: {
+    opacity: 0.5
   },
   profileSection: {
     alignItems: "center",
@@ -288,6 +437,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: 20
   },
+  emptyDescription: {
+    fontStyle: "italic",
+    color: "#9CA3AF"
+  },
   infoCard: {
     backgroundColor: "#F9FAFB",
     marginHorizontal: 20,
@@ -321,43 +474,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40
   },
+  membersHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20
+  },
   membersTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111827",
-    marginBottom: 20
+    color: "#111827"
+  },
+  selectionCount: {
+    fontSize: 14,
+    color: "#00664F",
+    fontWeight: "600"
   },
   memberItemContainer: {
-    marginBottom: 16
+    borderRadius: 12,
+    marginBottom: 4
+  },
+  selectedMemberItem: {
+    backgroundColor: "#F0FDF4"
   },
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingBottom: 16
+    padding: 12
   },
   memberAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "#FDE68A",
     marginRight: 16,
     justifyContent: "center",
     alignItems: "center"
   },
   memberAvatarImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30
+    width: 50,
+    height: 50,
+    borderRadius: 25
   },
   memberAvatarPlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: "center",
     alignItems: "center"
   },
   memberAvatarText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "700",
     color: "#D97706"
   },
@@ -371,19 +538,34 @@ const styles = StyleSheet.create({
     marginBottom: 2
   },
   memberRole: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6B7280",
-    marginBottom: 2,
     fontWeight: "500"
   },
   memberJoined: {
-    fontSize: 12,
-    color: "#9CA3AF"
+    fontSize: 11,
+    color: "#10B981",
+    fontWeight: "600"
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff"
+  },
+  checkedBox: {
+    backgroundColor: "#00664F",
+    borderColor: "#00664F"
   },
   divider: {
     height: 1,
     backgroundColor: "#F3F4F6",
-    marginLeft: 76
+    marginLeft: 66,
+    marginVertical: 4
   },
   loadingContainer: {
     flex: 1,
@@ -442,3 +624,4 @@ const styles = StyleSheet.create({
     marginLeft: 8
   }
 });
+
