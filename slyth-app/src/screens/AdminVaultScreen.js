@@ -216,12 +216,14 @@ const AdminVaultScreen = ({ navigation, route }) => {
                 <Modal visible={showActionModal} transparent animationType="fade">
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalCard}>
-                            <Text style={[styles.modalLabel, { fontSize: 18, fontWeight: '700', color: '#111827', alignSelf: 'center', marginBottom: 20 }]}>
-                                What would you like to do?
-                            </Text>
+                            <View style={[styles.modalIconBox, { backgroundColor: '#00664F' }]}>
+                                <Ionicons name="add-circle-outline" size={32} color="#FFFFFF" />
+                            </View>
+
+                            <Text style={[styles.modalTitle, { marginBottom: 20 }]}>Choose Action</Text>
 
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12 }]}
+                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12, width: '100%' }]}
                                 onPress={() => {
                                     setShowActionModal(false);
                                     setTimeout(() => handleUpload(), 300);
@@ -232,7 +234,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12, backgroundColor: '#1D4ED8' }]}
+                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12, width: '100%', backgroundColor: '#00664F' }]}
                                 onPress={() => {
                                     setShowActionModal(false);
                                     setTimeout(() => setShowFolderModal(true), 300);
@@ -243,7 +245,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.cancelBtn]}
+                                style={[styles.modalBtn, styles.cancelBtn, { width: '100%' }]}
                                 onPress={() => setShowActionModal(false)}
                             >
                                 <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -257,7 +259,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalCard}>
                             <View style={styles.modalIconBox}>
-                                <Ionicons name="folder-outline" size={32} color="#FFFFFF" />
+                                <Ionicons name="folder" size={32} color="#FFFFFF" />
                             </View>
 
                             <Text style={styles.modalLabel}>Enter Folder Name</Text>
@@ -265,6 +267,8 @@ const AdminVaultScreen = ({ navigation, route }) => {
                                 style={styles.modalInput}
                                 value={newFolderName}
                                 onChangeText={setNewFolderName}
+                                placeholder="Folder Name"
+                                placeholderTextColor="#9CA3AF"
                                 autoFocus
                             />
 
@@ -292,14 +296,12 @@ const AdminVaultScreen = ({ navigation, route }) => {
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalCard}>
                             <View style={[styles.modalIconBox, { backgroundColor: '#FEE2E2' }]}>
-                                <Ionicons name="trash-outline" size={32} color="#EF4444" />
+                                <Ionicons name="trash" size={32} color="#EF4444" />
                             </View>
 
-                            <Text style={[styles.modalLabel, { color: '#000', fontSize: 18, fontWeight: '600', alignSelf: 'center', marginBottom: 5 }]}>
-                                Delete Item?
-                            </Text>
+                            <Text style={styles.modalTitleText}>Delete Item?</Text>
 
-                            <Text style={{ textAlign: 'center', color: '#666', marginBottom: 20 }}>
+                            <Text style={styles.modalSubText}>
                                 Are you sure you want to delete "{itemToDelete?.name || itemToDelete?.originalName}"?
                             </Text>
 
@@ -325,7 +327,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
                 {uploading && (
                     <View style={styles.loadingOverlay}>
                         <ActivityIndicator color="#FFFFFF" size="large" />
-                        <Text style={styles.loadingText}>Encrypting...</Text>
+                        <Text style={styles.loadingText}>Encrypting & Uploading...</Text>
                     </View>
                 )}
             </View>
@@ -342,14 +344,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: "#FFFFFF",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 12,
         justifyContent: "space-between",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1
+        shadowRadius: 4,
+        elevation: 2
     },
     cardContent: {
         flexDirection: "row",
@@ -357,95 +359,117 @@ const styles = StyleSheet.create({
         flex: 1
     },
     iconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         justifyContent: "center",
         alignItems: "center",
         marginRight: 12
     },
-    folderIconBox: { backgroundColor: "#E5F3F0" }, // Light green
-    fileIconBox: { backgroundColor: "#E5F3F0" },
+    folderIconBox: { backgroundColor: "#E5F3F0" },
+    fileIconBox: { backgroundColor: "#F3F4F6" },
     itemName: {
         fontSize: 16,
-        fontWeight: "500",
+        fontWeight: "600",
         color: "#1F2937",
         flex: 1
     },
     actions: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 12
+        gap: 8
     },
-    actionBtn: { padding: 4 },
-    emptyState: { alignItems: "center", marginTop: 50 },
-    emptyText: { color: "#9CA3AF" },
+    actionBtn: {
+        padding: 8,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 10
+    },
+    emptyState: { alignItems: "center", marginTop: 100 },
+    emptyText: { color: "#9CA3AF", fontSize: 16 },
 
     fab: {
         position: "absolute",
-        right: 20,
-        bottom: 130, // Moved higher as requested
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        right: 25,
+        bottom: 130, // Elevated to stay above the AppLayout bottom navigation
+        width: 65,
+        height: 65,
+        borderRadius: 32.5,
         backgroundColor: "#00664F",
         justifyContent: "center",
         alignItems: "center",
-        elevation: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        elevation: 10,
+        shadowColor: "#00664F",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
         zIndex: 999
     },
 
     // Modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(255, 255, 255, 0.8)", // Blurred effect simulation
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
         justifyContent: "center",
         alignItems: "center",
         padding: 20
     },
     modalCard: {
         width: "100%",
-        maxWidth: 340,
+        maxWidth: 320,
         backgroundColor: "#FFFFFF",
-        borderRadius: 24,
-        padding: 24,
+        borderRadius: 35,
+        padding: 30,
         alignItems: "center",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
-        borderWidth: 1,
-        borderColor: "#E5E7EB"
+        shadowOffset: { width: 0, height: 15 },
+        shadowOpacity: 0.15,
+        shadowRadius: 30,
+        elevation: 20
     },
     modalIconBox: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 80,
+        height: 80,
+        borderRadius: 40,
         backgroundColor: "#00664F",
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 20
     },
-    modalLabel: {
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#111827"
+    },
+    modalTitleText: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 10
+    },
+    modalSubText: {
         fontSize: 14,
-        color: "#4B5563",
-        marginBottom: 8,
-        alignSelf: "flex-start",
-        width: "100%"
+        color: "#6B7280",
+        textAlign: "center",
+        marginBottom: 25,
+        lineHeight: 20
+    },
+    modalLabel: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#374151",
+        marginBottom: 12,
+        alignSelf: "flex-start"
     },
     modalInput: {
         width: "100%",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 24,
-        fontSize: 16
+        borderWidth: 1.5,
+        borderColor: "#F3F4F6",
+        borderRadius: 18,
+        padding: 15,
+        marginBottom: 30,
+        fontSize: 16,
+        color: "#111827",
+        backgroundColor: "#F9FAFB"
     },
     modalButtons: {
         flexDirection: "row",
@@ -455,23 +479,25 @@ const styles = StyleSheet.create({
     modalBtn: {
         flex: 1,
         flexDirection: "row",
-        paddingVertical: 14,
-        borderRadius: 24,
+        paddingVertical: 16,
+        borderRadius: 30,
         alignItems: "center",
         justifyContent: "center",
     },
     createBtn: { backgroundColor: "#00664F" },
-    cancelBtn: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E5E7EB" },
-    createBtnText: { color: "#FFFFFF", fontWeight: "600" },
-    cancelBtnText: { color: "#4B5563", fontWeight: "600" },
+    cancelBtn: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#F3F4F6" },
+    createBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 16 },
+    cancelBtnText: { color: "#6B7280", fontWeight: "700", fontSize: 16 },
 
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: "rgba(0,0,0,0.5)",
+        backgroundColor: "rgba(0,0,0,0.7)",
         justifyContent: "center",
-        alignItems: "center"
+        alignItems: "center",
+        zIndex: 10000
     },
-    loadingText: { color: "#FFFFFF", marginTop: 12 }
+    loadingText: { color: "#FFFFFF", marginTop: 15, fontSize: 16, fontWeight: '600' }
 });
 
 export default AdminVaultScreen;
+
