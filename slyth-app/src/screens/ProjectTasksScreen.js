@@ -34,8 +34,9 @@ const getResponsiveFontSize = (size) => {
 };
 
 export default function ProjectTasksScreen({ navigation, route }) {
-    const { project, employee } = route.params;
-    const role = (route.params.role || "").toLowerCase();
+    const params = route.params || {};
+    const { project, employee } = params;
+    const role = (params.role || "").toLowerCase();
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(false);
     const showLoader = useSmartLoader(loading);
@@ -56,7 +57,7 @@ export default function ProjectTasksScreen({ navigation, route }) {
             ? workService.onAdminWorkUpdate(({ type, data }) => {
                 if (type === "TASK_UPDATED" && data.projectId === project._id) {
                     setTasks(prev => prev.map(t => t._id === data._id ? data : t));
-                } else if (type === "TASK_DELETED" && tasks.some(t => t._id === data.taskId)) {
+                } else if (type === "TASK_DELETED") {
                     setTasks(prev => prev.filter(t => t._id !== data.taskId));
                 } else if (type === "TASK_CREATED" && data.projectId === project._id) {
                     fetchTasks(); // Fetch fresh to get current list
@@ -67,7 +68,7 @@ export default function ProjectTasksScreen({ navigation, route }) {
                     setTasks(prev => [data, ...prev]);
                 } else if (type === "TASK_UPDATED" && data.projectId === project._id) {
                     setTasks(prev => prev.map(t => t._id === data._id ? data : t));
-                } else if (type === "TASK_DELETED" && tasks.some(t => t._id === data.taskId)) {
+                } else if (type === "TASK_DELETED") {
                     setTasks(prev => prev.filter(t => t._id !== data.taskId));
                 }
             });
@@ -94,21 +95,35 @@ export default function ProjectTasksScreen({ navigation, route }) {
     };
 
     const handleCreateTask = async () => {
-        if (!newTaskTitle.trim()) return;
+        if (!newTaskTitle.trim()) {
+            Alert.alert("Error", "Please enter a task title");
+            return;
+        }
+
+        if (!project?._id || !employee?._id) {
+            Alert.alert("Error", "Missing project or employee context");
+            return;
+        }
 
         setLoading(true);
         try {
-            await workService.createTask({
-                title: newTaskTitle,
+            const taskData = {
+                title: newTaskTitle.trim(),
                 projectId: project._id,
                 employeeId: employee._id,
-                attachment
-            });
+                attachment: attachment // attachment is already null or base64 string
+            };
+
+            await workService.createTask(taskData);
+
+            // Success cleanup
             setNewTaskTitle("");
             setAttachment(null);
+
+            // Fetch updated list to ensure state is perfectly synced
             fetchTasks();
         } catch (error) {
-            console.log("Create task error:", error);
+            console.error("Create task error details:", error.response?.data || error.message);
             Alert.alert("Error", "Failed to create task: " + (error.response?.data?.message || error.message));
         } finally {
             setLoading(false);
@@ -173,15 +188,15 @@ export default function ProjectTasksScreen({ navigation, route }) {
     };
 
     const handleDeleteTask = async (taskId) => {
-        // Logic check moved to backend as well, but UI check here
         const task = tasks.find(t => t._id === taskId);
         if (!task) return;
 
+        // Backend also enforces this, but UI check for immediate feedback
         const isAdmin = role === "admin";
         const isCompleted = task.status === "Completed";
 
         if (!isAdmin && !isCompleted) {
-            Alert.alert("Action Not Allowed", "You can only delete completed tasks.");
+            Alert.alert("Action Not Allowed", "You can only delete completed tasks assigned to you.");
             return;
         }
 
@@ -194,16 +209,17 @@ export default function ProjectTasksScreen({ navigation, route }) {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
-                        // Optimistic update
+                        // Optimistic UI update
                         const previousTasks = [...tasks];
                         setTasks(prev => prev.filter(t => t._id !== taskId));
 
                         try {
                             await workService.deleteTask(taskId);
                         } catch (error) {
-                            // Revert on failure
+                            // Revert if API fails
                             setTasks(previousTasks);
-                            Alert.alert("Error", "Failed to delete task: " + (error.response?.data?.message || error.message));
+                            const msg = error.response?.data?.message || error.message;
+                            Alert.alert("Error", "Failed to delete task: " + msg);
                         }
                     }
                 }
@@ -216,6 +232,19 @@ export default function ProjectTasksScreen({ navigation, route }) {
         updating: tasks.filter(t => t.status === "Updating"),
         completed: tasks.filter(t => t.status === "Completed")
     }), [tasks]);
+
+    if (!project || !employee) {
+        return (
+            <AppLayout navigation={navigation} title="Error">
+                <View style={styles.container}>
+                    <Text style={{ textAlign: 'center', marginTop: 50 }}>Invalid project or employee data</Text>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'center', marginTop: 20 }}>
+                        <Text style={{ color: '#00664F' }}>Go Back</Text>
+                    </TouchableOpacity>
+                </View>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout
@@ -261,7 +290,12 @@ export default function ProjectTasksScreen({ navigation, route }) {
                                     )}
                                 </View>
                             </View>
-                            <TouchableOpacity style={styles.sendBtn} onPress={handleCreateTask}>
+                            <TouchableOpacity
+                                style={styles.sendBtn}
+                                onPress={handleCreateTask}
+                                activeOpacity={0.7}
+                                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                            >
                                 <Image
                                     source={require("../../assets/images/send.png")}
                                     style={styles.sendIcon}
