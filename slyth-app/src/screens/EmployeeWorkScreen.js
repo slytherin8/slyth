@@ -42,7 +42,15 @@ export default function EmployeeWorkScreen({ navigation }) {
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    initializeScreen();
+    let socketCleanup;
+    const setup = async () => {
+      socketCleanup = await initializeScreen();
+    };
+    setup();
+
+    return () => {
+      if (typeof socketCleanup === 'function') socketCleanup();
+    };
   }, []);
 
   useFocusEffect(
@@ -61,6 +69,17 @@ export default function EmployeeWorkScreen({ navigation }) {
       workService.joinRoom(payload.id);
       await fetchProjects(payload.id);
       await fetchProfile();
+
+      // Socket listener for real-time updates
+      const cleanup = workService.onWorkUpdate(({ type, data }) => {
+        if (type === "PROJECT_CREATED") {
+          setProjects(prev => [data, ...prev]);
+        } else if (type === "PROJECT_DELETED") {
+          setProjects(prev => prev.filter(p => p._id !== data.projectId));
+        }
+      });
+
+      return cleanup;
     } catch (e) {
       console.error("Auth error:", e);
     }
