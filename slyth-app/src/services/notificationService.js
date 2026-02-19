@@ -39,11 +39,21 @@ class NotificationService {
             return null;
         }
 
+        if (Platform.OS === 'web') {
+            console.log('Push notifications are not configured for web yet.');
+            return null;
+        }
+
         // Get the token
-        const tokenData = await Notifications.getExpoPushTokenAsync({
-            projectId: 'your-project-id', // Replace with your actual project ID from app.json if you have one
-        });
-        this.token = tokenData.data;
+        try {
+            const tokenData = await Notifications.getExpoPushTokenAsync({
+                projectId: 'your-project-id', // Replace with your actual project ID from app.json if you have one
+            });
+            this.token = tokenData.data;
+        } catch (error) {
+            console.log('Error getting push token:', error);
+            return null;
+        }
 
         if (Platform.OS === 'android') {
             Notifications.setNotificationChannelAsync('default', {
