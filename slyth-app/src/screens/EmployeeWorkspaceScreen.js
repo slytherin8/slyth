@@ -41,12 +41,23 @@ export default function EmployeeWorkspaceScreen({ navigation, route }) {
 
     useEffect(() => {
         fetchProjects();
-    }, []);
+
+        // Socket listener for real-time updates
+        const cleanup = workService.onAdminWorkUpdate(({ type, data }) => {
+            if (type === "PROJECT_CREATED" && data.employeeId === employee._id) {
+                setProjects(prev => [data, ...prev]);
+            } else if (type === "PROJECT_DELETED") {
+                setProjects(prev => prev.filter(p => p._id !== data.projectId));
+            }
+        });
+
+        return cleanup;
+    }, [employee._id]);
 
     useFocusEffect(
         useCallback(() => {
             fetchProjects();
-        }, [])
+        }, [employee._id])
     );
 
     const fetchProjects = async () => {
@@ -90,14 +101,17 @@ export default function EmployeeWorkspaceScreen({ navigation, route }) {
                     onPress: async () => {
                         // Optimistic update
                         const previousProjects = [...projects];
-                        setProjects(prev => prev.filter(p => p._id !== projectId));
+                        const projectIdToDelete = projectId; // Closure safety
+
+                        setProjects(prev => prev.filter(p => p._id !== projectIdToDelete));
 
                         try {
-                            await workService.deleteProject(projectId);
+                            await workService.deleteProject(projectIdToDelete);
                         } catch (error) {
                             // Revert on failure
                             setProjects(previousProjects);
-                            Alert.alert("Error", "Failed to delete folder: " + (error.response?.data?.message || error.message));
+                            const errorMessage = error.response?.data?.message || error.message;
+                            Alert.alert("Error", "Failed to delete folder: " + errorMessage);
                         }
                     }
                 }
