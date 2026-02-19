@@ -24,6 +24,8 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import socketService from '../services/socketService';
 import AppLayout from "../components/AppLayout";
 
@@ -58,18 +60,18 @@ const SwipeableMessage = ({ children, onSwipe, isMyMessage }) => {
         return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
       },
       onPanResponderMove: (evt, gestureState) => {
-        // Drag limit
-        const dragValue = isMyMessage ? Math.min(0, gestureState.dx) : Math.max(0, gestureState.dx);
+        // Drag limit - Swapped so Sender swipes RIGHT and Receiver swipes LEFT
+        const dragValue = isMyMessage ? Math.max(0, gestureState.dx) : Math.min(0, gestureState.dx);
         const limit = 70;
         const clampedDrag = isMyMessage
-          ? Math.max(-limit, dragValue)
-          : Math.min(limit, dragValue);
+          ? Math.min(limit, dragValue)
+          : Math.max(-limit, dragValue);
 
         translateX.setValue(clampedDrag);
       },
       onPanResponderRelease: (evt, gestureState) => {
         const threshold = 50;
-        const swiped = isMyMessage ? gestureState.dx < -threshold : gestureState.dx > threshold;
+        const swiped = isMyMessage ? gestureState.dx > threshold : gestureState.dx < -threshold;
 
         if (swiped) {
           onSwipe();
@@ -91,20 +93,20 @@ const SwipeableMessage = ({ children, onSwipe, isMyMessage }) => {
       <Animated.View style={{
         position: 'absolute',
         top: '50%',
-        [isMyMessage ? 'right' : 'left']: 10,
+        [isMyMessage ? 'left' : 'right']: 14,
         transform: [
           { translateY: -12 },
           {
             scale: translateX.interpolate({
-              inputRange: isMyMessage ? [-70, 0] : [0, 70],
-              outputRange: [1, 0.5],
+              inputRange: isMyMessage ? [0, 70] : [-70, 0],
+              outputRange: [0.5, 1],
               extrapolate: 'clamp'
             })
           }
         ],
         opacity: translateX.interpolate({
-          inputRange: isMyMessage ? [-50, -20, 0] : [0, 20, 50],
-          outputRange: [1, 0.5, 0],
+          inputRange: isMyMessage ? [0, 20, 50] : [-50, -20, 0],
+          outputRange: [0, 0.5, 1],
           extrapolate: 'clamp'
         })
       }}>
@@ -561,12 +563,31 @@ export default function DirectChatScreen({ route, navigation }) {
           Alert.alert("Error", "File data not available for download");
         }
       } else {
+        // For mobile
         if (fileData.data) {
-          Alert.alert(
-            "📎 " + (fileData.name || "File"),
-            `Size: ${fileData.size ? `${(fileData.size / 1024).toFixed(1)} KB` : "Unknown"}\nType: ${fileData.type || "Unknown"}\n\nFile contains data and can be processed.`,
-            [{ text: "OK", style: "default" }]
-          );
+          const fileName = fileData.name || 'document.pdf';
+          const base64Data = fileData.data.includes('base64,')
+            ? fileData.data.split('base64,')[1]
+            : fileData.data;
+
+          const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri);
+          } else {
+            Alert.alert("Error", "Sharing is not available on this device");
+          }
+        } else if (fileData.uri) {
+          // If fileData contains a direct URI (e.g., from a server)
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileData.uri);
+          } else {
+            Alert.alert("Error", "Sharing is not available on this device");
+          }
         } else {
           Alert.alert("Error", "File data not available");
         }
