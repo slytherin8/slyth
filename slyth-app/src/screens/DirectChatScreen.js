@@ -729,8 +729,16 @@ export default function DirectChatScreen({ route, navigation }) {
 
   const getDisplayName = () => {
     if (route.params.userRole === 'admin') return companyInfo.name || "Admin";
-    const name = fetchedUser?.profile?.name || fetchedUser?.name || userName;
-    return name && name !== "Unknown" ? name : "Employee";
+
+    // Prioritize fetched data from full record
+    const fullName = fetchedUser?.profile?.name || fetchedUser?.name;
+    if (fullName && fullName !== "Unknown" && fullName !== "Employee") return fullName;
+
+    // Fallback to route params if they are valid
+    if (userName && userName !== "Unknown" && userName !== "Employee") return userName;
+
+    // Last resort fallbacks
+    return fetchedUser?.email?.split('@')[0] || route.params.userEmail?.split('@')[0] || "Member";
   };
 
   return (
