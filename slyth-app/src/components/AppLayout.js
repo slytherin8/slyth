@@ -104,6 +104,7 @@ export default function AppLayout({
     }
   };
 
+
   return (
     <View style={styles.container}>
       {/* 🔝 TOP BAR */}
