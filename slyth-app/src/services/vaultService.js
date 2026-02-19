@@ -47,7 +47,6 @@ export const vaultService = {
 
     if (Platform.OS === "web") {
       // On web, expo-document-picker returns asset.file as a native File object
-      // If not available, fetch the blob from the URI
       let fileData = file.file;
       if (!fileData && file.uri) {
         const response = await fetch(file.uri);
@@ -58,7 +57,9 @@ export const vaultService = {
         throw new Error("Could not get file data for upload");
       }
       formData.append("file", fileData);
-      if (folderId) formData.append("folderId", folderId);
+      if (folderId && folderId !== "undefined" && folderId !== "null") {
+        formData.append("folderId", folderId);
+      }
 
       // Use fetch directly on web for correct multipart/form-data handling
       const AsyncStorage = (await import("../utils/storage")).default;
@@ -68,7 +69,6 @@ export const vaultService = {
       const res = await fetch(`${API}/api/vault/files`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        // Do NOT set Content-Type — browser sets it with boundary automatically
         body: formData,
       });
 
@@ -80,15 +80,26 @@ export const vaultService = {
 
     } else {
       // Mobile: use axios with uri/type/name
-      formData.append("file", {
+      // Note: Do NOT set Content-Type header manually, axios+FormData handles it with correct boundaries
+      const fileToUpload = {
         uri: file.uri,
         type: file.mimeType || "application/octet-stream",
-        name: file.name || "upload",
-      });
-      if (folderId) formData.append("folderId", folderId);
+        name: file.name || `upload_${Date.now()}`,
+      };
+
+      formData.append("file", fileToUpload);
+
+      if (folderId && folderId !== "undefined" && folderId !== "null") {
+        formData.append("folderId", folderId);
+      }
 
       const res = await api.post("/vault/files", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          'Accept': 'application/json',
+        },
+        transformRequest: (data, headers) => {
+          return data; // Prevents axios from stringifying the FormData
+        },
       });
       return res.data;
     }
