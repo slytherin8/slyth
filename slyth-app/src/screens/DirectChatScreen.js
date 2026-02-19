@@ -17,7 +17,8 @@ import {
   Linking,
   Pressable,
   PanResponder,
-  Animated
+  Animated,
+  ScrollView
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
@@ -135,6 +136,8 @@ export default function DirectChatScreen({ route, navigation }) {
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [companyInfo, setCompanyInfo] = useState({ name: "", logo: "" });
+  const [fetchedUser, setFetchedUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(false);
   const flatListRef = useRef(null);
 
   useEffect(() => {
@@ -169,9 +172,26 @@ export default function DirectChatScreen({ route, navigation }) {
     const currentId = await getCurrentUserId();
     setCurrentUserId(currentId);
     fetchMessages();
+    fetchUserInfo(); // Fetch the real name/avatar
     markAsRead();
     if (route.params.userRole === 'admin') {
       fetchCompanyInfo();
+    }
+  };
+
+  const fetchUserInfo = async () => {
+    try {
+      setLoadingUser(true);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API}/api/auth/user/${userId}`, { headers });
+      const data = await res.json();
+      if (res.ok) {
+        setFetchedUser(data);
+      }
+    } catch (err) {
+      console.log("User fetch error:", err);
+    } finally {
+      setLoadingUser(false);
     }
   };
 
@@ -627,8 +647,8 @@ export default function DirectChatScreen({ route, navigation }) {
               onPress={() => showMessageActionSheet(item)}
             >
               <Image
-                source={require("../../assets/images/three-dot.png")}
-                style={styles.threeDotIcon}
+                source={require("../../assets/images/drop-down.png")}
+                style={styles.dropDownIcon}
               />
             </TouchableOpacity>
 
@@ -700,37 +720,23 @@ export default function DirectChatScreen({ route, navigation }) {
             </View>
           </Pressable>
 
-          {isMyMessage && (
-            <TouchableOpacity
-              style={[styles.senderAvatarContainer, { marginLeft: 8, marginRight: 0 }]}
-              onPress={() => {
-                // Showing current user profile or just ignoring for now as usually you don't view your own profile from a message bubble
-              }}
-            >
-              <View style={styles.senderAvatar}>
-                {item.senderId?.profile?.profileImage || item.senderId?.profile?.avatar ? (
-                  <Image
-                    source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <Text style={styles.avatarText}>
-                    {(item.senderId?.profile?.name || item.senderId?.name || "").charAt(0).toUpperCase()}
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
+
         </View>
       </SwipeableMessage>
     );
   };
 
 
+  const getDisplayName = () => {
+    if (route.params.userRole === 'admin') return companyInfo.name || "Admin";
+    const name = fetchedUser?.profile?.name || fetchedUser?.name || userName;
+    return name && name !== "Unknown" ? name : "Employee";
+  };
+
   return (
     <AppLayout
       navigation={navigation}
-      title={userName || "Chat"}
+      title={getDisplayName()}
       subtitle={route.params.userRole === 'admin' ? 'Admin' : 'Employee'}
       onBack={() => navigation.goBack()}
       onMenu={() => setShowChatMenu(true)}
@@ -787,7 +793,7 @@ export default function DirectChatScreen({ route, navigation }) {
             style={styles.uploadButton}
             onPress={pickDocument}
           >
-            <Image source={require("../../assets/images/pin.png")} style={styles.uploadIcon} />
+            <Image source={require("../../assets/images/upload_file.png")} style={styles.uploadIcon} />
           </TouchableOpacity>
 
           <View style={styles.inputWrapper}>
@@ -981,20 +987,28 @@ export default function DirectChatScreen({ route, navigation }) {
         {/* View Profile Modal */}
         <Modal
           visible={showProfileModal}
-          transparent={true}
+          transparent={false}
           animationType="slide"
           onRequestClose={() => setShowProfileModal(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.profileModal}>
+          <View style={[styles.container, { backgroundColor: '#fff' }]}>
+            {/* Header for Full Screen Modal */}
+            <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 60 : 40 }]}>
               <TouchableOpacity
-                style={styles.closeModalHeader}
                 onPress={() => setShowProfileModal(false)}
+                style={styles.backButton}
               >
-                <Ionicons name="close" size={28} color="#374151" />
+                <Image
+                  source={require("../../assets/images/back-arrow.png")}
+                  style={styles.backIcon}
+                />
               </TouchableOpacity>
+              <Text style={styles.headerTitle}>Profile Details</Text>
+              <View style={{ width: 44 }} />
+            </View>
 
-              <View style={styles.profileContent}>
+            <ScrollView contentContainerStyle={styles.profileContentScroll}>
+              <View style={styles.profileHeaderSection}>
                 <View style={styles.profileAvatarContainer}>
                   {route.params.userRole === 'admin' ? (
                     companyInfo.logo ? (
@@ -1005,41 +1019,69 @@ export default function DirectChatScreen({ route, navigation }) {
                       </View>
                     )
                   ) : (
-                    userAvatar ? (
-                      <Image source={{ uri: userAvatar }} style={styles.largeProfileAvatar} />
+                    (fetchedUser?.profile?.avatar || userAvatar) ? (
+                      <Image source={{ uri: fetchedUser?.profile?.avatar || userAvatar }} style={styles.largeProfileAvatar} />
                     ) : (
                       <View style={[styles.largeProfileAvatar, styles.avatarPlaceholder]}>
-                        <Text style={styles.largeAvatarText}>{userName?.charAt(0).toUpperCase()}</Text>
+                        <Text style={styles.largeAvatarText}>
+                          {getDisplayName().charAt(0).toUpperCase()}
+                        </Text>
                       </View>
                     )
                   )}
                 </View>
 
                 <Text style={styles.profileName}>
-                  {route.params.userRole === 'admin' ? (companyInfo.name || "Admin") : userName}
+                  {getDisplayName()}
                 </Text>
-
-                {route.params.userRole !== 'admin' && (
-                  <>
-                    <View style={styles.profileInfoItem}>
-                      <Ionicons name="briefcase-outline" size={20} color="#64748B" />
-                      <Text style={styles.profileInfoText}>Employee</Text>
-                    </View>
-                    <View style={styles.profileInfoItem}>
-                      <Ionicons name="mail-outline" size={20} color="#64748B" />
-                      <Text style={styles.profileInfoText}>{route.params.userEmail || "No email provided"}</Text>
-                    </View>
-                  </>
-                )}
+                <View style={styles.roleBadge}>
+                  <Text style={styles.roleBadgeText}>
+                    {route.params.userRole === 'admin' ? 'Company Administrator' : 'Project Member'}
+                  </Text>
+                </View>
               </View>
 
-              <TouchableOpacity
-                style={styles.doneButton}
-                onPress={() => setShowProfileModal(false)}
-              >
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.profileDetailsSection}>
+                <Text style={styles.sectionTitle}>Information</Text>
+
+                <View style={styles.profileInfoItem}>
+                  <View style={styles.infoIconBox}>
+                    <Ionicons name="person-outline" size={22} color="#00664F" />
+                  </View>
+                  <View>
+                    <Text style={styles.infoLabelText}>Full Name</Text>
+                    <Text style={styles.profileInfoText}>{getDisplayName()}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.profileInfoItem}>
+                  <View style={styles.infoIconBox}>
+                    <Ionicons name="mail-outline" size={22} color="#00664F" />
+                  </View>
+                  <View>
+                    <Text style={styles.infoLabelText}>Email Address</Text>
+                    <Text style={styles.profileInfoText}>{fetchedUser?.email || route.params.userEmail || "No email provided"}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.profileInfoItem}>
+                  <View style={styles.infoIconBox}>
+                    <Ionicons name="shield-checkmark-outline" size={22} color="#00664F" />
+                  </View>
+                  <View>
+                    <Text style={styles.infoLabelText}>Account Status</Text>
+                    <Text style={styles.profileInfoText}>Verified & Active</Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.fullDoneButton}
+              onPress={() => setShowProfileModal(false)}
+            >
+              <Text style={styles.doneButtonText}>Close Profile</Text>
+            </TouchableOpacity>
           </View>
         </Modal>
       </KeyboardAvoidingView>
@@ -1083,7 +1125,18 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    marginRight: 8
+    marginRight: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  backIcon: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain'
   },
   backButtonText: {
     fontSize: 24,
@@ -1137,11 +1190,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end"
   },
-  myMessageWrapper: {
-    justifyContent: "flex-end"
-  },
   otherMessageWrapper: {
-    justifyContent: "flex-start"
+    justifyContent: "flex-start",
+    paddingRight: 60,
+  },
+  myMessageWrapper: {
+    justifyContent: "flex-end",
+    paddingLeft: 60,
+    marginRight: -4, // Pull closer to edge
   },
   senderAvatarContainer: {
     marginRight: 8
@@ -1165,8 +1221,9 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
   messageContainer: {
-    maxWidth: "80%",
-    padding: 10,
+    maxWidth: "100%",
+    padding: 12,
+    paddingRight: 32, // Space for dropdown icon
     borderRadius: 16,
     position: "relative"
   },
@@ -1336,19 +1393,21 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: "#9CA3AF"
   },
-  messageDropdown: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    padding: 6,
-    zIndex: 10,
-    backgroundColor: 'rgba(100, 116, 139, 0.1)',
-    borderRadius: 15,
-  },
   threeDotIcon: {
     width: 14,
     height: 14,
     tintColor: "#64748B"
+  },
+  dropDownIcon: {
+    width: 12,
+    height: 12,
+    tintColor: "#64748B"
+  },
+  messageDropdown: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 10,
   },
   messageActionsDropdown: {
     backgroundColor: "#fff",
@@ -1595,29 +1654,26 @@ const styles = StyleSheet.create({
   },
   profileModal: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    height: "90%",
-    padding: 24,
+    flex: 1,
     width: "100%",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0"
   },
-  closeModalHeader: {
-    alignSelf: "flex-end",
-    marginBottom: 20
+  profileContentScroll: {
+    paddingBottom: 120,
   },
-  profileContent: {
+  profileHeaderSection: {
     alignItems: "center",
-    marginTop: 20
+    paddingVertical: 40,
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   profileAvatarContainer: {
-    marginBottom: 24
+    marginBottom: 20
   },
   largeProfileAvatar: {
-    width: 140,
-    height: 140,
-    borderRadius: 70
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
   avatarPlaceholder: {
     backgroundColor: "#00664F",
@@ -1630,40 +1686,88 @@ const styles = StyleSheet.create({
     fontWeight: "bold"
   },
   profileName: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 26,
+    fontWeight: "800",
     color: "#0F172A",
-    marginBottom: 30,
+    marginBottom: 10,
     textAlign: "center"
+  },
+  roleBadge: {
+    backgroundColor: '#E5F3F0',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  roleBadgeText: {
+    color: '#00664F',
+    fontWeight: '700',
+    fontSize: 14
+  },
+  profileDetailsSection: {
+    padding: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 20,
+    marginTop: 10
   },
   profileInfoItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     width: "100%",
-    marginBottom: 12
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2
+  },
+  infoIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F0F9F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16
+  },
+  infoLabelText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+    marginBottom: 2
   },
   profileInfoText: {
-    marginLeft: 16,
     fontSize: 16,
-    color: "#374151"
+    color: "#1E293B",
+    fontWeight: '600'
   },
-  doneButton: {
+  fullDoneButton: {
     position: "absolute",
-    bottom: 40,
+    bottom: 30,
     left: 24,
     right: 24,
     backgroundColor: "#00664F",
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center"
+    paddingVertical: 18,
+    borderRadius: 25,
+    alignItems: "center",
+    shadowColor: "#00664F",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8
   },
   doneButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold"
+    fontWeight: "700"
   },
   fileContainer: {
     flexDirection: 'row',
