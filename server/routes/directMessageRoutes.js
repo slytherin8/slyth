@@ -34,7 +34,7 @@ router.get("/conversations", auth, async (req, res) => {
     console.log("User filter:", userFilter);
 
     const users = await User.find(userFilter)
-      .select("profile.name profile.avatar role email isOnline lastSeen");
+      .select("name profile.name profile.avatar role email isOnline lastSeen");
 
     console.log("Found users count:", users.length);
     console.log("Users roles:", users.map(u => ({ name: u.profile?.name, role: u.role })));
@@ -49,7 +49,7 @@ router.get("/conversations", auth, async (req, res) => {
           ],
           isDeleted: false
         })
-          .populate("senderId", "profile.name email") // Populate email for fallback
+          .populate("senderId", "name profile.name email") // Populate email for fallback
           .sort({ createdAt: -1 });
 
         // Count unread messages from this user to current user
@@ -61,7 +61,7 @@ router.get("/conversations", auth, async (req, res) => {
         });
 
         // Use email as fallback for name if profile.name is missing
-        const displayName = user.profile?.name || user.email.split('@')[0];
+        const displayName = user.profile?.name || user.name || user.email.split('@')[0];
         console.log(`User ${user._id} (email: ${user.email}) displayName: ${displayName}`);
 
 
@@ -127,7 +127,7 @@ router.get("/messages/:userId", auth, async (req, res) => {
       ],
       isDeleted: false
     })
-      .populate("senderId", "profile.name profile.avatar role")
+      .populate("senderId", "name profile.name profile.avatar role")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -187,7 +187,7 @@ router.post("/messages/:userId", auth, async (req, res) => {
     });
 
     const populatedMessage = await DirectMessage.findById(message._id)
-      .populate("senderId", "profile.name profile.avatar role");
+      .populate("senderId", "name profile.name profile.avatar role");
 
     // Emit real-time notification to receiver
     const io = req.app.get("io");
