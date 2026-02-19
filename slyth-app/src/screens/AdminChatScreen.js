@@ -446,20 +446,7 @@ export default function AdminChatScreen({ navigation }) {
             )}
           </View>
         </View>
-
-        <TouchableOpacity
-          style={styles.menuIconButton}
-          onPress={() => {
-            // Placeholder for future menu
-            console.log("Menu clicked");
-          }}
-        >
-          <Image
-            source={require("../../assets/images/three-dot.png")}
-            style={styles.menuIconImage}
-          />
-        </TouchableOpacity>
-      </TouchableOpacity>
+      </TouchableOpacity >
     );
   };
 
