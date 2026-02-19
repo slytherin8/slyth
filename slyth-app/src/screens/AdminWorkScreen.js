@@ -62,28 +62,6 @@ export default function AdminWorkScreen({ navigation }) {
     }
   };
 
-  const handleDeleteEmployee = (id, name) => {
-    Alert.alert(
-      "Delete Member",
-      `Are you sure you want to delete ${name}? All their assigned work and projects will be removed.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await workService.deleteEmployee(id);
-              fetchEmployees();
-            } catch (error) {
-              Alert.alert("Error", "Failed to delete employee");
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const handleSearch = (text) => {
     setSearchQuery(text);
     const filtered = employees.filter(emp =>
