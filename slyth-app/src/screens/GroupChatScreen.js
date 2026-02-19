@@ -15,7 +15,9 @@ import {
   Modal,
   ActionSheetIOS,
   Linking,
-  Pressable
+  Pressable,
+  PanResponder,
+  Animated
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
@@ -43,8 +45,77 @@ const getCurrentUserId = async () => {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.id;
   } catch {
-    return null;
   }
+};
+
+const SwipeableMessage = ({ children, onSwipe, isMyMessage }) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const dragValue = isMyMessage ? Math.min(0, gestureState.dx) : Math.max(0, gestureState.dx);
+        const limit = 70;
+        const clampedDrag = isMyMessage
+          ? Math.max(-limit, dragValue)
+          : Math.min(limit, dragValue);
+
+        translateX.setValue(clampedDrag);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const threshold = 50;
+        const swiped = isMyMessage ? gestureState.dx < -threshold : gestureState.dx > threshold;
+
+        if (swiped) {
+          onSwipe();
+        }
+
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 10
+        }).start();
+      },
+    })
+  ).current;
+
+  return (
+    <View style={{ position: 'relative', width: '100%' }}>
+      <Animated.View style={{
+        position: 'absolute',
+        top: '50%',
+        [isMyMessage ? 'right' : 'left']: 10,
+        transform: [
+          { translateY: -12 },
+          {
+            scale: translateX.interpolate({
+              inputRange: isMyMessage ? [-70, 0] : [0, 70],
+              outputRange: [1, 0.5],
+              extrapolate: 'clamp'
+            })
+          }
+        ],
+        opacity: translateX.interpolate({
+          inputRange: isMyMessage ? [-50, -20, 0] : [0, 20, 50],
+          outputRange: [1, 0.5, 0],
+          extrapolate: 'clamp'
+        })
+      }}>
+        <Ionicons name="arrow-undo-outline" size={24} color="#00664F" />
+      </Animated.View>
+
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={{ transform: [{ translateX }] }}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
 };
 
 export default function GroupChatScreen({ route, navigation }) {
@@ -642,138 +713,144 @@ export default function GroupChatScreen({ route, navigation }) {
     };
 
     return (
-      <View style={[
-        styles.messageWrapper,
-        isMyMessage ? styles.myMessageWrapper : styles.otherMessageWrapper
-      ]}>
-        {!isMyMessage && (
-          <View style={styles.senderAvatarContainer}>
-            <View style={styles.senderAvatar}>
-              {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
-                <Image
-                  source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <Text style={styles.avatarText}>
-                  {item.senderId.profile?.name?.charAt(0)?.toUpperCase() || ""}
-                </Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        <Pressable
-          style={[
-            styles.messageContainer,
-            isMyMessage ? styles.myMessage : styles.otherMessage
-          ]}
-          onLongPress={() => showMessageActionSheet(item)}
-        >
-          {/* Dropdown Menu Button */}
-          <TouchableOpacity
-            style={styles.messageDropdown}
-            onPress={() => showMessageActionSheet(item)}
-          >
-            <Image
-              source={require("../../assets/images/drop-down.png")}
-              style={styles.threeDotIcon}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.messageHeader}>
-            {!isMyMessage && (
-              <Text style={styles.senderName}>
-                {item.senderId.profile?.name || item.senderId.name || item.senderId.email || "Unknown"}
-              </Text>
-            )}
-          </View>
-
-          {item.repliedMessage && (
-            <View style={styles.repliedMessage}>
-              <Text style={styles.repliedSender}>{item.repliedMessage.senderName}</Text>
-              <Text style={styles.repliedText} numberOfLines={2}>
-                {item.repliedMessage.messageText}
-              </Text>
+      <SwipeableMessage
+        key={item._id}
+        onSwipe={() => handleReply(item)}
+        isMyMessage={isMyMessage}
+      >
+        <View style={[
+          styles.messageWrapper,
+          isMyMessage ? styles.myMessageWrapper : styles.otherMessageWrapper
+        ]}>
+          {!isMyMessage && (
+            <View style={styles.senderAvatarContainer}>
+              <View style={styles.senderAvatar}>
+                {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
+                  <Image
+                    source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <Text style={styles.avatarText}>
+                    {item.senderId.profile?.name?.charAt(0)?.toUpperCase() || ""}
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
-          {item.messageType === "image" && item.fileData ? (
+          <Pressable
+            style={[
+              styles.messageContainer,
+              isMyMessage ? styles.myMessage : styles.otherMessage
+            ]}
+            onLongPress={() => showMessageActionSheet(item)}
+          >
+            {/* Dropdown Menu Button */}
             <TouchableOpacity
-              style={styles.imageContainer}
-              onPress={() => handleLinkPress(item.fileData)}
-            >
-              <Image source={{ uri: item.fileData }} style={styles.messageImage} />
-              {item.messageText && item.messageText !== "📷 Image" && (
-                <Text style={[
-                  styles.imageCaption,
-                  isMyMessage ? styles.myMessageText : styles.otherMessageText
-                ]}>
-                  {item.messageText}
-                </Text>
-              )}
-            </TouchableOpacity>
-          ) : null}
-
-          {item.messageType === "file" && item.fileData ? (
-            <TouchableOpacity
-              style={styles.fileContainer}
-              onPress={() => handleFileDownload(item.fileData)}
+              style={styles.messageDropdown}
+              onPress={() => showMessageActionSheet(item)}
             >
               <Image
-                source={require("../../assets/images/pdf.png")}
-                style={styles.fileImage}
+                source={require("../../assets/images/three-dot.png")}
+                style={styles.threeDotIcon}
               />
-              <View style={styles.fileInfo}>
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {item.fileData.name || "Document"}
-                </Text>
-                <Text style={styles.fileSize}>
-                  {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : ""}
-                  {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => handleFileDownload(item.fileData)}>
-                <Image
-                  source={require("../../assets/images/download.png")}
-                  style={styles.downloadIcon}
-                />
-              </TouchableOpacity>
             </TouchableOpacity>
-          ) : null}
 
-          {(item.messageType === "text" || !item.fileData) && (
-            renderMessageText(item.messageText, isMyMessage)
-          )}
-
-          <View style={styles.messageFooter}>
-            <Text style={[
-              styles.messageTime,
-              isMyMessage ? styles.myMessageTime : styles.otherMessageTime
-            ]}>
-              {formatMessageTime(item.createdAt)}
-            </Text>
-            {renderTicks()}
-          </View>
-        </Pressable>
-
-        {isMyMessage && (
-          <View style={[styles.senderAvatarContainer, { marginLeft: 8, marginRight: 0 }]}>
-            <View style={styles.senderAvatar}>
-              {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
-                <Image
-                  source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <Text style={styles.avatarText}>
-                  {(item.senderId?.profile?.name || item.senderId?.name || "").charAt(0).toUpperCase()}
+            <View style={styles.messageHeader}>
+              {!isMyMessage && (
+                <Text style={styles.senderName}>
+                  {item.senderId.profile?.name || item.senderId.name || item.senderId.email || "Unknown"}
                 </Text>
               )}
             </View>
-          </View>
-        )}
-      </View>
+
+            {item.repliedMessage && (
+              <View style={styles.repliedMessage}>
+                <Text style={styles.repliedSender}>{item.repliedMessage.senderName}</Text>
+                <Text style={styles.repliedText} numberOfLines={2}>
+                  {item.repliedMessage.messageText}
+                </Text>
+              </View>
+            )}
+
+            {item.messageType === "image" && item.fileData ? (
+              <TouchableOpacity
+                style={styles.imageContainer}
+                onPress={() => handleLinkPress(item.fileData)}
+              >
+                <Image source={{ uri: item.fileData }} style={styles.messageImage} />
+                {item.messageText && item.messageText !== "📷 Image" && (
+                  <Text style={[
+                    styles.imageCaption,
+                    isMyMessage ? styles.myMessageText : styles.otherMessageText
+                  ]}>
+                    {item.messageText}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+
+            {item.messageType === "file" && item.fileData ? (
+              <TouchableOpacity
+                style={styles.fileContainer}
+                onPress={() => handleFileDownload(item.fileData)}
+              >
+                <Image
+                  source={require("../../assets/images/pdf.png")}
+                  style={styles.fileImage}
+                />
+                <View style={styles.fileInfo}>
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    {item.fileData.name || "Document"}
+                  </Text>
+                  <Text style={styles.fileSize}>
+                    {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : ""}
+                    {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => handleFileDownload(item.fileData)}>
+                  <Image
+                    source={require("../../assets/images/download.png")}
+                    style={styles.downloadIcon}
+                  />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ) : null}
+
+            {(item.messageType === "text" || !item.fileData) && (
+              renderMessageText(item.messageText, isMyMessage)
+            )}
+
+            <View style={styles.messageFooter}>
+              <Text style={[
+                styles.messageTime,
+                isMyMessage ? styles.myMessageTime : styles.otherMessageTime
+              ]}>
+                {formatMessageTime(item.createdAt)}
+              </Text>
+              {renderTicks()}
+            </View>
+          </Pressable>
+
+          {isMyMessage && (
+            <View style={[styles.senderAvatarContainer, { marginLeft: 8, marginRight: 0 }]}>
+              <View style={styles.senderAvatar}>
+                {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
+                  <Image
+                    source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <Text style={styles.avatarText}>
+                    {(item.senderId?.profile?.name || item.senderId?.name || "").charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </SwipeableMessage>
     );
   };
 
@@ -1402,14 +1479,16 @@ const styles = StyleSheet.create({
   },
   messageDropdown: {
     position: "absolute",
-    top: 4,
-    right: 4,
-    padding: 4,
-    zIndex: 10
+    top: 6,
+    right: 6,
+    padding: 6,
+    zIndex: 10,
+    backgroundColor: 'rgba(100, 116, 139, 0.1)',
+    borderRadius: 15,
   },
   threeDotIcon: {
-    width: 16,
-    height: 16,
+    width: 14,
+    height: 14,
     tintColor: "#64748B"
   },
   messageActionsDropdown: {
