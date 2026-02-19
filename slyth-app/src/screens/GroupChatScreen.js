@@ -23,6 +23,8 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import socketService from '../services/socketService';
 import AppLayout from "../components/AppLayout";
 
@@ -57,17 +59,18 @@ const SwipeableMessage = ({ children, onSwipe, isMyMessage }) => {
         return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
       },
       onPanResponderMove: (evt, gestureState) => {
-        const dragValue = isMyMessage ? Math.min(0, gestureState.dx) : Math.max(0, gestureState.dx);
+        // Drag limit - Swapped so Sender swipes RIGHT and Receiver swipes LEFT
+        const dragValue = isMyMessage ? Math.max(0, gestureState.dx) : Math.min(0, gestureState.dx);
         const limit = 70;
         const clampedDrag = isMyMessage
-          ? Math.max(-limit, dragValue)
-          : Math.min(limit, dragValue);
+          ? Math.min(limit, dragValue)
+          : Math.max(-limit, dragValue);
 
         translateX.setValue(clampedDrag);
       },
       onPanResponderRelease: (evt, gestureState) => {
         const threshold = 50;
-        const swiped = isMyMessage ? gestureState.dx < -threshold : gestureState.dx > threshold;
+        const swiped = isMyMessage ? gestureState.dx > threshold : gestureState.dx < -threshold;
 
         if (swiped) {
           onSwipe();
@@ -88,20 +91,20 @@ const SwipeableMessage = ({ children, onSwipe, isMyMessage }) => {
       <Animated.View style={{
         position: 'absolute',
         top: '50%',
-        [isMyMessage ? 'right' : 'left']: 10,
+        [isMyMessage ? 'left' : 'right']: 14,
         transform: [
           { translateY: -12 },
           {
             scale: translateX.interpolate({
-              inputRange: isMyMessage ? [-70, 0] : [0, 70],
-              outputRange: [1, 0.5],
+              inputRange: isMyMessage ? [0, 70] : [-70, 0],
+              outputRange: [0.5, 1],
               extrapolate: 'clamp'
             })
           }
         ],
         opacity: translateX.interpolate({
-          inputRange: isMyMessage ? [-50, -20, 0] : [0, 20, 50],
-          outputRange: [1, 0.5, 0],
+          inputRange: isMyMessage ? [0, 20, 50] : [-50, -20, 0],
+          outputRange: [0, 0.5, 1],
           extrapolate: 'clamp'
         })
       }}>
@@ -629,14 +632,22 @@ export default function GroupChatScreen({ route, navigation }) {
       } else {
         // For mobile
         if (fileData.data) {
-          // If we have base64 data, show file info and offer to save
-          Alert.alert(
-            "📎 " + (fileData.name || "File"),
-            `Size: ${fileData.size ? `${(fileData.size / 1024).toFixed(1)} KB` : "Unknown"}\nType: ${fileData.type || "Unknown"}\n\nFile contains data and can be processed.`,
-            [
-              { text: "OK", style: "default" }
-            ]
-          );
+          const fileName = fileData.name || 'document.pdf';
+          const base64Data = fileData.data.includes('base64,')
+            ? fileData.data.split('base64,')[1]
+            : fileData.data;
+
+          const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri);
+          } else {
+            Alert.alert("Error", "Sharing is not available on this device");
+          }
         } else if (fileData.uri) {
           // If we have a local URI, try to open it
           try {
@@ -751,10 +762,12 @@ export default function GroupChatScreen({ route, navigation }) {
               style={styles.messageDropdown}
               onPress={() => showMessageActionSheet(item)}
             >
-              <Image
-                source={require("../../assets/images/three-dot.png")}
-                style={styles.threeDotIcon}
-              />
+              <View style={styles.circularDropdown}>
+                <Image
+                  source={require("../../assets/images/drop-down.png")}
+                  style={styles.dropDownIcon}
+                />
+              </View>
             </TouchableOpacity>
 
             <View style={styles.messageHeader}>
@@ -832,23 +845,6 @@ export default function GroupChatScreen({ route, navigation }) {
               {renderTicks()}
             </View>
           </Pressable>
-
-          {isMyMessage && (
-            <View style={[styles.senderAvatarContainer, { marginLeft: 8, marginRight: 0 }]}>
-              <View style={styles.senderAvatar}>
-                {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
-                  <Image
-                    source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <Text style={styles.avatarText}>
-                    {(item.senderId?.profile?.name || item.senderId?.name || "").charAt(0).toUpperCase()}
-                  </Text>
-                )}
-              </View>
-            </View>
-          )}
         </View>
       </SwipeableMessage>
     );
@@ -915,7 +911,7 @@ export default function GroupChatScreen({ route, navigation }) {
             style={styles.uploadButton}
             onPress={pickDocument}
           >
-            <Image source={require("../../assets/images/pin.png")} style={styles.uploadIcon} />
+            <Image source={require("../../assets/images/upload_file.png")} style={styles.uploadIcon} />
           </TouchableOpacity>
 
           <View style={styles.inputWrapper}>
@@ -1283,7 +1279,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-end"
   },
   myMessageWrapper: {
-    justifyContent: "flex-end"
+    justifyContent: "flex-end",
+    paddingRight: 0,
+    marginRight: 0
   },
   otherMessageWrapper: {
     justifyContent: "flex-start"
@@ -1325,11 +1323,13 @@ const styles = StyleSheet.create({
     maxWidth: "80%",
     padding: 10,
     borderRadius: 16,
-    position: "relative"
+    position: "relative",
+    marginHorizontal: 0
   },
   myMessage: {
     backgroundColor: "#DCF8C6", // WhatsApp green bubble
-    borderTopRightRadius: 4
+    borderTopRightRadius: 4,
+    marginRight: 0
   },
   otherMessage: {
     backgroundColor: "#FFFFFF",
@@ -1479,12 +1479,22 @@ const styles = StyleSheet.create({
   },
   messageDropdown: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    padding: 6,
+    top: 8,
+    right: 8,
     zIndex: 10,
+  },
+  circularDropdown: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: 'rgba(100, 116, 139, 0.1)',
-    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropDownIcon: {
+    width: 12,
+    height: 12,
+    tintColor: "#64748B"
   },
   threeDotIcon: {
     width: 14,
