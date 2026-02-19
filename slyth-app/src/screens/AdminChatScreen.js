@@ -395,7 +395,7 @@ export default function AdminChatScreen({ navigation }) {
         style={styles.chatItem}
         onPress={() => navigation.navigate("DirectChat", {
           userId: item.user._id,
-          userName: item.user.profile?.name || "Unknown",
+          userName: item.user.profile?.name || item.user.name || "Employee",
           userAvatar: item.user.profile?.avatar,
           userRole: item.user.role,
           userEmail: item.user.email
@@ -419,7 +419,7 @@ export default function AdminChatScreen({ navigation }) {
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
             <Text style={styles.chatName} numberOfLines={1}>
-              {item.user.profile?.name || item.user.displayName || item.user.email?.split('@')[0] || "Unknown"}
+              {item.user.profile?.name || item.user.name || item.user.displayName || item.user.email?.split('@')[0] || "Employee"}
             </Text>
             <View style={styles.rightContent}>
               <Text style={styles.roleTag}>{item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
