@@ -220,6 +220,22 @@ router.get("/me", auth, async (req, res) => {
   }
 });
 
+// 🔹 GET USER BY ID (ADMIN + EMPLOYEE)
+router.get("/user/:id", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select(
+      "name profile email role companyId"
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    console.error("FETCH USER BY ID ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch user" });
+  }
+});
+
 /* =====================
    TEST ADMIN ACCESS
 ===================== */
