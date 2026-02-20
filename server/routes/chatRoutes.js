@@ -73,6 +73,89 @@ router.post("/groups", auth, adminOnly, async (req, res) => {
 });
 
 /* =====================
+   UPDATE GROUP (ADMIN ONLY)
+===================== */
+router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { name, description, profilePhoto, memberIds } = req.body;
+
+    if (!name || !memberIds || memberIds.length === 0) {
+      return res.status(400).json({ message: "Group name and members are required" });
+    }
+
+    const group = await Group.findOne({ _id: groupId, companyId: req.user.companyId });
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    // Track changes for system messages
+    const oldMemberIds = group.members.map(m => m.userId.toString());
+    const newMemberIds = Array.from(new Set([...memberIds, req.user.id])); // Always include admin
+
+    const addedIds = newMemberIds.filter(id => !oldMemberIds.includes(id));
+    const removedIds = oldMemberIds.filter(id => !newMemberIds.includes(id));
+
+    // Prepare updated members list
+    const currentMemberMap = new Map();
+    group.members.forEach(m => {
+      if (m.userId) currentMemberMap.set(m.userId.toString(), m);
+    });
+
+    const updatedMembers = newMemberIds.map(id => {
+      if (currentMemberMap.has(id)) return currentMemberMap.get(id);
+      return {
+        userId: id,
+        joinedAt: new Date(),
+        unreadCount: 0,
+        lastReadAt: new Date(),
+        isMuted: false
+      };
+    });
+
+    // Update group
+    const updatedGroup = await Group.findByIdAndUpdate(
+      groupId,
+      { name, description, profilePhoto, members: updatedMembers, lastActivity: new Date() },
+      { new: true }
+    ).populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen");
+
+    // Generate System Messages
+    const io = req.app.get("io");
+    const changeIds = [...addedIds.map(id => ({ id, type: 'added' })), ...removedIds.map(id => ({ id, type: 'removed' }))];
+
+    if (changeIds.length > 0) {
+      const usersInfo = await User.find({ _id: { $in: changeIds.map(c => c.id) } }, "name profile.name");
+      const userMap = new Map(usersInfo.map(u => [u._id.toString(), u.profile?.name || u.name]));
+
+      for (const change of changeIds) {
+        const userName = userMap.get(change.id) || "User";
+        const systemText = `Admin ${change.type} ${userName}`;
+
+        const systemMsg = new Message({
+          groupId,
+          senderId: req.user.id,
+          messageText: systemText,
+          messageType: "system"
+        });
+
+        await systemMsg.save();
+
+        // Populate sender for frontend
+        const populatedMsg = await Message.findById(systemMsg._id).populate("senderId", "name profile.name profile.avatar");
+
+        if (io) {
+          io.to(groupId).emit("new_message", populatedMsg);
+        }
+      }
+    }
+
+    res.json({ message: "Group updated successfully", group: updatedGroup });
+  } catch (error) {
+    console.error("Update group error:", error);
+    res.status(500).json({ message: "Failed to update group" });
+  }
+});
+
+/* =====================
    GET USER'S GROUPS
 ===================== */
 router.get("/groups", auth, async (req, res) => {
@@ -350,117 +433,7 @@ router.get("/groups/:groupId", auth, async (req, res) => {
   }
 });
 
-/* =====================
-   UPDATE GROUP (ADMIN ONLY)
-===================== */
-router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
-  try {
-    const { groupId } = req.params;
-    const { name, description, profilePhoto, memberIds } = req.body;
 
-    if (!name || !memberIds || memberIds.length === 0) {
-      return res.status(400).json({ message: "Group name and members are required" });
-    }
-
-    // Verify group exists and user is admin
-    const group = await Group.findOne({
-      _id: groupId,
-      companyId: req.user.companyId
-    });
-
-    if (!group) {
-      return res.status(404).json({ message: "Group not found" });
-    }
-
-    // Verify all members belong to the same company
-    // (We allow both employees and admins in general, but usually employees are selected)
-    const validMembers = await User.find({
-      _id: { $in: memberIds },
-      companyId: req.user.companyId
-    });
-
-    if (validMembers.length !== memberIds.length) {
-      // Warning: some IDs might be invalid, but we proceed with valid ones or error out?
-      // Strict check:
-      // return res.status(400).json({ message: "Some selected users are not valid" });
-    }
-
-    // Prepare updated members list
-    // Algorithm: Rebuild list. If member existed, keep metadata. If new, init metadata.
-    const currentMemberMap = new Map();
-    group.members.forEach(m => {
-      if (m.userId) {
-        currentMemberMap.set(m.userId.toString(), m);
-      }
-    });
-
-    const updatedMembers = [];
-    const processedIds = new Set();
-
-    // 1. Add selected members
-    memberIds.forEach(id => {
-      if (!processedIds.has(id)) {
-        if (currentMemberMap.has(id)) {
-          // Keep existing
-          updatedMembers.push(currentMemberMap.get(id));
-        } else {
-          // Add new
-          updatedMembers.push({
-            userId: id,
-            joinedAt: new Date(),
-            unreadCount: 0,
-            lastReadAt: new Date(),
-            isMuted: false
-          });
-        }
-        processedIds.add(id);
-      }
-    });
-
-    // 2. Ensure Admin (Current User) is always in the group
-    if (!processedIds.has(req.user.id)) {
-      if (currentMemberMap.has(req.user.id)) {
-        updatedMembers.push(currentMemberMap.get(req.user.id));
-      } else {
-        updatedMembers.push({
-          userId: req.user.id,
-          joinedAt: new Date(),
-          unreadCount: 0,
-          lastReadAt: new Date(),
-          isMuted: false
-        });
-      }
-      processedIds.add(req.user.id);
-    }
-
-    // Update group
-    const updatedGroup = await Group.findByIdAndUpdate(
-      groupId,
-      {
-        name,
-        description,
-        profilePhoto,
-        members: updatedMembers,
-        lastActivity: new Date()
-      },
-      { new: true }
-    ).populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen")
-      .populate("createdBy", "name profile.name");
-
-    // Filter nulls just in case
-    if (updatedGroup.members) {
-      updatedGroup.members = updatedGroup.members.filter(m => m.userId);
-    }
-
-    res.json({
-      message: "Group updated successfully",
-      group: updatedGroup
-    });
-  } catch (error) {
-    console.error("Update group error:", error);
-    res.status(500).json({ message: "Failed to update group" });
-  }
-});
 
 /* =====================
    DELETE GROUP (ADMIN ONLY)
