@@ -130,14 +130,20 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
     const { groupId } = req.params;
     const { page = 1, limit = 50 } = req.query;
 
-    // Verify user is member of the group
+    // Verify user is member of the group OR is an admin in the same company
     const group = await Group.findOne({
       _id: groupId,
-      "members.userId": req.user.id,
       companyId: req.user.companyId
     });
 
     if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    const isMember = group.members.some(m => m.userId.toString() === req.user.id);
+    const isAdmin = (req.user.role || "").toLowerCase() === 'admin';
+
+    if (!isMember && !isAdmin) {
       return res.status(403).json({ message: "Access denied to this group" });
     }
 
@@ -194,15 +200,21 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
       return res.status(400).json({ message: "Message too long (max 1000 characters)" });
     }
 
-    // Verify user is member of the group
+    // Verify user is member of the group OR is an admin in the same company
     const group = await Group.findOne({
       _id: groupId,
-      "members.userId": req.user.id,
       companyId: req.user.companyId,
       isActive: true
     });
 
     if (!group) {
+      return res.status(403).json({ message: "Access denied to this group (inactive or non-existent)" });
+    }
+
+    const isMember = group.members.some(m => m.userId.toString() === req.user.id);
+    const isAdmin = (req.user.role || "").toLowerCase() === 'admin';
+
+    if (!isMember && !isAdmin) {
       return res.status(403).json({ message: "Access denied to this group" });
     }
 
@@ -302,13 +314,19 @@ router.get("/groups/:groupId", auth, async (req, res) => {
 
     const group = await Group.findOne({
       _id: groupId,
-      "members.userId": req.user.id,
       companyId: req.user.companyId
     })
       .populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen")
       .populate("createdBy", "name profile.name");
 
     if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    const isMember = group.members.some(m => m.userId && m.userId._id.toString() === req.user.id);
+    const isAdmin = (req.user.role || "").toLowerCase() === 'admin';
+
+    if (!isMember && !isAdmin) {
       return res.status(403).json({ message: "Access denied to this group" });
     }
 
