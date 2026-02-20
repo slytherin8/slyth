@@ -371,7 +371,7 @@ export default function AdminChatScreen({ navigation }) {
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
             <Text style={styles.chatName} numberOfLines={1}>
-              {item.name}
+              {item.name} {item.isActive === false && <Text style={{ fontSize: 12, fontWeight: '400', color: '#94A3B8' }}>(Deleted)</Text>}
             </Text>
             {item.lastMessage && (
               <Text style={[styles.messageTime, hasUnread && styles.messageTimeUnread]}>
