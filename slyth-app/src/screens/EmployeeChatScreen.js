@@ -306,7 +306,7 @@ export default function EmployeeChatScreen({ navigation }) {
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>
-              {item.name}
+              {item.name} {item.isActive === false && <Text style={{ fontSize: 12, fontWeight: '400', color: '#94A3B8' }}>(Deleted)</Text>}
             </Text>
             {item.lastMessage && (
               <Text style={styles.messageTime}>
