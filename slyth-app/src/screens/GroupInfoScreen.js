@@ -13,6 +13,29 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '../utils/storage';
 import { API } from '../constants/api';
 
+const decodeJWT = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      Buffer.from(base64, 'base64')
+        .toString('binary')
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(base64));
+    } catch (e2) {
+      return null;
+    }
+  }
+};
+
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
   return {
@@ -27,9 +50,6 @@ export default function GroupInfoScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [groupInfo, setGroupInfo] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [employees, setEmployees] = useState([]);
-  const [selectedMembers, setSelectedMembers] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchGroupInfo();
@@ -40,33 +60,11 @@ export default function GroupInfoScreen({ route, navigation }) {
     try {
       const token = await AsyncStorage.getItem("token");
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const adminStatus = payload.role === 'admin';
-        setIsAdmin(adminStatus);
-
-        if (adminStatus) {
-          fetchEmployees();
-        }
+        const payload = decodeJWT(token);
+        setIsAdmin(payload?.role === 'admin');
       }
     } catch (error) {
       console.log("Token decode error:", error);
-    }
-  };
-
-  const fetchEmployees = async () => {
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${API}/api/chat/employees`, {
-        method: "GET",
-        headers
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setEmployees(data);
-      }
-    } catch (error) {
-      console.log("Failed to fetch employees:", error);
     }
   };
 
@@ -81,7 +79,6 @@ export default function GroupInfoScreen({ route, navigation }) {
       const data = await response.json();
       if (response.ok) {
         setGroupInfo(data);
-        setSelectedMembers(data.members?.map(m => m.userId._id) || []);
       } else {
         Alert.alert("Error", "Failed to fetch group information");
       }
@@ -89,50 +86,6 @@ export default function GroupInfoScreen({ route, navigation }) {
       Alert.alert("Error", "Failed to fetch group information");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const toggleMemberSelection = (employeeId) => {
-    if (!isAdmin) return;
-
-    setSelectedMembers(prev =>
-      prev.includes(employeeId)
-        ? prev.filter(id => id !== employeeId)
-        : [...prev, employeeId]
-    );
-  };
-
-  const handleUpdateMembers = async () => {
-    if (selectedMembers.length === 0) {
-      Alert.alert("Error", "Group must have at least one member");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${API}/api/chat/groups/${groupId}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({
-          name: groupInfo.name,
-          description: groupInfo.description || "",
-          profilePhoto: groupInfo.profilePhoto,
-          memberIds: selectedMembers
-        })
-      });
-
-      if (response.ok) {
-        Alert.alert("Success", "Group members updated successfully");
-        fetchGroupInfo();
-      } else {
-        const data = await response.json();
-        Alert.alert("Error", data.message || "Failed to update members");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Check your connection and try again");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -170,8 +123,12 @@ export default function GroupInfoScreen({ route, navigation }) {
   }
 
   // Determine which list to show
-  const displayList = isAdmin ? employees : groupInfo.members.map(m => m.userId);
-  const currentMemberIds = groupInfo.members.map(m => m.userId._id);
+  // Determine which list to show - Only real members
+  const realMembers = (groupInfo.members || [])
+    .filter(m => m && m.userId && typeof m.userId === 'object')
+    .map(m => m.userId);
+
+  const displayList = realMembers;
 
   return (
     <View style={styles.container}>
@@ -184,19 +141,6 @@ export default function GroupInfoScreen({ route, navigation }) {
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
 
-        {isAdmin && (
-          <TouchableOpacity
-            style={[styles.saveButtonHeader, isSubmitting && styles.disabledButton]}
-            onPress={handleUpdateMembers}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color="#00664F" />
-            ) : (
-              <Text style={styles.saveButtonHeaderText}>Save Changes</Text>
-            )}
-          </TouchableOpacity>
-        )}
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -219,9 +163,11 @@ export default function GroupInfoScreen({ route, navigation }) {
 
           <Text style={styles.groupName}>{groupInfo.name}</Text>
 
-          <Text style={[styles.groupDescription, !groupInfo.description && styles.emptyDescription]}>
-            {groupInfo.description || "No description provided"}
-          </Text>
+          {groupInfo.description && (
+            <Text style={styles.groupDescription}>
+              {groupInfo.description}
+            </Text>
+          )}
         </View>
 
         {/* Group Info Section */}
@@ -252,73 +198,46 @@ export default function GroupInfoScreen({ route, navigation }) {
         <View style={styles.membersSection}>
           <View style={styles.membersHeader}>
             <Text style={styles.membersTitle}>
-              {isAdmin ? "Manage Members" : "Group Members"}
+              Members
             </Text>
-            {isAdmin && (
-              <Text style={styles.selectionCount}>
-                {selectedMembers.length} selected
-              </Text>
-            )}
           </View>
 
           {displayList.map((item, index) => {
             const memberId = item._id;
-            const isSelected = selectedMembers.includes(memberId);
-            const isActuallyMember = currentMemberIds.includes(memberId);
 
             return (
-              <TouchableOpacity
+              <View
                 key={memberId}
-                style={[
-                  styles.memberItemContainer,
-                  isAdmin && isSelected && styles.selectedMemberItem
-                ]}
-                onPress={() => isAdmin && toggleMemberSelection(memberId)}
-                disabled={!isAdmin}
+                style={styles.memberItemContainer}
               >
                 <View style={styles.memberRow}>
-                  <View style={styles.memberAvatar}>
+                  <View style={styles.memberAvatarPlaceholder}>
                     {item.profile?.avatar ? (
                       <Image
                         source={{ uri: item.profile.avatar }}
-                        style={styles.memberAvatarImage}
+                        style={styles.memberAvatarPlaceholder}
                       />
                     ) : (
-                      <View style={styles.memberAvatarPlaceholder}>
-                        <Text style={styles.memberAvatarText}>
-                          {item.profile?.name?.charAt(0)?.toUpperCase() || "?"}
-                        </Text>
-                      </View>
+                      <Text style={styles.memberAvatarText}>
+                        {item.role === 'admin' ? 'A' : (item.profile?.name || item.name || "?").charAt(0).toUpperCase()}
+                      </Text>
                     )}
                   </View>
 
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>
-                      {item.profile?.name || "No Name"}
+                      {item.role === 'admin' ? 'Admin' : (item.profile?.name || item.name || "Employee")}
                     </Text>
                     <Text style={styles.memberRole}>
                       {item.role === 'admin' ? 'Admin' : 'Employee'}
                     </Text>
-                    {isActuallyMember && !isAdmin && (
-                      <Text style={styles.memberJoined}>
-                        Already in group
-                      </Text>
-                    )}
+                    <Text style={styles.memberJoined}>
+                      Joined {formatDate(item.createdAt || item.updatedAt)}
+                    </Text>
                   </View>
-
-                  {isAdmin && (
-                    <View style={[
-                      styles.checkbox,
-                      isSelected && styles.checkedBox
-                    ]}>
-                      {isSelected && (
-                        <Ionicons name="checkmark" size={16} color="#fff" />
-                      )}
-                    </View>
-                  )}
                 </View>
                 {index < displayList.length - 1 && <View style={styles.divider} />}
-              </TouchableOpacity>
+              </View>
             );
           })}
         </View>
@@ -371,19 +290,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  saveButtonHeader: {
-    backgroundColor: "#E6F4F1",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#00664F"
-  },
-  saveButtonHeaderText: {
-    color: "#00664F",
-    fontWeight: "700",
-    fontSize: 14
-  },
   disabledButton: {
     opacity: 0.5
   },
@@ -395,18 +301,11 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
   },
   avatar: {
     width: 150,
     height: 150,
     borderRadius: 75,
-    borderWidth: 4,
-    borderColor: "#fff"
   },
   avatarPlaceholder: {
     width: 150,
@@ -414,9 +313,7 @@ const styles = StyleSheet.create({
     borderRadius: 75,
     backgroundColor: "#FDE68A",
     justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 4,
-    borderColor: "#fff"
+    alignItems: "center"
   },
   avatarText: {
     fontSize: 56,
@@ -485,43 +382,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111827"
   },
-  selectionCount: {
-    fontSize: 14,
-    color: "#00664F",
-    fontWeight: "600"
-  },
   memberItemContainer: {
-    borderRadius: 12,
-    marginBottom: 4
-  },
-  selectedMemberItem: {
-    backgroundColor: "#F0FDF4"
+    marginBottom: 16
   },
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12
   },
-  memberAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#FDE68A",
-    marginRight: 16,
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  memberAvatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25
-  },
   memberAvatarPlaceholder: {
     width: 50,
     height: 50,
     borderRadius: 25,
+    backgroundColor: "#FDE68A",
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
+    marginRight: 16,
+    overflow: 'hidden'
   },
   memberAvatarText: {
     fontSize: 20,
@@ -543,23 +420,9 @@ const styles = StyleSheet.create({
     fontWeight: "500"
   },
   memberJoined: {
-    fontSize: 11,
-    color: "#10B981",
-    fontWeight: "600"
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#D1D5DB",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff"
-  },
-  checkedBox: {
-    backgroundColor: "#00664F",
-    borderColor: "#00664F"
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 2
   },
   divider: {
     height: 1,
