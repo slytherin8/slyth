@@ -233,7 +233,7 @@ export default function ProjectTasksScreen({ navigation, route }) {
         completed: tasks.filter(t => t.status === "Completed")
     }), [tasks]);
 
-    if (!project || !employee) {
+    if (!project || (!employee && role === "admin")) {
         return (
             <AppLayout navigation={navigation} title="Error">
                 <View style={styles.container}>
