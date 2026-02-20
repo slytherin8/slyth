@@ -23,6 +23,14 @@ const groupSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     },
+    hasLeft: {
+      type: Boolean,
+      default: false
+    },
+    leftAt: {
+      type: Date,
+      default: null
+    },
     unreadCount: {
       type: Number,
       default: 0
