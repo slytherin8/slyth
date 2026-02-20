@@ -89,7 +89,7 @@ export default function GroupExitScreen({ route, navigation }) {
                 <View style={styles.trashCircle}>
                     <Ionicons name="trash-outline" size={40} color="#9CA3AF" />
                 </View>
-                <Text style={styles.confirmText}>Are you sure you want to exist this group?</Text>
+                <Text style={styles.confirmText}>Are you sure you want to exit this group?</Text>
 
                 <TouchableOpacity
                     style={[styles.exitButton, loading && styles.disabledButton]}
@@ -99,7 +99,7 @@ export default function GroupExitScreen({ route, navigation }) {
                     {loading ? (
                         <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                        <Text style={styles.exitButtonText}>Exist Group</Text>
+                        <Text style={styles.exitButtonText}>Exit Group</Text>
                     )}
                 </TouchableOpacity>
             </View>
