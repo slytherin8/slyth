@@ -77,8 +77,11 @@ router.get("/projects/:employeeId", auth, async (req, res) => {
     try {
         const { employeeId } = req.params;
 
+        console.log(`[DEBUG] GET /projects/${employeeId} - User: ${req.user.id}, Role: ${req.user.role}, Company: ${req.user.companyId}`);
+
         // Check if user has access (either the employee themselves or an admin)
         if (req.user.role !== "admin" && req.user.id !== employeeId) {
+            console.log(`[DEBUG] Access denied for /projects/${employeeId}`);
             return res.status(403).json({ message: "Access denied" });
         }
 
@@ -87,6 +90,8 @@ router.get("/projects/:employeeId", auth, async (req, res) => {
             companyId: req.user.companyId,
             isActive: true
         }).sort({ createdAt: -1 });
+
+        console.log(`[DEBUG] Found ${projects.length} projects for employee ${employeeId}`);
 
         res.json(projects);
     } catch (error) {
@@ -149,10 +154,14 @@ router.get("/tasks/:projectId", auth, async (req, res) => {
     try {
         const { projectId } = req.params;
 
+        console.log(`[DEBUG] GET /tasks/${projectId} - User: ${req.user.id}, Company: ${req.user.companyId}`);
+
         const tasks = await Task.find({
             projectId,
             companyId: req.user.companyId
         }).sort({ createdAt: -1 });
+
+        console.log(`[DEBUG] Found ${tasks.length} tasks for project ${projectId}`);
 
         res.json(tasks);
     } catch (error) {
