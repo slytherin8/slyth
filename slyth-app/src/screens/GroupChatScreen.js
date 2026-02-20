@@ -38,16 +38,34 @@ const getAuthHeaders = async () => {
   };
 };
 
+const decodeJWT = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      Buffer.from(base64, 'base64')
+        .toString('binary')
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(base64));
+    } catch (e2) {
+      return null;
+    }
+  }
+};
+
 const getCurrentUserId = async () => {
   const token = await AsyncStorage.getItem("token");
   if (!token) return null;
-
-  try {
-    // Decode JWT to get user ID
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.id;
-  } catch {
-  }
+  const decoded = decodeJWT(token);
+  return decoded ? decoded.id : null;
 };
 
 const SwipeableMessage = ({ children, onSwipe, isMyMessage }) => {
@@ -138,6 +156,10 @@ export default function GroupChatScreen({ route, navigation }) {
   const [groupInfo, setGroupInfo] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewCaption, setPreviewCaption] = useState("");
+  const [fullScreenImage, setFullScreenImage] = useState(null);
   const flatListRef = useRef(null);
 
   useEffect(() => {
@@ -176,7 +198,7 @@ export default function GroupChatScreen({ route, navigation }) {
     const token = await AsyncStorage.getItem("token");
     if (token) {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = decodeJWT(token);
         setIsAdmin(payload.role === 'admin');
       } catch (e) {
         console.log("Token decode error:", e);
@@ -257,7 +279,9 @@ export default function GroupChatScreen({ route, navigation }) {
       const data = await response.json();
       console.log("Server response:", data);
 
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) {
+        throw new Error(data.message || `Server returned ${response.status}`);
+      }
 
       setMessages(prev => [...prev, data]);
       setReplyingTo(null);
@@ -476,59 +500,38 @@ export default function GroupChatScreen({ route, navigation }) {
       console.log("Opening image picker...");
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.6, // Reduced quality for smaller file size
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
         base64: true,
-        maxWidth: 1024, // Limit image width
-        maxHeight: 1024, // Limit image height
       });
-
-      console.log("Image picker result:", result);
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
-        console.log("Selected image:", asset.uri, "Size:", asset.fileSize);
 
         if (!asset.base64) {
-          Alert.alert("Error", "Failed to convert image to base64. Please try a different image.");
+          Alert.alert("Error", "Failed to get image data");
           return;
         }
 
         const base64Image = `data:image/jpeg;base64,${asset.base64}`;
-        console.log("Base64 image length:", base64Image.length);
-
-        // Check if image is too large (limit to ~5MB base64)
-        if (base64Image.length > 5 * 1024 * 1024) {
-          Alert.alert("Error", "Image is too large. Please select a smaller image or try taking a new photo.");
-          return;
-        }
-
-        // For web compatibility, use a simple confirm instead of Alert.prompt
-        if (Platform.OS === 'web') {
-          const caption = prompt("Add a caption (optional):");
-          sendMessage(caption || "📷 Photo", "image", base64Image);
-        } else {
-          // For mobile, use Alert with text input alternative
-          Alert.alert(
-            "Send Photo",
-            "Do you want to send this photo?",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Send",
-                onPress: () => sendMessage("📷 Photo", "image", base64Image)
-              }
-            ]
-          );
-        }
-      } else {
-        console.log("Image picker was canceled or no image selected");
+        setPreviewImage(base64Image);
+        setShowPreviewModal(true);
+        setPreviewCaption("");
       }
     } catch (error) {
-      console.error("Image picker error:", error);
       Alert.alert("Error", "Failed to pick image: " + error.message);
     }
     setShowAttachmentOptions(false);
+  };
+
+  const handleSendPreviewImage = () => {
+    if (previewImage) {
+      sendMessage(previewCaption || "📷 Photo", "image", previewImage);
+      setShowPreviewModal(false);
+      setPreviewImage(null);
+      setPreviewCaption("");
+    }
   };
 
 
@@ -574,31 +577,19 @@ export default function GroupChatScreen({ route, navigation }) {
           console.log("Mobile file selected:", file.name, file.size, file.mimeType);
 
           try {
-            // For mobile, read the file as base64 using fetch and FileReader
-            const response = await fetch(file.uri);
-            const blob = await response.blob();
+            // Use FileSystem instead of fetch/FileReader for better mobile reliability
+            const base64Raw = await FileSystem.readAsStringAsync(file.uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
 
-            // Convert blob to base64
-            const reader = new FileReader();
-            reader.onload = () => {
-              const base64Data = reader.result;
-              console.log("Mobile file converted to base64, length:", base64Data.length);
+            const base64Data = `data:${file.mimeType || 'application/octet-stream'};base64,${base64Raw}`;
 
-              sendMessage(`📎 ${file.name}`, "file", {
-                name: file.name,
-                size: file.size,
-                type: file.mimeType || 'application/octet-stream',
-                data: base64Data
-              });
-            };
-
-            reader.onerror = (error) => {
-              console.error("FileReader error:", error);
-              Alert.alert("Error", "Failed to read file");
-            };
-
-            reader.readAsDataURL(blob);
-
+            sendMessage(`📎 ${file.name}`, "file", {
+              name: file.name,
+              size: file.size,
+              type: file.mimeType || 'application/octet-stream',
+              data: base64Data
+            });
           } catch (fileError) {
             console.error("File reading error:", fileError);
             Alert.alert("Error", "Failed to read file: " + fileError.message);
@@ -790,10 +781,10 @@ export default function GroupChatScreen({ route, navigation }) {
             {item.messageType === "image" && item.fileData ? (
               <TouchableOpacity
                 style={styles.imageContainer}
-                onPress={() => handleLinkPress(item.fileData)}
+                onPress={() => setFullScreenImage(item.fileData)}
               >
                 <Image source={{ uri: item.fileData }} style={styles.messageImage} />
-                {item.messageText && item.messageText !== "📷 Image" && (
+                {item.messageText && !["📷 Photo", "📷 Image"].includes(item.messageText) && (
                   <Text style={[
                     styles.imageCaption,
                     isMyMessage ? styles.myMessageText : styles.otherMessageText
@@ -1174,6 +1165,66 @@ export default function GroupChatScreen({ route, navigation }) {
             </Pressable>
           </Pressable>
         </Modal>
+
+        {/* Image Preview Modal */}
+        <Modal
+          visible={showPreviewModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowPreviewModal(false)}
+        >
+          <View style={styles.previewOverlay}>
+            <View style={styles.previewContainer}>
+              <View style={styles.previewHeader}>
+                <TouchableOpacity onPress={() => setShowPreviewModal(false)}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.previewTitle}>Preview</Text>
+                <View style={{ width: 28 }} />
+              </View>
+
+              <Image source={{ uri: previewImage }} style={styles.previewImage} resizeMode="contain" />
+
+              <View style={styles.previewFooter}>
+                <View style={styles.previewInputWrapper}>
+                  <TextInput
+                    style={styles.previewTextInput}
+                    placeholder="Add a caption..."
+                    placeholderTextColor="#94A3B8"
+                    value={previewCaption}
+                    onChangeText={setPreviewCaption}
+                  />
+                </View>
+                <TouchableOpacity style={styles.previewSendButton} onPress={handleSendPreviewImage}>
+                  <Ionicons name="send" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Full Screen Image Modal */}
+        <Modal
+          visible={!!fullScreenImage}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setFullScreenImage(null)}
+        >
+          <View style={styles.fullScreenOverlay}>
+            <TouchableOpacity
+              style={styles.fullScreenCloseButton}
+              onPress={() => setFullScreenImage(null)}
+            >
+              <Ionicons name="arrow-back" size={28} color="#fff" />
+              <Text style={styles.fullScreenCloseText}>Back</Text>
+            </TouchableOpacity>
+            <Image
+              source={{ uri: fullScreenImage }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </AppLayout>
   );
@@ -1335,6 +1386,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 4
   },
+  imageMessageContainer: {
+    backgroundColor: 'transparent',
+    padding: 0,
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0
+  },
   senderName: {
     fontSize: 12,
     fontWeight: "700",
@@ -1486,8 +1544,6 @@ const styles = StyleSheet.create({
   circularDropdown: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(100, 116, 139, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1808,5 +1864,97 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginLeft: 10,
     tintColor: '#6B7280',
+  },
+  imageContainer: {
+    marginTop: 5,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  messageImage: {
+    width: 280,
+    height: undefined,
+    aspectRatio: 1,
+    resizeMode: 'cover',
+    borderRadius: 12,
+  },
+  imageCaption: {
+    fontSize: 14,
+    color: '#111827',
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+  },
+  previewContainer: {
+    flex: 1,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 30,
+    paddingBottom: 20,
+  },
+  previewTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  cropText: {
+    color: '#10B981',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  previewImage: {
+    flex: 1,
+    width: '100%',
+  },
+  fullScreenOverlay: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 30,
+    left: 20,
+    zIndex: 10,
+    padding: 10,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  previewFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  previewInputWrapper: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    marginRight: 15,
+  },
+  previewTextInput: {
+    color: '#fff',
+    fontSize: 16,
+    paddingVertical: 12,
+  },
+  previewSendButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#00664F',
+    justifyContent: 'center',
+    alignItems: 'center',
   }
 });
