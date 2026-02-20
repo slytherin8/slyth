@@ -9,13 +9,35 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  Platform
+  StatusBar
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '../utils/storage';
-
 import { API } from '../constants/api';
+
+const decodeJWT = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      Buffer.from(base64, 'base64')
+        .toString('binary')
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(base64));
+    } catch (e2) {
+      return null;
+    }
+  }
+};
 
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem("token");
@@ -33,7 +55,6 @@ export default function EditGroupScreen({ route, navigation }) {
   const [profilePhoto, setProfilePhoto] = useState(groupPhoto || null);
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
-  const [groupMembers, setGroupMembers] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState([]);
 
   useEffect(() => {
@@ -68,7 +89,6 @@ export default function EditGroupScreen({ route, navigation }) {
 
       const data = await response.json();
       if (response.ok) {
-        setGroupMembers(data.members || []);
         setSelectedMembers(data.members?.map(member => member.userId._id) || []);
       }
     } catch (error) {
@@ -150,122 +170,136 @@ export default function EditGroupScreen({ route, navigation }) {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "Feb 4, 2025"; // Placeholder date if missing
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={28} color="#111827" />
+          <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Group Photo Section */}
-        <View style={styles.photoSection}>
-          <TouchableOpacity style={styles.photoContainer} onPress={pickImage}>
-            {profilePhoto ? (
-              <Image source={{ uri: profilePhoto }} style={styles.groupPhoto} />
-            ) : (
-              <View style={styles.photoPlaceholder}>
-                <Text style={styles.photoPlaceholderText}>
-                  {name.charAt(0).toUpperCase() || "G"}
-                </Text>
-              </View>
-            )}
-            <View style={styles.cameraIconContainer}>
-              <Ionicons name="camera" size={20} color="#fff" />
+        {/* Photo Selection */}
+        <View style={styles.photoContainer}>
+          <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+            <View style={styles.avatarWrapper}>
+              {profilePhoto ? (
+                <Image source={{ uri: profilePhoto }} style={styles.largeAvatar} />
+              ) : (
+                <View style={[styles.largeAvatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarInitial}>{name.charAt(0).toUpperCase() || "G"}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.cameraIconBadge}>
+              <Image
+                source={require("../../assets/images/set-profile.png")}
+                style={styles.cameraIcon}
+              />
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* Group Details Section */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Group Name</Text>
+        {/* Inputs */}
+        <View style={styles.inputSection}>
+          <Text style={styles.inputLabel}>Group Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter group name"
             value={name}
             onChangeText={setName}
-            maxLength={50}
+            placeholder="Search here"
+            placeholderTextColor="#9CA3AF"
           />
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Group Description</Text>
+          <Text style={styles.inputLabel}>Group Description</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Enter group description (optional)"
             value={description}
             onChangeText={setDescription}
+            placeholder="Team's purpose, scope, focusing on user-centered products"
+            placeholderTextColor="#9CA3AF"
             multiline
-            numberOfLines={3}
-            maxLength={200}
+            numberOfLines={4}
           />
         </View>
 
-        {/* Members Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Members</Text>
+        {/* Members List */}
+        <View style={styles.membersSection}>
+          <Text style={styles.membersTitle}>Members</Text>
 
-          {employees.map((employee) => (
-            <TouchableOpacity
-              key={employee._id}
-              style={styles.memberItem}
-              onPress={() => toggleMember(employee._id)}
-            >
-              <View style={styles.memberAvatar}>
-                {employee.profile?.avatar ? (
-                  <Image
-                    source={{ uri: employee.profile.avatar }}
-                    style={styles.memberAvatarImage}
-                  />
-                ) : (
-                  <Text style={styles.memberAvatarText}>
-                    {employee.profile?.name?.charAt(0)?.toUpperCase() || "?"}
+          {employees.map((item, index) => {
+            const isSelected = selectedMembers.includes(item._id);
+            return (
+              <TouchableOpacity
+                key={item._id}
+                style={styles.memberItem}
+                onPress={() => toggleMember(item._id)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.memberAvatarContainer}>
+                  {item.profile?.avatar ? (
+                    <Image source={{ uri: item.profile.avatar }} style={styles.memberAvatar} />
+                  ) : (
+                    <View style={[styles.memberAvatar, styles.avatarPlaceholderMini]}>
+                      <Text style={styles.avatarInitialMini}>
+                        {item.role === 'admin' ? 'A' : (item.profile?.name || item.name || "?").charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.memberInfo}>
+                  <Text style={styles.memberName}>
+                    {item.role === 'admin' ? 'Admin' : (item.profile?.name || item.name || "Employee")}
                   </Text>
-                )}
-              </View>
-              <View style={styles.memberDetails}>
-                <Text style={styles.memberName}>
-                  {employee.profile?.name || "No Name"}
-                </Text>
-                <Text style={styles.memberRole}>Employee</Text>
-                <Text style={styles.memberJoined}>
-                  Joined {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </Text>
-              </View>
+                  <Text style={styles.memberRole}>
+                    {item.role === 'admin' ? 'Admin' : 'Employee'}
+                  </Text>
+                  <Text style={styles.memberJoined}>Joined {formatDate(item.createdAt)}</Text>
+                </View>
 
-              <View style={[
-                styles.checkbox,
-                selectedMembers.includes(employee._id) && styles.checkboxSelected
-              ]}>
-                {selectedMembers.includes(employee._id) && (
-                  <Ionicons name="checkmark" size={18} color="#fff" />
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={[styles.checkbox, isSelected && styles.checkedBox]}>
+                  {isSelected && <Ionicons name="checkmark" size={16} color="#4B5563" />}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={updateGroup}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.saveButton, loading && styles.disabledButton]}
+            onPress={updateGroup}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -274,176 +308,219 @@ export default function EditGroupScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff"
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: "#fff"
+    paddingBottom: 10,
   },
   backButton: {
-    padding: 4
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F8F9FA",
+    justifyContent: "center",
+    alignItems: "center",
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    paddingBottom: 40
-  },
-  photoSection: {
-    alignItems: "center",
-    paddingVertical: 30,
-    paddingHorizontal: 20
+  scrollContent: {
+    paddingBottom: 40,
   },
   photoContainer: {
-    position: "relative"
-  },
-  groupPhoto: {
-    width: 120,
-    height: 120,
-    borderRadius: 60
-  },
-  photoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#FCD34D",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center"
+    marginTop: 20,
+    marginBottom: 30,
   },
-  photoPlaceholderText: {
-    fontSize: 48,
-    fontWeight: "600",
-    color: "#fff"
+  avatarWrapper: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#FFF9E6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
-  cameraIconContainer: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "#25D366",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  largeAvatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#FFD966',
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#fff"
   },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24
+  avatarInitial: {
+    fontSize: 52,
+    fontWeight: '800',
+    color: '#D97706',
+    includeFontPadding: false,
+    textAlign: 'center',
   },
-  sectionTitle: {
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cameraIcon: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+  },
+  inputSection: {
+    paddingHorizontal: 24,
+    marginBottom: 30,
+  },
+  inputLabel: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginBottom: 16,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
+    color: '#4B5563',
+    fontWeight: '500',
     marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
+    marginLeft: 10,
   },
   input: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
-    paddingHorizontal: 16,
+    borderColor: '#E5E7EB',
+    borderRadius: 25,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: "#F9FAFB",
-    color: "#111827"
+    fontSize: 15,
+    color: '#111827',
+    marginBottom: 20,
   },
   textArea: {
     height: 100,
-    textAlignVertical: "top"
+    paddingTop: 15,
+    borderRadius: 20,
+    textAlignVertical: 'top',
+  },
+  membersSection: {
+    paddingHorizontal: 24,
+    marginBottom: 20,
+  },
+  membersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 16,
+    marginLeft: 4,
   },
   memberItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6"
+    borderBottomColor: '#F3F4F6',
+  },
+  memberAvatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF9E6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
   },
   memberAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#E5E7EB",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12
   },
-  memberAvatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24
+  avatarPlaceholderMini: {
+    backgroundColor: '#FFD966',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  memberAvatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#6B7280"
+  avatarInitialMini: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#D97706',
+    includeFontPadding: false,
+    textAlign: 'center',
   },
-  memberDetails: {
-    flex: 1
+  memberInfo: {
+    flex: 1,
   },
   memberName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
   },
   memberRole: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 2
+    fontSize: 13,
+    color: '#4B5563',
+    marginBottom: 2,
   },
   memberJoined: {
     fontSize: 12,
-    color: "#9CA3AF"
+    color: '#9CA3AF',
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#D1D5DB",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff"
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  checkboxSelected: {
-    backgroundColor: "#00664F",
-    borderColor: "#00664F"
+  checkedBox: {
+    borderColor: '#9CA3AF', // Matches the gray tick look
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
   },
   saveButton: {
-    backgroundColor: "#00664F",
-    marginHorizontal: 20,
-    marginTop: 30,
+    backgroundColor: '#006644', // Dark green matching the image
     paddingVertical: 16,
     borderRadius: 30,
-    alignItems: "center",
-    shadowColor: "#00664F",
+    alignItems: 'center',
+    shadowColor: "#006644",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 4
-  },
-  saveButtonDisabled: {
-    opacity: 0.6
+    elevation: 5,
   },
   saveButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
-    letterSpacing: 0.5
-  }
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#6B7280",
+    fontSize: 15,
+  },
 });
+
