@@ -88,28 +88,46 @@ router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     // Track changes for system messages
-    const oldMemberIds = group.members.map(m => m.userId.toString());
-    const newMemberIds = Array.from(new Set([...memberIds, req.user.id])); // Always include admin
+    const oldActiveMemberIds = group.members.filter(m => !m.hasLeft).map(m => m.userId.toString());
+    const newTargetMemberIds = Array.from(new Set([...memberIds, req.user.id])); // Always include admin
 
-    const addedIds = newMemberIds.filter(id => !oldMemberIds.includes(id));
-    const removedIds = oldMemberIds.filter(id => !newMemberIds.includes(id));
+    const addedIds = newTargetMemberIds.filter(id => !oldActiveMemberIds.includes(id));
+    const removedIds = oldActiveMemberIds.filter(id => !newTargetMemberIds.includes(id));
 
-    // Prepare updated members list
+    // Prepare updated members list (preserving history)
     const currentMemberMap = new Map();
     group.members.forEach(m => {
       if (m.userId) currentMemberMap.set(m.userId.toString(), m);
     });
 
-    const updatedMembers = newMemberIds.map(id => {
-      if (currentMemberMap.has(id)) return currentMemberMap.get(id);
-      return {
-        userId: id,
-        joinedAt: new Date(),
-        unreadCount: 0,
-        lastReadAt: new Date(),
-        isMuted: false
-      };
+    // Update active status for selected members
+    newTargetMemberIds.forEach(id => {
+      if (currentMemberMap.has(id)) {
+        const m = currentMemberMap.get(id);
+        m.hasLeft = false;
+        m.leftAt = null;
+      } else {
+        currentMemberMap.set(id, {
+          userId: id,
+          joinedAt: new Date(),
+          unreadCount: 0,
+          lastReadAt: new Date(),
+          isMuted: false,
+          hasLeft: false
+        });
+      }
     });
+
+    // Mark removed members as hasLeft: true
+    removedIds.forEach(id => {
+      const m = currentMemberMap.get(id);
+      if (m) {
+        m.hasLeft = true;
+        m.leftAt = new Date();
+      }
+    });
+
+    const updatedMembers = Array.from(currentMemberMap.values());
 
     // Update group
     const updatedGroup = await Group.findByIdAndUpdate(
@@ -143,7 +161,19 @@ router.put("/groups/:groupId", auth, adminOnly, async (req, res) => {
         const populatedMsg = await Message.findById(systemMsg._id).populate("senderId", "name profile.name profile.avatar");
 
         if (io) {
-          io.to(groupId).emit("new_message", populatedMsg);
+          updatedGroup.members.forEach(member => {
+            if (member.userId) {
+              const targetId = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+              // Emit system message
+              io.to(targetId).emit("group_message", populatedMsg);
+              // Also notify about group update (name/photo changes)
+              io.to(targetId).emit("group_update", {
+                type: "group",
+                groupId: groupId,
+                group: updatedGroup
+              });
+            }
+          });
         }
       }
     }
@@ -163,7 +193,6 @@ router.get("/groups", auth, async (req, res) => {
     const groups = await Group.find({
       "members.userId": req.user.id,
       companyId: req.user.companyId,
-      isActive: true
     })
       .populate("members.userId", "name profile.name profile.avatar email role isOnline lastSeen")
       .populate("createdBy", "name profile.name")
@@ -213,6 +242,8 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
     const { groupId } = req.params;
     const { page = 1, limit = 50 } = req.query;
 
+    console.log(`[DEBUG] GET /groups/${groupId}/messages - User: ${req.user.id}, Company: ${req.user.companyId}`);
+
     // Verify user is member of the group OR is an admin in the same company
     const group = await Group.findOne({
       _id: groupId,
@@ -220,6 +251,7 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
     });
 
     if (!group) {
+      console.log(`[DEBUG] Group ${groupId} not found for company ${req.user.companyId}`);
       return res.status(404).json({ message: "Group not found" });
     }
 
@@ -294,11 +326,13 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
       return res.status(403).json({ message: "Access denied to this group (inactive or non-existent)" });
     }
 
-    const isMember = group.members.some(m => m.userId.toString() === req.user.id);
+    const memberData = group.members.find(m => m.userId.toString() === req.user.id);
+    const isMember = !!memberData;
+    const hasLeft = memberData?.hasLeft;
     const isAdmin = (req.user.role || "").toLowerCase() === 'admin';
 
-    if (!isMember && !isAdmin) {
-      return res.status(403).json({ message: "Access denied to this group" });
+    if ((!isMember || hasLeft) && !isAdmin) {
+      return res.status(403).json({ message: "You can't send messages to this group because you're no longer a member." });
     }
 
     const message = await Message.create({
@@ -395,6 +429,8 @@ router.get("/groups/:groupId", auth, async (req, res) => {
   try {
     const { groupId } = req.params;
 
+    console.log(`[DEBUG] GET /groups/${groupId} - User: ${req.user.id}, Company: ${req.user.companyId}`);
+
     const group = await Group.findOne({
       _id: groupId,
       companyId: req.user.companyId
@@ -403,6 +439,7 @@ router.get("/groups/:groupId", auth, async (req, res) => {
       .populate("createdBy", "name profile.name");
 
     if (!group) {
+      console.log(`[DEBUG] Group ${groupId} not found for company ${req.user.companyId}`);
       return res.status(404).json({ message: "Group not found" });
     }
 
@@ -458,11 +495,30 @@ router.delete("/groups/:groupId", auth, adminOnly, async (req, res) => {
       lastActivity: new Date()
     });
 
-    // Also mark all messages in this group as deleted
-    await Message.updateMany(
-      { groupId },
-      { isDeleted: true }
-    );
+    // Create a system message to notify members
+    const systemMsg = await Message.create({
+      groupId,
+      senderId: req.user.id,
+      messageText: "This group has been deleted by an admin.",
+      messageType: "system"
+    });
+
+    // Notify all members via Socket.io
+    const io = req.app.get("io");
+    if (io) {
+      const populatedMsg = await Message.findById(systemMsg._id).populate("senderId", "name profile.name");
+      group.members.forEach(member => {
+        if (member.userId) {
+          io.to(member.userId.toString()).emit("group_message", populatedMsg);
+          // Also notify that the group status changed
+          io.to(member.userId.toString()).emit("group_update", {
+            type: "group",
+            groupId: groupId,
+            group: { ...group._doc, isActive: false }
+          });
+        }
+      });
+    }
 
     res.json({ message: "Group deleted successfully" });
   } catch (error) {
@@ -490,23 +546,29 @@ router.post("/groups/:groupId/leave", auth, async (req, res) => {
       return res.status(403).json({ message: "Access denied to this group" });
     }
 
-    // Remove user from group members
+    // Mark user as left instead of removing
     await Group.updateOne(
-      { _id: groupId },
       {
-        $pull: { members: { userId: req.user.id } },
-        $set: { lastActivity: new Date() }
+        _id: groupId,
+        "members.userId": req.user.id
+      },
+      {
+        $set: {
+          "members.$.hasLeft": true,
+          "members.$.leftAt": new Date(),
+          lastActivity: new Date()
+        }
       }
     );
 
     // Create a system message
-    const user = await User.findById(req.user.id).select("profile.name");
-    const userName = user?.profile?.name || "A member";
+    const user = await User.findById(req.user.id).select("profile.name name");
+    const userName = user?.profile?.name || user?.name || "A member";
 
     const systemMessage = await Message.create({
       groupId,
-      senderId: req.user.id, // Current user is still technically the "trigger"
-      messageText: `${userName} has left the group`,
+      senderId: req.user.id,
+      messageText: `${userName} left`,
       messageType: "system"
     });
 
@@ -516,14 +578,19 @@ router.post("/groups/:groupId/leave", auth, async (req, res) => {
     // Emit real-time updates and notifications to remaining group members
     const io = req.app.get("io");
 
-    // Find updated group to get current members and send notifications
+    // Find updated group
     const updatedGroup = await Group.findById(groupId);
     if (updatedGroup) {
-      // Increment unread counts for remaining members
+      // Increment unread counts for remaining active members
       await Group.updateMany(
         {
           _id: groupId,
-          "members.userId": { $ne: req.user.id }
+          "members": {
+            $elemMatch: {
+              userId: { $ne: req.user.id },
+              hasLeft: false
+            }
+          }
         },
         {
           $inc: { "members.$.unreadCount": 1 }
@@ -531,28 +598,36 @@ router.post("/groups/:groupId/leave", auth, async (req, res) => {
       );
 
       updatedGroup.members.forEach(member => {
-        // Skip the person who just left
-        if (member.userId.toString() !== req.user.id) {
+        if (member.userId) {
+          const targetId = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+
           if (io) {
-            io.to(member.userId.toString()).emit("group_message", populatedMessage);
-            io.to(member.userId.toString()).emit("unread_count_update", {
-              type: "group",
-              groupId: groupId,
-              count: (member.unreadCount || 0) + 1
-            });
+            // Everyone (including person who left) sees the system message
+            io.to(targetId).emit("group_message", populatedMessage);
+
+            // Only active members get unread count updates
+            if (!member.hasLeft) {
+              io.to(targetId).emit("unread_count_update", {
+                type: "group",
+                groupId: groupId,
+                count: (member.unreadCount || 0) + (targetId === req.user.id ? 0 : 1)
+              });
+            }
           }
 
-          // Send Push Notification
-          sendPushNotification(
-            member.userId,
-            group.name,
-            `${userName} has left the group`,
-            {
-              type: "group_chat",
-              groupId: groupId,
-              groupName: group.name
-            }
-          );
+          // Send Push Notification only to others who haven't left
+          if (targetId !== req.user.id && !member.hasLeft) {
+            sendPushNotification(
+              member.userId,
+              group.name,
+              `${userName} left`,
+              {
+                type: "group_chat",
+                groupId: groupId,
+                groupName: group.name
+              }
+            );
+          }
         }
       });
     }
