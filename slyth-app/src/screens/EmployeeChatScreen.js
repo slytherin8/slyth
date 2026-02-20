@@ -485,7 +485,7 @@ export default function EmployeeChatScreen({ navigation }) {
 
         {/* Search Bar & Plus Button */}
         <View style={styles.searchRow}>
-          <View style={[styles.searchBar, { flex: 1, marginRight: 0 }]}>
+          <View style={styles.searchBar}>
             <Image source={require("../../assets/images/search.png")} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
@@ -495,6 +495,7 @@ export default function EmployeeChatScreen({ navigation }) {
               onChangeText={setSearchQuery}
             />
           </View>
+          <View style={{ width: 10 }} />
         </View>
 
         {/* Tabs */}
@@ -620,7 +621,7 @@ export default function EmployeeChatScreen({ navigation }) {
                     }}
                   >
                     <View style={styles.menuIconContainer}>
-                      <Ionicons name="information-outline" size={24} color="#6B7280" />
+                      <Image source={require("../../assets/images/info.png")} style={styles.menuIconImageManual} />
                     </View>
                     <Text style={styles.menuItemText}>Group Info</Text>
                     <Image source={require("../../assets/images/right-arrow.png")} style={styles.chevronIcon} />
@@ -635,7 +636,7 @@ export default function EmployeeChatScreen({ navigation }) {
                     }}
                   >
                     <View style={styles.menuIconContainer}>
-                      <Ionicons name="notifications-off-outline" size={24} color="#6B7280" />
+                      <Ionicons name="notifications-outline" size={24} color="#6B7280" />
                     </View>
                     <Text style={styles.menuItemText}>Mute Notifications</Text>
                     <Image source={require("../../assets/images/right-arrow.png")} style={styles.chevronIcon} />
@@ -655,7 +656,7 @@ export default function EmployeeChatScreen({ navigation }) {
                     }}
                   >
                     <View style={styles.menuIconContainer}>
-                      <Ionicons name="exit-outline" size={24} color="#EF4444" />
+                      <Image source={require("../../assets/images/delete.png")} style={[styles.menuIconImageManual, { tintColor: '#DC2626' }]} />
                     </View>
                     <Text style={[styles.menuItemText, { color: '#EF4444' }]}>Leave Group</Text>
                     <Image source={require("../../assets/images/right-arrow.png")} style={[styles.chevronIcon, { tintColor: '#EF4444' }]} />
@@ -957,6 +958,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 15,
+  },
+  menuIconImageManual: {
+    width: 24,
+    height: 24,
+    resizeMode: "contain"
   },
   menuItemText: {
     flex: 1,
