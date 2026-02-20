@@ -24,6 +24,29 @@ import { useSmartLoader } from "../hooks/useSmartLoader";
 
 import { API } from '../constants/api';
 
+const decodeJWT = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      Buffer.from(base64, 'base64')
+        .toString('binary')
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(base64));
+    } catch (e2) {
+      return null;
+    }
+  }
+};
+
 const { width: screenWidth } = Dimensions.get('window');
 
 const getAuthHeaders = async () => {
@@ -128,7 +151,7 @@ export default function AdminChatScreen({ navigation }) {
     try {
       const token = await AsyncStorage.getItem("token");
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = decodeJWT(token);
         setCurrentUserId(payload.id);
       }
     } catch (e) {
@@ -647,7 +670,7 @@ export default function AdminChatScreen({ navigation }) {
                   });
                 }}
               >
-                <Text style={styles.actionIcon}>ℹ️</Text>
+                <Image source={require("../../assets/images/info.png")} style={styles.actionIconProfileImage} />
                 <Text style={styles.actionText}>Group Info</Text>
               </TouchableOpacity>
 
@@ -663,7 +686,7 @@ export default function AdminChatScreen({ navigation }) {
                   });
                 }}
               >
-                <Text style={styles.actionIcon}>✏️</Text>
+                <Image source={require("../../assets/images/edit.png")} style={styles.actionIconImage} />
                 <Text style={styles.actionText}>Edit Group</Text>
               </TouchableOpacity>
 
@@ -679,7 +702,7 @@ export default function AdminChatScreen({ navigation }) {
                   });
                 }}
               >
-                <Text style={[styles.actionIcon, styles.deleteText]}>🗑️</Text>
+                <Image source={require("../../assets/images/delete.png")} style={[styles.actionIconImage, { tintColor: '#DC2626' }]} />
                 <Text style={[styles.actionText, styles.deleteText]}>Delete Group</Text>
               </TouchableOpacity>
 
@@ -999,10 +1022,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6"
   },
-  actionIcon: {
-    fontSize: 20,
+  actionIconProfileImage: {
+    width: 22,
+    height: 22,
     marginRight: 15,
-    width: 30
+    resizeMode: "contain"
+  },
+  actionIconImage: {
+    width: 22,
+    height: 22,
+    marginRight: 15,
+    resizeMode: "contain",
+    tintColor: "#4B5563"
   },
   actionText: {
     fontSize: 16,
