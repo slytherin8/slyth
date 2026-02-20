@@ -156,6 +156,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const [groupInfo, setGroupInfo] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hasLeft, setHasLeft] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewCaption, setPreviewCaption] = useState("");
@@ -221,8 +222,18 @@ export default function GroupChatScreen({ route, navigation }) {
       const data = await response.json();
       if (response.ok) {
         setGroupInfo(data);
-        // Simulate online users (you can implement real-time status later)
-        setOnlineUsers(data.members?.slice(0, Math.floor(Math.random() * data.members?.length + 1)) || []);
+
+        // Check if current user has left
+        const userId = await getCurrentUserId();
+        const memberData = data.members?.find(m =>
+          (m.userId?._id?.toString() || m.userId?.toString()) === userId?.toString()
+        );
+        if (memberData?.hasLeft) {
+          setHasLeft(true);
+        }
+
+        // Simulate online users
+        setOnlineUsers(data.members?.filter(m => !m.hasLeft).slice(0, Math.floor(Math.random() * data.members?.length + 1)) || []);
       }
     } catch (error) {
       console.log("Failed to fetch group info:", error);
@@ -847,6 +858,7 @@ export default function GroupChatScreen({ route, navigation }) {
     <AppLayout
       navigation={navigation}
       title={groupName}
+      subtitle={groupInfo?.isActive === false ? "Deleted Group" : ""}
       onBack={() => navigation.goBack()}
       onMenu={() => setShowGroupMenu(true)}
     >
@@ -889,42 +901,52 @@ export default function GroupChatScreen({ route, navigation }) {
         )}
 
         {/* Message Input */}
-        <View style={styles.inputContainer}>
-          {/* Upload Options */}
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={pickImage}
-          >
-            <Image source={require("../../assets/images/add_photo.png")} style={styles.uploadIcon} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={pickDocument}
-          >
-            <Image source={require("../../assets/images/upload_file.png")} style={styles.uploadIcon} />
-          </TouchableOpacity>
-
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Type a message..."
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-              maxLength={1000}
-              placeholderTextColor="#888"
-            />
+        {groupInfo?.isActive === false ? (
+          <View style={styles.leftGroupFooter}>
+            <Text style={styles.leftGroupText}>This group has been deleted by an admin. You can't send messages.</Text>
           </View>
+        ) : hasLeft ? (
+          <View style={styles.leftGroupFooter}>
+            <Text style={styles.leftGroupText}>You can't send messages to this group because you're no longer a member.</Text>
+          </View>
+        ) : (
+          <View style={styles.inputContainer}>
+            {/* Upload Options */}
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={pickImage}
+            >
+              <Image source={require("../../assets/images/add_photo.png")} style={styles.uploadIcon} />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
-            onPress={handleSendText}
-            disabled={!newMessage.trim() && !sending}
-          >
-            <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={pickDocument}
+            >
+              <Image source={require("../../assets/images/upload_file.png")} style={styles.uploadIcon} />
+            </TouchableOpacity>
+
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Type a message..."
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                maxLength={1000}
+                placeholderTextColor="#888"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.sendButton, (!newMessage.trim() && !sending) && styles.sendButtonDisabled]}
+              onPress={handleSendText}
+              disabled={!newMessage.trim() && !sending}
+            >
+              <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Attachment Options Modal */}
         <Modal
@@ -1087,7 +1109,7 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </TouchableOpacity>
 
-              {isAdmin ? (
+              {isAdmin && groupInfo?.isActive !== false ? (
                 <>
                   <TouchableOpacity
                     style={styles.bottomSheetOption}
@@ -1127,7 +1149,7 @@ export default function GroupChatScreen({ route, navigation }) {
                     <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                   </TouchableOpacity>
                 </>
-              ) : (
+              ) : !isAdmin && !hasLeft && groupInfo?.isActive !== false ? (
                 <>
                   <TouchableOpacity
                     style={styles.bottomSheetOption}
@@ -1161,7 +1183,7 @@ export default function GroupChatScreen({ route, navigation }) {
                     <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                   </TouchableOpacity>
                 </>
-              )}
+              ) : null}
             </Pressable>
           </Pressable>
         </Modal>
@@ -1956,5 +1978,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#00664F',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  leftGroupFooter: {
+    backgroundColor: '#F8F9FA',
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  leftGroupText: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 20,
   }
 });
