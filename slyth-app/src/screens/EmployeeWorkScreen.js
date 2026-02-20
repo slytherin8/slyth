@@ -154,7 +154,8 @@ export default function EmployeeWorkScreen({ navigation }) {
       activeOpacity={0.7}
       onPress={() => navigation.navigate("ProjectTasks", {
         project: item,
-        role: "employee"
+        role: "employee",
+        employee: { _id: userId, name: userProfile?.name || "Me" }
       })}
     >
       <View style={styles.folderIconBg}>
