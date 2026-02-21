@@ -266,6 +266,7 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
       groupId,
       isDeleted: false
     })
+      .select("-fileData.data") // Exclude heavy base64 data
       .populate("senderId", "name profile.name profile.avatar role")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -295,24 +296,30 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
 /* =====================
    SEND MESSAGE
 ===================== */
-router.post("/groups/:groupId/messages", auth, async (req, res) => {
+// Multer setup for group messages
+const multer = require("multer");
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+router.post("/groups/:groupId/messages", auth, upload.single("file"), async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { messageText, messageType = "text", fileData, repliedMessage } = req.body;
+    let { messageText, messageType = "text", repliedMessage } = req.body;
 
-    console.log("=== SEND MESSAGE SERVER ===");
-    console.log("Group ID:", groupId);
-    console.log("Message text:", messageText);
-    console.log("Message type:", messageType);
-    console.log("File data:", fileData ? "Present" : "None");
-    console.log("File data keys:", fileData ? Object.keys(fileData) : "N/A");
+    // Parse repliedMessage if it's a string (from mobile)
+    if (typeof repliedMessage === 'string' && repliedMessage.length > 0) {
+      try {
+        repliedMessage = JSON.parse(repliedMessage);
+      } catch (e) {
+        console.error("Error parsing repliedMessage:", e);
+      }
+    }
 
     if (!messageText || messageText.trim().length === 0) {
       return res.status(400).json({ message: "Message text is required" });
-    }
-
-    if (messageText.trim().length > 1000) {
-      return res.status(400).json({ message: "Message too long (max 1000 characters)" });
     }
 
     // Verify user is member of the group OR is an admin in the same company
@@ -323,7 +330,7 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
     });
 
     if (!group) {
-      return res.status(403).json({ message: "Access denied to this group (inactive or non-existent)" });
+      return res.status(403).json({ message: "Access denied to this group" });
     }
 
     const memberData = group.members.find(m => m.userId.toString() === req.user.id);
@@ -335,16 +342,28 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
       return res.status(403).json({ message: "You can't send messages to this group because you're no longer a member." });
     }
 
+    let fileDataObject = null;
+    if (req.file) {
+      const base64Data = req.file.buffer.toString("base64");
+      fileDataObject = {
+        name: req.file.originalname,
+        size: req.file.size,
+        mimeType: req.file.mimetype,
+        data: `data:${req.file.mimetype};base64,${base64Data}`
+      };
+      messageType = messageType === "text" ? "file" : messageType;
+    } else if (req.body.fileData) {
+      fileDataObject = req.body.fileData;
+    }
+
     const message = await Message.create({
       groupId,
       senderId: req.user.id,
       messageText: messageText.trim(),
       messageType,
-      fileData,
+      fileData: fileDataObject,
       repliedMessage
     });
-
-    console.log("Message created:", message._id);
 
     // Update group's last activity and total message count
     await Group.findByIdAndUpdate(groupId, {
@@ -366,24 +385,18 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
     const populatedMessage = await Message.findById(message._id)
       .populate("senderId", "name profile.name profile.avatar role");
 
-    console.log("Populated message:", populatedMessage);
-
     // Emit real-time updates to all group members
     const io = req.app.get("io");
     if (io) {
-      // Emit the new message to all group members
       group.members.forEach(member => {
         if (member.userId.toString() !== req.user.id) {
           io.to(member.userId.toString()).emit("group_message", populatedMessage);
-
-          // Emit unread count update for this specific group
           io.to(member.userId.toString()).emit("unread_count_update", {
             type: "group",
             groupId: groupId,
             count: member.unreadCount + 1
           });
 
-          // Send Push Notification
           sendPushNotification(
             member.userId,
             group.name,
@@ -401,7 +414,7 @@ router.post("/groups/:groupId/messages", auth, async (req, res) => {
     res.status(201).json(populatedMessage);
   } catch (error) {
     console.error("Send message error:", error);
-    res.status(500).json({ message: "Failed to send message" });
+    res.status(500).json({ message: "Failed to send message: " + error.message });
   }
 });
 
@@ -693,6 +706,35 @@ router.delete("/groups/:groupId/messages/:messageId", auth, async (req, res) => 
   } catch (error) {
     console.error("Delete message error:", error);
     res.status(500).json({ message: "Failed to delete message" });
+  }
+});
+
+/* =====================
+   GET FILE DATA (FOR PERFORMANCE)
+ ===================== */
+router.get("/messages/data/:messageId", auth, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const message = await Message.findById(messageId);
+
+    if (!message || !message.fileData || !message.fileData.data) {
+      return res.status(404).json({ message: "File data not found" });
+    }
+
+    // Verify permission (user must be member of the group)
+    const group = await Group.findOne({
+      _id: message.groupId,
+      companyId: req.user.companyId,
+      "members.userId": req.user.id
+    });
+
+    if (!group && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json({ data: message.fileData.data });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch file data" });
   }
 });
 
