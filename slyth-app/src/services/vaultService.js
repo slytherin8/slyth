@@ -43,10 +43,11 @@ export const vaultService = {
   },
 
   uploadFile: async (file, folderId = null) => {
+    console.log(`[VaultService v2] uploadFile called for: ${file.name}`);
     const formData = new FormData();
 
     if (Platform.OS === "web") {
-      // On web, expo-document-picker returns asset.file as a native File object
+      // ... web logic remains same ...
       let fileData = file.file;
       if (!fileData && file.uri) {
         const response = await fetch(file.uri);
@@ -61,7 +62,6 @@ export const vaultService = {
         formData.append("folderId", folderId);
       }
 
-      // Use fetch directly on web for correct multipart/form-data handling
       const AsyncStorage = (await import("../utils/storage")).default;
       const token = await AsyncStorage.getItem("token");
       const { API } = await import("../constants/api");
@@ -79,29 +79,36 @@ export const vaultService = {
       return res.json();
 
     } else {
-      // Mobile: use axios with uri/type/name
-      // Note: Do NOT set Content-Type header manually, axios+FormData handles it with correct boundaries
-      const fileToUpload = {
-        uri: file.uri,
-        type: file.mimeType || "application/octet-stream",
-        name: file.name || `upload_${Date.now()}`,
-      };
+      // Mobile: Use FileSystem.uploadAsync for better reliability with large files
+      const AsyncStorage = (await import("../utils/storage")).default;
+      const token = await AsyncStorage.getItem("token");
+      const { API } = await import("../constants/api");
 
-      formData.append("file", fileToUpload);
+      // FileSystem.uploadAsync takes the file URI directly and handles multipart form data internally.
+      // The folderId is passed via parameters.
 
-      if (folderId && folderId !== "undefined" && folderId !== "null") {
-        formData.append("folderId", folderId);
-      }
+      console.log(`[VaultService v2] Using FileSystem.uploadAsync to: ${API}/api/vault/files`);
 
-      const res = await api.post("/vault/files", formData, {
+      const uploadResult = await FileSystem.uploadAsync(`${API}/api/vault/files`, file.uri, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'file',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
         },
-        transformRequest: (data, headers) => {
-          return data; // Prevents axios from stringifying the FormData
-        },
+        parameters: {
+          folderId: (folderId && folderId !== "undefined" && folderId !== "null") ? folderId : '',
+        }
       });
-      return res.data;
+
+      if (uploadResult.status < 200 || uploadResult.status >= 300) {
+        console.error(`[VaultService v2] uploadAsync error (${uploadResult.status}):`, uploadResult.body);
+        throw new Error(`Server error ${uploadResult.status}`);
+      }
+
+      const data = JSON.parse(uploadResult.body);
+      return data;
     }
   },
 
