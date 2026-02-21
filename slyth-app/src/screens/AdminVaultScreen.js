@@ -84,8 +84,11 @@ const AdminVaultScreen = ({ navigation, route }) => {
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 setUploading(true);
                 const asset = result.assets[0];
-                console.log("Uploading asset:", asset.name, asset.mimeType, asset.uri);
-                await vaultService.uploadFile(asset, folderId);
+                console.log(`[Vault] Uploading asset: ${asset.name}, Size: ${asset.size}, URI: ${asset.uri}`);
+
+                const uploadResult = await vaultService.uploadFile(asset, folderId);
+                console.log("[Vault] Upload successful:", uploadResult);
+
                 Alert.alert("Success", "File encrypted and uploaded securely");
                 loadContent();
             }
@@ -223,7 +226,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
                             <Text style={[styles.modalTitle, { marginBottom: 20 }]}>Choose Action</Text>
 
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12, width: '100%' }]}
+                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12 }]}
                                 onPress={() => {
                                     setShowActionModal(false);
                                     setTimeout(() => handleUpload(), 300);
@@ -234,7 +237,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12, width: '100%', backgroundColor: '#00664F' }]}
+                                style={[styles.modalBtn, styles.createBtn, { marginBottom: 12, backgroundColor: '#00664F' }]}
                                 onPress={() => {
                                     setShowActionModal(false);
                                     setTimeout(() => setShowFolderModal(true), 300);
@@ -245,7 +248,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.cancelBtn, { width: '100%' }]}
+                                style={[styles.modalBtn, styles.cancelBtn]}
                                 onPress={() => setShowActionModal(false)}
                             >
                                 <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -477,17 +480,37 @@ const styles = StyleSheet.create({
         gap: 12
     },
     modalBtn: {
-        flex: 1,
+        width: '100%',
         flexDirection: "row",
-        paddingVertical: 16,
-        borderRadius: 30,
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        borderRadius: 15,
         alignItems: "center",
         justifyContent: "center",
+        minHeight: 56,
+        // Removed overflow: 'hidden' to ensure children visibility
     },
-    createBtn: { backgroundColor: "#00664F" },
-    cancelBtn: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#F3F4F6" },
-    createBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 16 },
-    cancelBtnText: { color: "#6B7280", fontWeight: "700", fontSize: 16 },
+    createBtn: {
+        backgroundColor: "#00664F",
+        elevation: 2, // Added for depth
+    },
+    cancelBtn: {
+        backgroundColor: "#FFFFFF",
+        borderWidth: 1.5,
+        borderColor: "#E5E7EB"
+    },
+    createBtnText: {
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        fontSize: 16,
+        textAlign: 'center'
+    },
+    cancelBtnText: {
+        color: "#64748B", // Slightly darker gray for better contrast
+        fontWeight: "bold",
+        fontSize: 16,
+        textAlign: 'center'
+    },
 
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
