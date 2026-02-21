@@ -150,7 +150,8 @@ export default function AdminSignupScreen({ navigation }) {
 
         <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           {/* Background Section with Hand Image */}
           <View style={styles.backgroundSection}>
