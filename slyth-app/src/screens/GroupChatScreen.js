@@ -175,7 +175,10 @@ export default function GroupChatScreen({ route, navigation }) {
     const handleGroupMessage = (message) => {
       // Only add message if it's from the current group
       if (message.groupId === groupId) {
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          if (prev.find(m => m._id === message._id)) return prev;
+          return [...prev, message];
+        });
 
         // Scroll to bottom
         setTimeout(() => {
@@ -250,7 +253,17 @@ export default function GroupChatScreen({ route, navigation }) {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      setMessages(data);
+
+      // Ensure unique messages
+      const uniqueMessages = [];
+      const seen = new Set();
+      data.forEach(m => {
+        if (m._id && !seen.has(m._id)) {
+          seen.add(m._id);
+          uniqueMessages.push(m);
+        }
+      });
+      setMessages(uniqueMessages);
     } catch (error) {
       Alert.alert("Error", "Failed to fetch messages");
     } finally {
@@ -291,14 +304,17 @@ export default function GroupChatScreen({ route, navigation }) {
 
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || `Server returned ${response.status}`);
-        setMessages(prev => [...prev, data]);
+        setMessages(prev => {
+          if (prev.find(m => m._id === data._id)) return prev;
+          return [...prev, data];
+        });
       } else {
         // Mobile Attachment: Use FileSystem.uploadAsync for stability
         console.log(`[GroupChat] Using uploadAsync for ${messageType}`);
 
         const uploadResult = await FileSystem.uploadAsync(`${API}/api/chat/groups/${groupId}/messages`, fileData.uri, {
           httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          uploadType: 'multipart',
           fieldName: 'file',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -316,7 +332,10 @@ export default function GroupChatScreen({ route, navigation }) {
         }
 
         const data = JSON.parse(uploadResult.body);
-        setMessages(prev => [...prev, data]);
+        setMessages(prev => {
+          if (prev.find(m => m._id === data._id)) return prev;
+          return [...prev, data];
+        });
       }
       setReplyingTo(null);
 
@@ -681,7 +700,7 @@ export default function GroupChatScreen({ route, navigation }) {
         const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
 
         await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
 
         if (await Sharing.isAvailableAsync()) {
@@ -750,7 +769,6 @@ export default function GroupChatScreen({ route, navigation }) {
 
     return (
       <SwipeableMessage
-        key={item._id}
         onSwipe={() => handleReply(item)}
         isMyMessage={isMyMessage}
       >
@@ -898,8 +916,8 @@ export default function GroupChatScreen({ route, navigation }) {
     >
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 70}
       >
 
         {/* Messages List */}
