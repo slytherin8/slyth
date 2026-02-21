@@ -233,8 +233,12 @@ router.get("/files", auth, adminOnly, async (req, res) => {
 });
 
 // Upload file
-router.post("/files", auth, adminOnly, upload.single("file"), async (req, res) => {
+router.post("/files", auth, adminOnly, (req, res, next) => {
+  console.log(`[Vault Server] Received upload request: ${req.get('Content-Type')}`);
+  next();
+}, upload.single("file"), async (req, res) => {
   try {
+    console.log(`[Vault Server] Processing file: ${req.file?.originalname}, Size: ${req.file?.size}`);
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded. Please select a file." });
     }
