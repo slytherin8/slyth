@@ -124,10 +124,10 @@ export default function AppLayout({
             <View style={{ width: 12 }} /> // Reduced spacer to shift logo+name further left
           )}
 
-          {/* 🏢 CONTENT ROW (COMPANY OR TITLE) */}
           <View style={[
             styles.companyRow,
-            currentRouteName === "AdminDashboard" && { justifyContent: 'flex-start' }
+            currentRouteName === "AdminDashboard" && { justifyContent: 'flex-start' },
+            currentRouteName === "EmployeeHome" && { marginTop: 15 }
           ]}>
             {role === "employee" ? (
               currentRouteName === "EmployeeHome" ? (
@@ -189,56 +189,59 @@ export default function AppLayout({
             )}
           </View>
         </View>
-      )}
+      )
+      }
 
       {/* 🧩 PAGE CONTENT */}
       <View style={{ flex: 1 }}>{children}</View>
 
       {/* 🔽 BOTTOM NAV */}
-      {!hideBottomNav && (
-        <View style={styles.navWrapper}>
-          <View style={styles.bottomNav}>
-            <Nav
-              label="Home"
-              iconGray={require("../../assets/images/home-gray.png")}
-              iconWhite={require("../../assets/images/home-white.png")}
-              active={activeTab === "home"}
-              onPress={() => go(role === "admin" ? "AdminDashboard" : "EmployeeHome")}
-            />
-            <Nav
-              label="Work"
-              iconGray={require("../../assets/images/work-gray.png")}
-              iconWhite={require("../../assets/images/work-white.png")}
-              active={activeTab === "work"}
-              onPress={() => go(role === "admin" ? "AdminWork" : "EmployeeWork")}
-            />
-            <Nav
-              label="Chat"
-              iconGray={require("../../assets/images/chat-gray.png")}
-              iconWhite={require("../../assets/images/chat-white.png")}
-              active={activeTab === "chat"}
-              onPress={() => go(role === "admin" ? "AdminChat" : "EmployeeChat")}
-            />
-            {role === "admin" && (
+      {
+        !hideBottomNav && (
+          <View style={styles.navWrapper}>
+            <View style={styles.bottomNav}>
               <Nav
-                label="Vault"
-                iconGray={require("../../assets/images/valut-gray.png")}
-                iconWhite={require("../../assets/images/valut-white.png")}
-                active={activeTab === "files" || activeTab === "vault"}
-                onPress={() => go("AdminVault")}
+                label="Home"
+                iconGray={require("../../assets/images/home-gray.png")}
+                iconWhite={require("../../assets/images/home-white.png")}
+                active={activeTab === "home"}
+                onPress={() => go(role === "admin" ? "AdminDashboard" : "EmployeeHome")}
               />
-            )}
-            <Nav
-              label="Meet"
-              iconGray={require("../../assets/images/meet-gray.png")}
-              iconWhite={require("../../assets/images/meet-white.png")}
-              active={activeTab === "meet"}
-              onPress={() => go(role === "admin" ? "AdminMeet" : "EmployeeMeet")}
-            />
+              <Nav
+                label="Work"
+                iconGray={require("../../assets/images/work-gray.png")}
+                iconWhite={require("../../assets/images/work-white.png")}
+                active={activeTab === "work"}
+                onPress={() => go(role === "admin" ? "AdminWork" : "EmployeeWork")}
+              />
+              <Nav
+                label="Chat"
+                iconGray={require("../../assets/images/chat-gray.png")}
+                iconWhite={require("../../assets/images/chat-white.png")}
+                active={activeTab === "chat"}
+                onPress={() => go(role === "admin" ? "AdminChat" : "EmployeeChat")}
+              />
+              {role === "admin" && (
+                <Nav
+                  label="Vault"
+                  iconGray={require("../../assets/images/valut-gray.png")}
+                  iconWhite={require("../../assets/images/valut-white.png")}
+                  active={activeTab === "files" || activeTab === "vault"}
+                  onPress={() => go("AdminVault")}
+                />
+              )}
+              <Nav
+                label="Meet"
+                iconGray={require("../../assets/images/meet-gray.png")}
+                iconWhite={require("../../assets/images/meet-white.png")}
+                active={activeTab === "meet"}
+                onPress={() => go(role === "admin" ? "AdminMeet" : "EmployeeMeet")}
+              />
+            </View>
           </View>
-        </View>
-      )}
-    </View>
+        )
+      }
+    </View >
   );
 }
 
