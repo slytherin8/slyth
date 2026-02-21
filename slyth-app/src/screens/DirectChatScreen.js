@@ -259,7 +259,17 @@ export default function DirectChatScreen({ route, navigation }) {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      setMessages(data);
+
+      // Ensure unique messages
+      const uniqueMessages = [];
+      const seen = new Set();
+      data.forEach(m => {
+        if (m._id && !seen.has(m._id)) {
+          seen.add(m._id);
+          uniqueMessages.push(m);
+        }
+      });
+      setMessages(uniqueMessages);
     } catch (error) {
       Alert.alert("Error", "Failed to fetch messages");
     } finally {
@@ -699,7 +709,6 @@ export default function DirectChatScreen({ route, navigation }) {
 
     return (
       <SwipeableMessage
-        key={item._id}
         onSwipe={() => handleReply(item)}
         isMyMessage={isMyMessage}
       >
