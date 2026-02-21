@@ -178,7 +178,10 @@ export default function DirectChatScreen({ route, navigation }) {
     const handleDirectMessage = (message) => {
       // Only add message if it's from the current conversation
       if (message.senderId._id === userId || message.receiverId === userId) {
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          if (prev.find(m => m._id === message._id)) return prev;
+          return [...prev, message];
+        });
 
         // Scroll to bottom
         setTimeout(() => {
@@ -292,14 +295,17 @@ export default function DirectChatScreen({ route, navigation }) {
 
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || `Server returned ${response.status}`);
-        setMessages(prev => [...prev, data]);
+        setMessages(prev => {
+          if (prev.find(m => m._id === data._id)) return prev;
+          return [...prev, data];
+        });
       } else {
         // Mobile Attachment: Use FileSystem.uploadAsync for stability
         console.log(`[DirectChat] Using uploadAsync for ${messageType}`);
 
         const uploadResult = await FileSystem.uploadAsync(`${API}/api/direct-messages/messages/${userId}`, fileData.uri, {
           httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          uploadType: 'multipart',
           fieldName: 'file',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -317,7 +323,10 @@ export default function DirectChatScreen({ route, navigation }) {
         }
 
         const data = JSON.parse(uploadResult.body);
-        setMessages(prev => [...prev, data]);
+        setMessages(prev => {
+          if (prev.find(m => m._id === data._id)) return prev;
+          return [...prev, data];
+        });
       }
       setReplyingTo(null);
 
@@ -333,6 +342,7 @@ export default function DirectChatScreen({ route, navigation }) {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
+      console.error("Direct send error:", error);
       Alert.alert("Error", "Failed to send message: " + error.message);
       if (messageText) setNewMessage(messageText);
     } finally {
@@ -630,7 +640,7 @@ export default function DirectChatScreen({ route, navigation }) {
         const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
 
         await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
 
         if (await Sharing.isAvailableAsync()) {
@@ -847,8 +857,8 @@ export default function DirectChatScreen({ route, navigation }) {
     >
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 70}
       >
 
         {/* Messages List */}
