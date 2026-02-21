@@ -127,6 +127,7 @@ router.get("/messages/:userId", auth, async (req, res) => {
       ],
       isDeleted: false
     })
+      .select("-fileData.data") // Exclude heavy base64 data
       .populate("senderId", "name profile.name profile.avatar role")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -153,20 +154,33 @@ router.get("/messages/:userId", auth, async (req, res) => {
 /* =====================
    SEND DIRECT MESSAGE
 ===================== */
-router.post("/messages/:userId", auth, async (req, res) => {
+// Multer setup for direct messages (similar to vault)
+const multer = require("multer");
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+router.post("/messages/:userId", auth, upload.single("file"), async (req, res) => {
   try {
     const { userId } = req.params;
-    const { messageText, messageType = "text", fileData, repliedMessage } = req.body;
+    let { messageText, messageType = "text", repliedMessage } = req.body;
+
+    // Parse repliedMessage if it's a string (from mobile)
+    if (typeof repliedMessage === 'string' && repliedMessage.length > 0) {
+      try {
+        repliedMessage = JSON.parse(repliedMessage);
+      } catch (e) {
+        console.error("Error parsing repliedMessage:", e);
+      }
+    }
 
     if (!messageText || messageText.trim().length === 0) {
       return res.status(400).json({ message: "Message text is required" });
     }
 
-    if (messageText.trim().length > 1000) {
-      return res.status(400).json({ message: "Message too long (max 1000 characters)" });
-    }
-
-    // Verify the receiver exists and is in the same company
+    // Verify the receiver exists
     const receiver = await User.findOne({
       _id: userId,
       companyId: req.user.companyId
@@ -176,12 +190,29 @@ router.post("/messages/:userId", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    let fileDataObject = null;
+    if (req.file) {
+      // If a file was uploaded, convert to base64 for the current model structure
+      // Note: Ideally, you should store files in a cloud bucket and save the URL
+      const base64Data = req.file.buffer.toString("base64");
+      fileDataObject = {
+        name: req.file.originalname,
+        size: req.file.size,
+        mimeType: req.file.mimetype,
+        data: `data:${req.file.mimetype};base64,${base64Data}`
+      };
+      messageType = messageType === "text" ? "file" : messageType;
+    } else if (req.body.fileData) {
+      // Handle web base64 uploads
+      fileDataObject = req.body.fileData;
+    }
+
     const message = await DirectMessage.create({
       senderId: req.user.id,
       receiverId: userId,
       messageText: messageText.trim(),
       messageType,
-      fileData,
+      fileData: fileDataObject,
       repliedMessage,
       companyId: req.user.companyId
     });
@@ -193,15 +224,12 @@ router.post("/messages/:userId", auth, async (req, res) => {
     const io = req.app.get("io");
     if (io) {
       io.to(userId.toString()).emit("direct_message", populatedMessage);
-
-      // Also emit unread count update to receiver
       const unreadCount = await DirectMessage.countDocuments({
         senderId: req.user.id,
         receiverId: userId,
         readAt: null,
         isDeleted: false
       });
-
       io.to(userId.toString()).emit("unread_count_update", {
         type: "direct",
         userId: req.user.id,
@@ -226,7 +254,7 @@ router.post("/messages/:userId", auth, async (req, res) => {
     res.status(201).json(populatedMessage);
   } catch (error) {
     console.error("Send direct message error:", error);
-    res.status(500).json({ message: "Failed to send message" });
+    res.status(500).json({ message: "Failed to send message: " + error.message });
   }
 });
 
@@ -258,6 +286,32 @@ router.delete("/messages/:messageId", auth, async (req, res) => {
   } catch (error) {
     console.error("Delete direct message error:", error);
     res.status(500).json({ message: "Failed to delete message" });
+  }
+});
+
+/* =====================
+   GET FILE DATA (FOR PERFORMANCE)
+ ===================== */
+router.get("/messages/data/:messageId", auth, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const message = await DirectMessage.findOne({
+      _id: messageId,
+      companyId: req.user.companyId
+    });
+
+    if (!message || !message.fileData || !message.fileData.data) {
+      return res.status(404).json({ message: "File data not found" });
+    }
+
+    // Verify permission (must be sender or receiver)
+    if (message.senderId.toString() !== req.user.id && message.receiverId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json({ data: message.fileData.data });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch file data" });
   }
 });
 
