@@ -272,28 +272,53 @@ export default function DirectChatScreen({ route, navigation }) {
     setSending(true);
 
     try {
-      const headers = await getAuthHeaders();
-      const payload = {
-        messageText: textToSend || (messageType === "image" ? "📷 Image" : "📎 File"),
-        messageType,
-        fileData,
-        repliedMessage: replyingTo
-      };
+      const AsyncStorage = (await import("../utils/storage")).default;
+      const token = await AsyncStorage.getItem("token");
 
-      const response = await fetch(`${API}/api/direct-messages/messages/${userId}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload)
-      });
+      if (!fileData || Platform.OS === 'web') {
+        const headers = await getAuthHeaders();
+        const payload = {
+          messageText: textToSend || (messageType === "image" ? "📷 Image" : "📎 File"),
+          messageType,
+          fileData,
+          repliedMessage: replyingTo
+        };
 
-      const data = await response.json();
-      console.log("Server response:", data);
+        const response = await fetch(`${API}/api/direct-messages/messages/${userId}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload)
+        });
 
-      if (!response.ok) {
-        throw new Error(data.message || `Server returned ${response.status}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || `Server returned ${response.status}`);
+        setMessages(prev => [...prev, data]);
+      } else {
+        // Mobile Attachment: Use FileSystem.uploadAsync for stability
+        console.log(`[DirectChat] Using uploadAsync for ${messageType}`);
+
+        const uploadResult = await FileSystem.uploadAsync(`${API}/api/direct-messages/messages/${userId}`, fileData.uri, {
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          fieldName: 'file',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+          parameters: {
+            messageText: textToSend || (messageType === "image" ? "📷 Image" : "📎 File"),
+            messageType,
+            repliedMessage: replyingTo ? JSON.stringify(replyingTo) : ''
+          }
+        });
+
+        if (uploadResult.status < 200 || uploadResult.status >= 300) {
+          throw new Error(`Upload failed with status ${uploadResult.status}`);
+        }
+
+        const data = JSON.parse(uploadResult.body);
+        setMessages(prev => [...prev, data]);
       }
-
-      setMessages(prev => [...prev, data]);
       setReplyingTo(null);
 
       // Show success message for uploads
@@ -537,18 +562,11 @@ export default function DirectChatScreen({ route, navigation }) {
           const file = result.assets[0];
 
           try {
-            // Use FileSystem instead of fetch/FileReader for better mobile reliability
-            const base64Raw = await FileSystem.readAsStringAsync(file.uri, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
-
-            const base64Data = `data:${file.mimeType || 'application/octet-stream'};base64,${base64Raw}`;
-
             sendMessage(`📎 ${file.name}`, "file", {
+              uri: file.uri,
               name: file.name,
               size: file.size,
-              type: file.mimeType || 'application/octet-stream',
-              data: base64Data
+              mimeType: file.mimeType || 'application/octet-stream'
             });
           } catch (fileError) {
             Alert.alert("Error", "Failed to read file: " + fileError.message);
@@ -561,54 +579,85 @@ export default function DirectChatScreen({ route, navigation }) {
     setShowAttachmentOptions(false);
   };
 
-  const handleFileDownload = async (fileData) => {
+  const fetchFileData = async (messageId) => {
     try {
-      if (Platform.OS === 'web') {
-        if (fileData.data) {
-          const link = document.createElement('a');
-          link.href = fileData.data;
-          link.download = fileData.name || 'download';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          Alert.alert("Success! 📥", "File download started");
-        } else {
-          Alert.alert("Error", "File data not available for download");
-        }
-      } else {
-        // For mobile
-        if (fileData.data) {
-          const fileName = fileData.name || 'document.pdf';
-          const base64Data = fileData.data.includes('base64,')
-            ? fileData.data.split('base64,')[1]
-            : fileData.data;
-
-          const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-
-          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(fileUri);
-          } else {
-            Alert.alert("Error", "Sharing is not available on this device");
-          }
-        } else if (fileData.uri) {
-          // If fileData contains a direct URI (e.g., from a server)
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(fileData.uri);
-          } else {
-            Alert.alert("Error", "Sharing is not available on this device");
-          }
-        } else {
-          Alert.alert("Error", "File data not available");
-        }
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to process file: " + error.message);
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API}/api/direct-messages/messages/data/${messageId}`, {
+        headers
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data;
+    } catch (err) {
+      console.error("Fetch file data error:", err);
+      return null;
     }
   };
+
+  const handleFileDownload = async (message) => {
+    try {
+      const fileData = message.fileData;
+      if (!fileData) return;
+
+      setLoading(true);
+      let dataToUse = fileData.data;
+
+      if (!dataToUse) {
+        console.log("Lazy loading file data for message:", message._id);
+        dataToUse = await fetchFileData(message._id);
+      }
+
+      if (!dataToUse) {
+        Alert.alert("Error", "Could not retrieve file data");
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        const link = document.createElement('a');
+        link.href = dataToUse;
+        link.download = fileData.name || 'download';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        Alert.alert("Success! 📥", "File download started");
+      } else {
+        // For mobile
+        const fileName = fileData.name || 'document.pdf';
+        const base64Data = dataToUse.includes('base64,')
+          ? dataToUse.split('base64,')[1]
+          : dataToUse;
+
+        const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
+        } else {
+          Alert.alert("Error", "Sharing is not available on this device");
+        }
+      }
+    } catch (err) {
+      console.error("File download error:", err);
+      Alert.alert("Error", "Failed to download file");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [loadedImages, setLoadedImages] = useState({});
+
+  const handleLoadImage = async (messageId) => {
+    if (loadedImages[messageId]) return;
+
+    const data = await fetchFileData(messageId);
+    if (data) {
+      setLoadedImages(prev => ({ ...prev, [messageId]: data }));
+    }
+  };
+
   const cancelReply = () => {
     setReplyingTo(null);
   };
@@ -700,9 +749,20 @@ export default function DirectChatScreen({ route, navigation }) {
             {item.messageType === "image" && item.fileData ? (
               <TouchableOpacity
                 style={styles.imageContainer}
-                onPress={() => setFullScreenImage(item.fileData)}
+                onPress={() => {
+                  const data = loadedImages[item._id] || item.fileData.data;
+                  if (data) setFullScreenImage(data);
+                  else handleLoadImage(item._id);
+                }}
               >
-                <Image source={{ uri: item.fileData }} style={styles.messageImage} />
+                {(loadedImages[item._id] || item.fileData.data) ? (
+                  <Image source={{ uri: loadedImages[item._id] || item.fileData.data }} style={styles.messageImage} />
+                ) : (
+                  <View style={[styles.messageImage, styles.placeholderImage]}>
+                    <Ionicons name="image-outline" size={40} color="#94A3B8" />
+                    <Text style={styles.placeholderText}>Tap to load image</Text>
+                  </View>
+                )}
                 {item.messageText && !["📷 Photo", "📷 Image"].includes(item.messageText) && (
                   <Text style={[
                     styles.imageCaption,
@@ -717,7 +777,7 @@ export default function DirectChatScreen({ route, navigation }) {
             {item.messageType === "file" && item.fileData ? (
               <TouchableOpacity
                 style={styles.fileContainer}
-                onPress={() => handleFileDownload(item.fileData)}
+                onPress={() => handleFileDownload(item)}
               >
                 <Image
                   source={require("../../assets/images/pdf.png")}
@@ -732,7 +792,7 @@ export default function DirectChatScreen({ route, navigation }) {
                     {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => handleFileDownload(item.fileData)}>
+                <TouchableOpacity onPress={() => handleFileDownload(item)}>
                   <Image
                     source={require("../../assets/images/download.png")}
                     style={styles.downloadIcon}
@@ -1345,6 +1405,19 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     shadowOpacity: 0,
     elevation: 0
+  },
+  placeholderImage: {
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderStyle: 'dashed'
+  },
+  placeholderText: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 8
   },
   messageHeader: {
     flexDirection: "row",
