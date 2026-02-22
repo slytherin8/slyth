@@ -140,8 +140,7 @@ export default function ProjectTasksScreen({ navigation, route }) {
 
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true, // Allow cropping/resizing
-                aspect: [4, 3],
+                allowsEditing: false,
                 quality: 0.5, // Reduced quality for smaller payload
                 base64: true,
             });
