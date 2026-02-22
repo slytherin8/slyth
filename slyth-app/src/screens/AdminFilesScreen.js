@@ -137,7 +137,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     alignItems: 'center',
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
+    paddingBottom: 120
   },
   headerSpacer: {
     height: 40
