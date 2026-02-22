@@ -215,7 +215,7 @@ export default function GroupInfoScreen({ route, navigation }) {
                     {item.profile?.avatar ? (
                       <Image
                         source={{ uri: item.profile.avatar }}
-                        style={styles.memberAvatarPlaceholder}
+                        style={styles.memberAvatar}
                       />
                     ) : (
                       <Text style={styles.memberAvatarText}>
@@ -306,6 +306,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
+    resizeMode: 'cover'
   },
   avatarPlaceholder: {
     width: 150,
@@ -399,6 +400,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 16,
     overflow: 'hidden'
+  },
+  memberAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    resizeMode: 'cover'
   },
   memberAvatarText: {
     fontSize: 20,
