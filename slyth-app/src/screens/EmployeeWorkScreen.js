@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: getResponsiveSize(25),
     paddingTop: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(100),
+    paddingBottom: getResponsiveSize(140),
   },
   folderRow: {
     flexDirection: "row",
