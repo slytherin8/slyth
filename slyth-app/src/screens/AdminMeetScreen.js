@@ -9,12 +9,14 @@ import {
   StatusBar,
   Alert,
   Linking,
+  Platform,
   ScrollView
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
 import AppLayout from "../components/AppLayout";
+import * as WebBrowser from 'expo-web-browser';
 
 
 const { width, height } = Dimensions.get('window');
@@ -58,28 +60,25 @@ export default function AdminMeetScreen({ navigation }) {
 
   const handleConnectToMeet = async () => {
     try {
-      const url = 'https://meet.google.com/new';
-      console.log("Attempting to open Google Meet:", url);
+      // Use intent scheme for Android to open Google Meet app directly
+      const androidUrl = 'intent://meet.google.com/new#Intent;scheme=https;package=com.google.android.apps.meetings;action=android.intent.action.VIEW;end';
+      const iosUrl = 'https://meet.google.com/new';
+      const url = Platform.OS === 'android' ? androidUrl : iosUrl;
 
-      const supported = await Linking.canOpenURL(url);
-
-      if (supported) {
-        await Linking.openURL(url);
-        Alert.alert(
-          "Opening Google Meet! 🎉",
-          "Google Meet is opening. Create your meeting and share the link with your team.",
-          [{ text: "OK" }]
-        );
-      } else {
-        await Linking.openURL(url); // Try anyway
-      }
+      console.log("Opening Google Meet:", url);
+      await Linking.openURL(url);
     } catch (error) {
       console.error("Error opening Google Meet:", error);
-      Alert.alert(
-        "Google Meet",
-        "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Create a new meeting\n4. Share the meeting link with your team",
-        [{ text: "OK" }]
-      );
+      // Fallback: open in browser
+      try {
+        await Linking.openURL('https://meet.google.com/new');
+      } catch (e) {
+        Alert.alert(
+          "Google Meet",
+          "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Create a new meeting",
+          [{ text: "OK" }]
+        );
+      }
     }
   };
 
