@@ -46,7 +46,7 @@ export default function AppLayout({
   })();
 
   const showBottomNavScreens = [
-    "AdminDashboard", "EmployeeHome",
+    "EmployeeHome",
     "AdminWork", "EmployeeWork",
     "AdminChat", "EmployeeChat",
     "AdminVault", "AdminFiles",
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 50, // Increased for more space
+    paddingTop: 40, // Safe area top spacing
     paddingBottom: 16,
     alignItems: "center",
     backgroundColor: "#F8FAFC",
