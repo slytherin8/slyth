@@ -341,7 +341,7 @@ const AdminVaultScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8FAFC" },
     center: { flex: 1, justifyContent: "center", alignItems: "center" },
-    listContent: { padding: 20 },
+    listContent: { padding: 20, paddingBottom: 120 },
     card: {
         flexDirection: "row",
         alignItems: "center",
