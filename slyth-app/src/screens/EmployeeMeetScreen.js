@@ -56,26 +56,29 @@ export default function EmployeeMeetScreen({ navigation }) {
   };
 
   const handleConnectToMeet = async () => {
-    try {
-      // Use intent scheme for Android to open Google Meet app directly
-      const androidUrl = 'intent://meet.google.com#Intent;scheme=https;package=com.google.android.apps.meetings;action=android.intent.action.VIEW;end';
-      const iosUrl = 'https://meet.google.com';
-      const url = Platform.OS === 'android' ? androidUrl : iosUrl;
+    console.log("Connecting to Google Meet...");
 
-      console.log("Opening Google Meet:", url);
-      await Linking.openURL(url);
+    if (Platform.OS === 'android') {
+      // Try opening Google Meet app directly by package (avoids CALL_PHONE issue)
+      const meetAppUrl = 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.google.android.apps.meetings;end';
+      try {
+        await Linking.openURL(meetAppUrl);
+        return;
+      } catch (e) {
+        console.log('Meet app launch failed, trying browser fallback:', e.message);
+      }
+    }
+
+    // iOS or Android fallback: open in browser
+    try {
+      await Linking.openURL('https://meet.google.com');
     } catch (error) {
       console.error("Error opening Google Meet:", error);
-      // Fallback: open in browser
-      try {
-        await Linking.openURL('https://meet.google.com');
-      } catch (e) {
-        Alert.alert(
-          "Google Meet",
-          "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Join a meeting",
-          [{ text: "OK" }]
-        );
-      }
+      Alert.alert(
+        "Google Meet",
+        "Could not open Google Meet. Please make sure the Google Meet app is installed.",
+        [{ text: "OK" }]
+      );
     }
   };
 
