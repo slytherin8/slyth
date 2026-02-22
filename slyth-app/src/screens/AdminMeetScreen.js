@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#F5F5F5",
-    paddingBottom: getResponsiveSize(100),
+    paddingBottom: getResponsiveSize(140),
   },
   content: {
     flex: 1,
