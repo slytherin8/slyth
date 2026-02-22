@@ -9,12 +9,14 @@ import {
   StatusBar,
   Alert,
   Linking,
+  Platform,
   ScrollView
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
 import AppLayout from "../components/AppLayout";
+import * as WebBrowser from 'expo-web-browser';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,28 +57,25 @@ export default function EmployeeMeetScreen({ navigation }) {
 
   const handleConnectToMeet = async () => {
     try {
-      const url = 'https://meet.google.com';
-      console.log("Attempting to open Google Meet:", url);
+      // Use intent scheme for Android to open Google Meet app directly
+      const androidUrl = 'intent://meet.google.com#Intent;scheme=https;package=com.google.android.apps.meetings;action=android.intent.action.VIEW;end';
+      const iosUrl = 'https://meet.google.com';
+      const url = Platform.OS === 'android' ? androidUrl : iosUrl;
 
-      const supported = await Linking.canOpenURL(url);
-
-      if (supported) {
-        await Linking.openURL(url);
-        Alert.alert(
-          "Opening Google Meet! 🎉",
-          "Google Meet is opening. You can now join meetings or browse available meetings.",
-          [{ text: "OK" }]
-        );
-      } else {
-        await Linking.openURL(url); // Try anyway
-      }
+      console.log("Opening Google Meet:", url);
+      await Linking.openURL(url);
     } catch (error) {
       console.error("Error opening Google Meet:", error);
-      Alert.alert(
-        "Google Meet",
-        "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Join a meeting with the meeting ID\n4. Or browse available meetings",
-        [{ text: "OK" }]
-      );
+      // Fallback: open in browser
+      try {
+        await Linking.openURL('https://meet.google.com');
+      } catch (e) {
+        Alert.alert(
+          "Google Meet",
+          "Please open Google Meet manually:\n\n1. Open your browser\n2. Go to meet.google.com\n3. Join a meeting",
+          [{ text: "OK" }]
+        );
+      }
     }
   };
 
