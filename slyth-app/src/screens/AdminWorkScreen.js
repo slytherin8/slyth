@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(100), // Space for bottom nav
+    paddingBottom: getResponsiveSize(140), // Space for bottom nav
   },
   memberCard: {
     flexDirection: "row",
