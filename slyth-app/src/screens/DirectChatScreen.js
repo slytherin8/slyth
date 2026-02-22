@@ -518,8 +518,7 @@ export default function DirectChatScreen({ route, navigation }) {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 0.8,
         base64: true,
       });
@@ -1123,7 +1122,20 @@ export default function DirectChatScreen({ route, navigation }) {
                   <Ionicons name="close" size={28} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.previewTitle}>Preview</Text>
-                <View style={{ width: 28 }} />
+                <TouchableOpacity onPress={async () => {
+                  // Optional crop: re-pick same image with editing enabled
+                  const result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ['images'],
+                    allowsEditing: true,
+                    quality: 0.8,
+                    base64: true,
+                  });
+                  if (!result.canceled && result.assets && result.assets[0]) {
+                    setPreviewImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+                  }
+                }}>
+                  <Text style={styles.cropText}>Crop</Text>
+                </TouchableOpacity>
               </View>
 
               <Image source={{ uri: previewImage }} style={styles.previewImage} resizeMode="contain" />
@@ -1294,7 +1306,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: 50,
+    paddingTop: 15,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
@@ -1348,7 +1360,8 @@ const styles = StyleSheet.create({
   userAvatarImage: {
     width: 40,
     height: 40,
-    borderRadius: 20
+    borderRadius: 20,
+    resizeMode: 'cover'
   },
   userAvatarPlaceholder: {
     width: 40,
@@ -1368,7 +1381,8 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingHorizontal: 16,
-    paddingVertical: 20
+    paddingTop: 20,
+    paddingBottom: 40
   },
   messageWrapper: {
     marginBottom: 12,
