@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '../utils/storage';
 import { API } from '../constants/api';
 
@@ -45,9 +46,17 @@ class NotificationService {
                 return null;
             }
 
-            const tokenData = await Notifications.getExpoPushTokenAsync({
-                projectId: 'your-project-id',
-            });
+            // Get projectId from EAS config or skip silently
+            const projectId =
+                Constants.expoConfig?.extra?.eas?.projectId ??
+                Constants.easConfig?.projectId;
+
+            if (!projectId) {
+                console.log('Push notifications: No EAS projectId configured. Skipping token registration.');
+                return null;
+            }
+
+            const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
             this.token = tokenData.data;
 
             if (Platform.OS === 'android') {
@@ -124,10 +133,10 @@ class NotificationService {
 
     cleanup() {
         if (this.notificationListener) {
-            Notifications.removeNotificationSubscription(this.notificationListener);
+            this.notificationListener.remove();
         }
         if (this.responseListener) {
-            Notifications.removeNotificationSubscription(this.responseListener);
+            this.responseListener.remove();
         }
     }
 }
