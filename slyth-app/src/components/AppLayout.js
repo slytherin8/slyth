@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40, // Safe area top spacing
+    paddingTop: 15, // Safe area top spacing
     paddingBottom: 16,
     alignItems: "center",
     backgroundColor: "#F8FAFC",
