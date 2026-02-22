@@ -561,6 +561,7 @@ export default function EmployeeChatScreen({ navigation }) {
                   refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                   }
+                  contentContainerStyle={{ paddingBottom: 140 }}
                   showsVerticalScrollIndicator={false}
                 />
               )}
@@ -589,6 +590,7 @@ export default function EmployeeChatScreen({ navigation }) {
                   refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                   }
+                  contentContainerStyle={{ paddingBottom: 140 }}
                   showsVerticalScrollIndicator={false}
                 />
               )}
@@ -813,7 +815,9 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 56, // Increased size
     height: 56,
-    borderRadius: 28
+    borderRadius: 28,
+    resizeMode: 'cover',
+    overflow: 'hidden'
   },
   avatarText: {
     fontSize: 22,
