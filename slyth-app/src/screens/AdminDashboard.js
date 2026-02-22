@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   employeeSection: {
     paddingHorizontal: getResponsiveSize(20),
     paddingTop: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(100)
+    paddingBottom: getResponsiveSize(140)
   },
   employeeHeader: {
     flexDirection: "row",
@@ -532,7 +532,8 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: getResponsiveSize(50),
     height: getResponsiveSize(50),
-    borderRadius: getResponsiveSize(25)
+    borderRadius: getResponsiveSize(25),
+    resizeMode: 'cover'
   },
   avatarText: {
     fontSize: getResponsiveFontSize(18),
