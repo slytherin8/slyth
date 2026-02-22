@@ -23,7 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import socketService from '../services/socketService';
 import AppLayout from "../components/AppLayout";
@@ -287,7 +287,9 @@ export default function GroupChatScreen({ route, navigation }) {
       const AsyncStorage = (await import("../utils/storage")).default;
       const token = await AsyncStorage.getItem("token");
 
-      if (!fileData || Platform.OS === 'web') {
+      // fileData can be a base64 string (image picker) or an object with uri (document picker)
+      const isBase64File = typeof fileData === 'string' || (fileData && !fileData.uri);
+      if (!fileData || Platform.OS === 'web' || isBase64File) {
         const headers = await getAuthHeaders();
         const payload = {
           messageText: textToSend || (messageType === "image" ? "📷 Image" : "📎 File"),
@@ -314,7 +316,7 @@ export default function GroupChatScreen({ route, navigation }) {
 
         const uploadResult = await FileSystem.uploadAsync(`${API}/api/chat/groups/${groupId}/messages`, fileData.uri, {
           httpMethod: 'POST',
-          uploadType: 'multipart',
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
           fieldName: 'file',
           headers: {
             'Authorization': `Bearer ${token}`,
