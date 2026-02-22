@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: getResponsiveSize(20),
-    paddingTop: getResponsiveSize(25),
+    paddingTop: getResponsiveSize(10),
     paddingBottom: getResponsiveSize(15),
     backgroundColor: "#FFFFFF"
   },
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(30)
+    paddingBottom: getResponsiveSize(130)
   },
   cardsGrid: {
     marginTop: getResponsiveSize(10)
