@@ -268,11 +268,12 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
     })
       .select("-fileData.data") // Exclude heavy base64 data
       .populate("senderId", "name profile.name profile.avatar role")
+      .populate("readBy.userId", "name profile.name profile.avatar")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    // Update user's lastReadAt and reset unread count
+    // Update user's lastReadAt and reset unread count in Group model
     await Group.updateOne(
       {
         _id: groupId,
@@ -286,10 +287,91 @@ router.get("/groups/:groupId/messages", auth, async (req, res) => {
       }
     );
 
+    // Also mark all messages as read by this user in Message model
+    // (Only those where user isn't the sender and hasn't already read)
+    await Message.updateMany(
+      {
+        groupId,
+        senderId: { $ne: req.user.id },
+        "readBy.userId": { $ne: req.user.id }
+      },
+      {
+        $push: {
+          readBy: {
+            userId: req.user.id,
+            readAt: new Date()
+          }
+        }
+      }
+    );
+
     res.json(messages.reverse()); // Reverse to show oldest first
   } catch (error) {
     console.error("Get messages error:", error);
     res.status(500).json({ message: "Failed to fetch messages" });
+  }
+});
+
+/* =====================
+   MARK MESSAGES AS READ
+===================== */
+router.post("/groups/:groupId/read", auth, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    // Update Group model
+    await Group.updateOne(
+      {
+        _id: groupId,
+        "members.userId": req.user.id
+      },
+      {
+        $set: {
+          "members.$.lastReadAt": new Date(),
+          "members.$.unreadCount": 0
+        }
+      }
+    );
+
+    // Update Message model
+    await Message.updateMany(
+      {
+        groupId,
+        senderId: { $ne: req.user.id },
+        "readBy.userId": { $ne: req.user.id }
+      },
+      {
+        $push: {
+          readBy: {
+            userId: req.user.id,
+            readAt: new Date()
+          }
+        }
+      }
+    );
+
+    // Notify the sender that message was read (optional, can be noisy in group)
+    // But for "blue ticks" on sender side, we need some event or just polling
+    const io = req.app.get("io");
+    if (io) {
+      io.to(groupId).emit("messages_read", {
+        groupId,
+        userId: req.user.id,
+        readAt: new Date()
+      });
+
+      // Also notify the current user (on other devices) to reset unread badge for this group
+      io.to(req.user.id).emit("unread_count_update", {
+        type: "group",
+        groupId,
+        count: 0
+      });
+    }
+
+    res.json({ message: "Messages marked as read" });
+  } catch (error) {
+    console.error("Mark read error:", error);
+    res.status(500).json({ message: "Failed to mark messages as read" });
   }
 });
 
@@ -371,16 +453,20 @@ router.post("/groups/:groupId/messages", auth, upload.single("file"), async (req
       $inc: { totalMessages: 1 }
     });
 
-    // Increment unread count for all other members
-    await Group.updateMany(
+    // Increment unread count for all other active members
+    await Group.updateOne(
+      { _id: groupId },
+      { $inc: { "members.$[elem].unreadCount": 1 } },
       {
-        _id: groupId,
-        "members.userId": { $ne: req.user.id }
-      },
-      {
-        $inc: { "members.$.unreadCount": 1 }
+        arrayFilters: [{
+          "elem.userId": { $ne: req.user.id },
+          "elem.hasLeft": { $ne: true }
+        }]
       }
     );
+
+    // Fetch updated group to get accurate unread counts for socket emission
+    const updatedGroupForCounts = await Group.findById(groupId);
 
     const populatedMessage = await Message.findById(message._id)
       .populate("senderId", "name profile.name profile.avatar role");
@@ -390,11 +476,16 @@ router.post("/groups/:groupId/messages", auth, upload.single("file"), async (req
     if (io) {
       group.members.forEach(member => {
         if (member.userId.toString() !== req.user.id) {
+          // Find the updated count for this specific member
+          const updatedMember = updatedGroupForCounts?.members.find(
+            m => m.userId.toString() === member.userId.toString()
+          );
+
           io.to(member.userId.toString()).emit("group_message", populatedMessage);
           io.to(member.userId.toString()).emit("unread_count_update", {
             type: "group",
             groupId: groupId,
-            count: member.unreadCount + 1
+            count: updatedMember ? updatedMember.unreadCount : 0
           });
 
           sendPushNotification(
