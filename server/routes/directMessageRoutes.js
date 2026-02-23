@@ -152,6 +152,39 @@ router.get("/messages/:userId", auth, async (req, res) => {
 });
 
 /* =====================
+   MARK DIRECT MESSAGES AS READ
+===================== */
+router.post("/read/:userId", auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    await DirectMessage.updateMany(
+      {
+        senderId: userId,
+        receiverId: req.user.id,
+        readAt: null,
+        isDeleted: false
+      },
+      { readAt: new Date() }
+    );
+
+    // Notify the sender that their messages were read
+    const io = req.app.get("io");
+    if (io) {
+      io.to(userId.toString()).emit("direct_messages_read", {
+        readerId: req.user.id,
+        readAt: new Date()
+      });
+    }
+
+    res.json({ message: "Messages marked as read" });
+  } catch (error) {
+    console.error("Mark read error:", error);
+    res.status(500).json({ message: "Failed to mark messages as read" });
+  }
+});
+
+/* =====================
    SEND DIRECT MESSAGE
 ===================== */
 // Multer setup for direct messages (similar to vault)
