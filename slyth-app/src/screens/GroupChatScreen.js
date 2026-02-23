@@ -180,6 +180,11 @@ export default function GroupChatScreen({ route, navigation }) {
           return [...prev, message];
         });
 
+        // Mark as read specifically for new incoming messages
+        if (message.senderId?._id !== currentUserId) {
+          markMessagesAsRead();
+        }
+
         // Scroll to bottom
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
@@ -189,10 +194,37 @@ export default function GroupChatScreen({ route, navigation }) {
 
     socketService.on('group_message', handleGroupMessage);
 
+    // Listen for read receipts in group
+    socketService.on('messages_read', (data) => {
+      if (data.groupId === groupId) {
+        setMessages(prev => prev.map(msg => {
+          const msgSenderId = (msg.senderId?._id || msg.senderId)?.toString();
+          if (msgSenderId === currentUserId && !msg.readBy?.find(r => (r.userId?._id || r.userId)?.toString() === data.userId)) {
+            const newReadBy = [...(msg.readBy || []), { userId: data.userId, readAt: data.readAt }];
+            return { ...msg, readBy: newReadBy };
+          }
+          return msg;
+        }));
+      }
+    });
+
     return () => {
       socketService.off('group_message', handleGroupMessage);
+      socketService.off('messages_read');
     };
-  }, [groupId]);
+  }, [groupId, currentUserId]);
+
+  const markMessagesAsRead = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${API}/api/chat/groups/${groupId}/read`, {
+        method: "POST",
+        headers
+      });
+    } catch (err) {
+      console.log("Failed to mark messages as read:", err);
+    }
+  };
 
   const initializeChat = async () => {
     const userId = await getCurrentUserId();
@@ -212,6 +244,7 @@ export default function GroupChatScreen({ route, navigation }) {
     // Fetch group info
     await fetchGroupInfo();
     fetchMessages();
+    markMessagesAsRead();
   };
 
   const fetchGroupInfo = async () => {
@@ -750,20 +783,25 @@ export default function GroupChatScreen({ route, navigation }) {
 
     const isMyMessage = item.senderId._id === currentUserId;
 
-    // Read receipts logic (simulated for UI)
+    // Read receipts logic
     const renderTicks = () => {
       if (!isMyMessage) return null;
 
-      let iconName = "checkmark-outline";
-      let color = "#667781"; // Gray for sent
+      const readByCount = (item.readBy || []).filter(r =>
+        (r.userId?._id || r.userId) !== currentUserId
+      ).length;
 
-      if (item.read) {
-        iconName = "checkmark-done-outline";
-        color = "#34B7F1"; // Blue for seen
-      } else if (item.delivered) {
-        iconName = "checkmark-done-outline";
-        color = "#667781"; // Gray for delivered
-      }
+      // Get count of active members excluding self
+      const totalTargets = (groupInfo?.members || []).filter(m =>
+        (m.userId?._id || m.userId) !== currentUserId && !m.hasLeft
+      ).length;
+
+      // Stay single gray until EVERYONE has read it, then turn double blue
+      // (This matches user request: "it only come blue once all view that message ..then only give single tick")
+      const isReadByAll = totalTargets > 0 && readByCount >= totalTargets;
+
+      let iconName = isReadByAll ? "checkmark-done-outline" : "checkmark-outline";
+      let color = isReadByAll ? "#34B7F1" : "#667781";
 
       return <Ionicons name={iconName} size={16} color={color} style={styles.tickIcon} />;
     };
@@ -780,14 +818,15 @@ export default function GroupChatScreen({ route, navigation }) {
           {!isMyMessage && (
             <View style={styles.senderAvatarContainer}>
               <View style={styles.senderAvatar}>
-                {(item.senderId.profile?.profileImage || item.senderId.profile?.avatar) ? (
+                {(item.senderId?.profile?.avatar || item.senderId?.avatar || (typeof item.senderId === 'object' && item.senderId?.profile?.avatar)) ? (
                   <Image
-                    source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
+                    source={{ uri: item.senderId.profile?.avatar || item.senderId.avatar || (typeof item.senderId === 'object' && item.senderId?.profile?.avatar) }}
                     style={styles.avatarImage}
+                    resizeMode="cover"
                   />
                 ) : (
                   <Text style={styles.avatarText}>
-                    {item.senderId.profile?.name?.charAt(0)?.toUpperCase() || ""}
+                    {((typeof item.senderId === 'object' ? (item.senderId?.profile?.name || item.senderId?.name) : "") || "?").charAt(0).toUpperCase()}
                   </Text>
                 )}
               </View>
@@ -1067,6 +1106,19 @@ export default function GroupChatScreen({ route, navigation }) {
                 </TouchableOpacity>
               )}
 
+              {selectedMessage && selectedMessage.senderId._id === currentUserId && (
+                <TouchableOpacity
+                  style={styles.dropdownOption}
+                  onPress={() => {
+                    setShowMessageActions(false);
+                    handleViewInfo(selectedMessage);
+                  }}
+                >
+                  <Ionicons name="information-circle-outline" size={20} color="#374151" style={{ marginRight: 12 }} />
+                  <Text style={styles.dropdownText}>Message Info</Text>
+                </TouchableOpacity>
+              )}
+
               {selectedMessage && (
                 <TouchableOpacity
                   style={styles.dropdownOption}
@@ -1104,27 +1156,61 @@ export default function GroupChatScreen({ route, navigation }) {
             <View style={styles.messageInfoModal}>
               <Text style={styles.modalTitle}>Message Info</Text>
 
-              <View style={styles.infoSection}>
-                <Text style={styles.infoLabel}>Delivered</Text>
-                <Text style={styles.infoValue}>
-                  {selectedMessage ? new Date(selectedMessage.createdAt).toLocaleString() : ""}
-                </Text>
-              </View>
+              {/* Use a reactive message reference */}
+              {(() => {
+                const currentMsg = messages.find(m => m._id === selectedMessage?._id) || selectedMessage;
+                const seenByList = (currentMsg?.readBy || []).filter(r =>
+                  (r.userId?._id || r.userId)?.toString() !== currentUserId
+                );
 
-              <View style={styles.infoSection}>
-                <Text style={styles.infoLabel}>Seen by</Text>
-                <View style={styles.seenList}>
-                  {groupInfo?.members?.slice(0, 3).map((member, index) => (
-                    <View key={index} style={styles.seenItem}>
-                      <Text style={styles.seenName}>{member.user?.profile?.name || "Member"}</Text>
-                      <Text style={styles.seenTime}>Seen</Text>
+                return (
+                  <>
+                    <View style={styles.infoSection}>
+                      <Text style={styles.infoLabel}>Delivered</Text>
+                      <Text style={styles.infoValue}>
+                        {currentMsg ? new Date(currentMsg.createdAt).toLocaleString() : ""}
+                      </Text>
                     </View>
-                  ))}
-                  {groupInfo?.members?.length > 3 && (
-                    <Text style={styles.moreSeen}>+ {groupInfo.members.length - 3} more</Text>
-                  )}
-                </View>
-              </View>
+
+                    <View style={styles.infoSection}>
+                      <Text style={styles.infoLabel}>Seen by</Text>
+                      <View style={styles.seenList}>
+                        {seenByList.length > 0 ? (
+                          seenByList.map((reader, index) => {
+                            // Look up member info from groupInfo
+                            const readerId = (reader.userId?._id || reader.userId)?.toString();
+                            const memberObj = groupInfo?.members?.find(m =>
+                              (m.userId?._id || m.userId || m.id)?.toString() === readerId
+                            );
+                            const readerName = memberObj?.userId?.profile?.name || memberObj?.userId?.name || reader.userId?.profile?.name || reader.userId?.name || "Group Member";
+                            const readerAvatar = memberObj?.userId?.profile?.avatar || reader.userId?.profile?.avatar;
+
+                            return (
+                              <View key={index} style={styles.seenItem}>
+                                <View style={styles.seenUserAvatar}>
+                                  {readerAvatar ? (
+                                    <Image source={{ uri: readerAvatar }} style={styles.seenAvatarImage} />
+                                  ) : (
+                                    <Text style={styles.seenAvatarText}>{readerName.charAt(0).toUpperCase()}</Text>
+                                  )}
+                                </View>
+                                <View style={styles.seenUserInfo}>
+                                  <Text style={styles.seenName}>{readerName}</Text>
+                                  <Text style={styles.seenTime}>
+                                    {new Date(reader.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </Text>
+                                </View>
+                              </View>
+                            );
+                          })
+                        ) : (
+                          <Text style={styles.noInfoText}>No one else has seen this yet</Text>
+                        )}
+                      </View>
+                    </View>
+                  </>
+                );
+              })()}
 
               <TouchableOpacity
                 style={styles.closeInfoButton}
@@ -1441,7 +1527,8 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 32,
     height: 32,
-    borderRadius: 16
+    borderRadius: 16,
+    resizeMode: "cover"
   },
   avatarText: {
     fontSize: 12,
@@ -1894,24 +1981,57 @@ const styles = StyleSheet.create({
   },
   seenItem: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6"
   },
+  seenUserAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#E2E8F0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12
+  },
+  seenAvatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    resizeMode: "cover"
+  },
+  seenAvatarText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B"
+  },
+  seenUserInfo: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
   seenName: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: "600",
     color: "#111827"
   },
   seenTime: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#64748B"
   },
   moreSeen: {
     fontSize: 14,
     color: "#64748B",
     marginTop: 8,
+    fontStyle: "italic"
+  },
+  noInfoText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    textAlign: "center",
+    marginTop: 10,
     fontStyle: "italic"
   },
   closeInfoButton: {
