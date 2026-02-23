@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { useEffect, useState } from "react";
 import { useIsFocused, useNavigation, useNavigationState } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "../utils/storage";
 
 import { API } from "../constants/api";
@@ -25,6 +26,7 @@ export default function AppLayout({
   menuIcon // 'add' shows a + button, default shows three-dot
 }) {
   const navigation = propNavigation || useNavigation();
+  const insets = useSafeAreaInsets();
 
   // For admins, default logo to right if not explicitly set
   const effectiveLogoPosition = logoPosition || (role === "admin" ? "right" : "left");
@@ -108,7 +110,7 @@ export default function AppLayout({
     <View style={styles.container}>
       {/* 🔝 TOP BAR */}
       {!hideHeader && (
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 15) }]}>
           {/* 🔙 BACK (Hidden on AdminDashboard) */}
           {currentRouteName !== "AdminDashboard" ? (
             <TouchableOpacity
