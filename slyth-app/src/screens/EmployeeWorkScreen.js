@@ -38,8 +38,6 @@ export default function EmployeeWorkScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const showLoader = useSmartLoader(loading);
   const [userId, setUserId] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
@@ -112,20 +110,7 @@ export default function EmployeeWorkScreen({ navigation }) {
     }
   };
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim() || !userId) return;
-    try {
-      await workService.createProject({
-        name: newFolderName,
-        employeeId: userId
-      });
-      setNewFolderName("");
-      setShowModal(false);
-      fetchProjects(userId);
-    } catch (error) {
-      Alert.alert("Error", "Failed to create folder");
-    }
-  };
+
 
   const handleDeleteFolder = (projectId) => {
     Alert.alert(
@@ -198,63 +183,6 @@ export default function EmployeeWorkScreen({ navigation }) {
             showsVerticalScrollIndicator={false}
           />
         )}
-
-        {/* Floating Add Button */}
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setShowModal(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
-
-        {/* Create Folder Modal */}
-        <Modal
-          visible={showModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalIconBg}>
-                <Image
-                  source={require("../../assets/images/folder.png")}
-                  style={styles.modalFolderIcon}
-                />
-              </View>
-
-              <Text style={styles.modalTitle}>Enter Folder Name</Text>
-
-              <TextInput
-                style={styles.modalInput}
-                value={newFolderName}
-                onChangeText={setNewFolderName}
-                autoFocus={true}
-                placeholder="Folder Name"
-                placeholderTextColor="#9CA3AF"
-              />
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.createBtn}
-                  onPress={handleCreateFolder}
-                >
-                  <Text style={styles.createBtnText}>Create</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.cancelBtn}
-                  onPress={() => {
-                    setShowModal(false);
-                    setNewFolderName("");
-                  }}
-                >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
       </View>
     </AppLayout>
   );
