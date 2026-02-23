@@ -73,6 +73,10 @@ export default function AdminChatScreen({ navigation }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const tabIndicatorX = useRef(new Animated.Value(0)).current;
 
+  // Calculate unread totals for tabs
+  const totalUnreadGroups = groups.reduce((sum, g) => sum + (g.unreadCount || 0), 0);
+  const totalUnreadDirect = mergedConversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+
   // Pan responder for swipe gestures
   const panResponder = useRef(
     PanResponder.create({
@@ -350,7 +354,7 @@ export default function AdminChatScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        style={styles.chatCard}
+        style={[styles.chatCard, hasUnread && styles.chatCardUnread]}
         onPress={() => navigation.navigate("GroupChat", { groupId: item._id, groupName: item.name })}
       >
         <View style={styles.avatarContainer}>
@@ -364,6 +368,11 @@ export default function AdminChatScreen({ navigation }) {
               <Text style={styles.avatarText}>
                 {item.name.charAt(0).toUpperCase()}
               </Text>
+            </View>
+          )}
+          {hasUnread && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadCount}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
             </View>
           )}
         </View>
@@ -388,11 +397,6 @@ export default function AdminChatScreen({ navigation }) {
             ) : (
               <Text style={styles.noMessages}>No messages yet</Text>
             )}
-            {hasUnread && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadCount}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -415,7 +419,7 @@ export default function AdminChatScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        style={styles.chatItem}
+        style={[styles.chatItem, hasUnread && styles.chatItemUnread]}
         onPress={() => navigation.navigate("DirectChat", {
           userId: item.user._id,
           userName: item.user.profile?.name || item.user.name || "Employee",
@@ -435,6 +439,11 @@ export default function AdminChatScreen({ navigation }) {
               <Text style={styles.avatarText}>
                 {item.user.profile?.name?.charAt(0)?.toUpperCase() || "U"}
               </Text>
+            </View>
+          )}
+          {hasUnread && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadCount}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
             </View>
           )}
         </View>
@@ -461,11 +470,6 @@ export default function AdminChatScreen({ navigation }) {
               </Text>
             ) : (
               <Text style={styles.noMessages}>No messages yet</Text>
-            )}
-            {hasUnread && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadCount}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-              </View>
             )}
           </View>
         </View>
@@ -549,17 +553,31 @@ export default function AdminChatScreen({ navigation }) {
             style={[styles.tab, activeTab === 0 && styles.activeTab]}
             onPress={() => switchToTab(0)}
           >
-            <Text style={[styles.tabText, activeTab === 0 && styles.activeTabText]}>
-              Group Chats
-            </Text>
+            <View style={styles.tabLabelContainer}>
+              <Text style={[styles.tabText, activeTab === 0 && styles.activeTabText]}>
+                Group Chats
+              </Text>
+              {totalUnreadGroups > 0 && (
+                <View style={[styles.tabBadge, activeTab === 0 ? styles.activeTabBadge : styles.inactiveTabBadge]}>
+                  <Text style={styles.tabBadgeText}>{totalUnreadGroups > 99 ? '99+' : totalUnreadGroups}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 1 && styles.activeTab]}
             onPress={() => switchToTab(1)}
           >
-            <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>
-              Chats
-            </Text>
+            <View style={styles.tabLabelContainer}>
+              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>
+                Chats
+              </Text>
+              {totalUnreadDirect > 0 && (
+                <View style={[styles.tabBadge, activeTab === 1 ? styles.activeTabBadge : styles.inactiveTabBadge]}>
+                  <Text style={styles.tabBadgeText}>{totalUnreadDirect > 99 ? '99+' : totalUnreadDirect}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
 
           {/* Tab Indicator */}
@@ -870,6 +888,16 @@ const styles = StyleSheet.create({
     elevation: 3,
     minHeight: 80
   },
+  chatCardUnread: {
+    borderWidth: 1,
+    borderColor: '#00664F',
+    backgroundColor: '#F0FDF4'
+  },
+  chatItemUnread: {
+    borderWidth: 1,
+    borderColor: '#00664F',
+    backgroundColor: '#F0FDF4'
+  },
   chatItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -887,7 +915,8 @@ const styles = StyleSheet.create({
     minHeight: 80
   },
   avatarContainer: {
-    marginRight: 16
+    marginRight: 16,
+    position: 'relative'
   },
   avatar: {
     width: 56,
@@ -949,13 +978,19 @@ const styles = StyleSheet.create({
     fontWeight: "500"
   },
   unreadBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
     backgroundColor: "#00664F",
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    zIndex: 10
   },
   unreadCount: {
     fontSize: 11,
@@ -1087,8 +1122,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    marginBottom: 4,
+    marginRight: 6,
     overflow: 'hidden'
+  },
+  tabLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+    paddingHorizontal: 4,
+  },
+  activeTabBadge: {
+    backgroundColor: '#00664F',
+  },
+  inactiveTabBadge: {
+    backgroundColor: '#94A3B8',
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   rightContent: {
     alignItems: 'flex-end',
