@@ -53,6 +53,10 @@ export default function EmployeeChatScreen({ navigation }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const tabIndicatorX = useRef(new Animated.Value(0)).current;
 
+  // Calculate unread totals for tabs
+  const totalUnreadGroups = groups.reduce((sum, g) => sum + (g.unreadCount || 0), 0);
+  const totalUnreadDirect = mergedConversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+
   // Pan responder for swipe gestures
   const panResponder = useRef(
     PanResponder.create({
@@ -504,17 +508,31 @@ export default function EmployeeChatScreen({ navigation }) {
             style={[styles.tab, activeTab === 0 && styles.activeTab]}
             onPress={() => switchToTab(0)}
           >
-            <Text style={[styles.tabText, activeTab === 0 && styles.activeTabText]}>
-              Groups
-            </Text>
+            <View style={styles.tabLabelContainer}>
+              <Text style={[styles.tabText, activeTab === 0 && styles.activeTabText]}>
+                Groups
+              </Text>
+              {totalUnreadGroups > 0 && (
+                <View style={[styles.tabBadge, activeTab === 0 ? styles.activeTabBadge : styles.inactiveTabBadge]}>
+                  <Text style={styles.tabBadgeText}>{totalUnreadGroups > 99 ? '99+' : totalUnreadGroups}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 1 && styles.activeTab]}
             onPress={() => switchToTab(1)}
           >
-            <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>
-              Direct Messages
-            </Text>
+            <View style={styles.tabLabelContainer}>
+              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>
+                Direct Messages
+              </Text>
+              {totalUnreadDirect > 0 && (
+                <View style={[styles.tabBadge, activeTab === 1 ? styles.activeTabBadge : styles.inactiveTabBadge]}>
+                  <Text style={styles.tabBadgeText}>{totalUnreadDirect > 99 ? '99+' : totalUnreadDirect}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
 
           {/* Tab Indicator */}
@@ -999,8 +1017,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    marginBottom: 4,
-    overflow: 'hidden'
+    marginRight: 6
+  },
+  tabLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+    paddingHorizontal: 4,
+  },
+  activeTabBadge: {
+    backgroundColor: '#00664F',
+  },
+  inactiveTabBadge: {
+    backgroundColor: '#94A3B8',
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   rightContent: {
     alignItems: 'flex-end',
