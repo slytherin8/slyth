@@ -12,13 +12,16 @@ import {
   StatusBar,
   SafeAreaView,
   Modal,
-  Alert
+  Alert,
+  Platform
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
 import AppLayout from "../components/AppLayout";
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
 import { useSmartLoader } from "../hooks/useSmartLoader";
+import socketService from "../services/socketService";
 
 const { width } = Dimensions.get('window');
 
@@ -39,10 +42,27 @@ export default function EmployeeHome({ navigation }) {
   const [loading, setLoading] = useState(false);
   const showLoader = useSmartLoader(loading);
   const [showMenu, setShowMenu] = useState(false);
+  const [totalUnreadGroups, setTotalUnreadGroups] = useState(0);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     fetchCompany();
     fetchGroups();
+
+    // Socket listeners for real-time unread updates
+    socketService.connect();
+
+    const handleGroupUpdate = () => {
+      fetchGroups();
+    };
+
+    socketService.on('group_message', handleGroupUpdate);
+    socketService.on('unread_count_update', handleGroupUpdate);
+
+    return () => {
+      socketService.off('group_message', handleGroupUpdate);
+      socketService.off('unread_count_update', handleGroupUpdate);
+    };
   }, []);
 
   useFocusEffect(
@@ -92,6 +112,10 @@ export default function EmployeeHome({ navigation }) {
       const data = await res.json();
       if (res.ok) {
         setGroups(data.slice(0, 5));
+
+        // Calculate total unread count for all groups
+        const total = data.reduce((sum, group) => sum + (group.unreadCount || 0), 0);
+        setTotalUnreadGroups(total);
       }
     } catch (err) {
       console.log("GROUPS FETCH ERROR", err);
@@ -152,6 +176,13 @@ export default function EmployeeHome({ navigation }) {
         <Text style={[styles.cardTitle, item.fullWidth && styles.fullWidthCardTitle]}>
           {item.title}
         </Text>
+        {item.id === 2 && totalUnreadGroups > 0 && (
+          <View style={styles.cardUnreadBadge}>
+            <Text style={styles.cardUnreadText}>
+              {totalUnreadGroups > 99 ? '99+' : totalUnreadGroups}
+            </Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -162,11 +193,11 @@ export default function EmployeeHome({ navigation }) {
       role="employee"
       hideHeader={true}
     >
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
 
         {/* Custom Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, getResponsiveSize(15)) }]}>
           <View style={styles.companyInfo}>
             {company?.logo ? (
               <Image source={{ uri: company.logo }} style={styles.companyLogo} />
@@ -237,6 +268,13 @@ export default function EmployeeHome({ navigation }) {
                           {group.name?.substring(0, 2).toUpperCase() || "GR"}
                         </Text>
                       )}
+                      {group.unreadCount > 0 && (
+                        <View style={styles.groupUnreadBadge}>
+                          <Text style={styles.groupUnreadText}>
+                            {group.unreadCount > 99 ? '99+' : group.unreadCount}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                     <View style={styles.groupText}>
                       <Text style={styles.groupName}>{group.name}</Text>
@@ -305,7 +343,7 @@ export default function EmployeeHome({ navigation }) {
                 style={styles.menuItem}
                 onPress={() => {
                   setShowMenu(false);
-                  navigation.navigate("EmployeeLogout");
+                  handleLogout(); // Call handleLogout directly
                 }}
               >
                 <View style={styles.menuIconContainer}>
@@ -324,7 +362,7 @@ export default function EmployeeHome({ navigation }) {
             </View>
           </TouchableOpacity>
         </Modal>
-      </SafeAreaView>
+      </View>
     </AppLayout>
   );
 }
@@ -343,7 +381,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: getResponsiveSize(20),
-    paddingTop: getResponsiveSize(10),
     paddingBottom: getResponsiveSize(15),
     backgroundColor: "#FFFFFF"
   },
@@ -521,6 +558,49 @@ const styles = StyleSheet.create({
     width: getResponsiveSize(20),
     height: getResponsiveSize(20),
     tintColor: "#9CA3AF"
+  },
+  cardUnreadBadge: {
+    position: 'absolute',
+    top: getResponsiveSize(10),
+    right: getResponsiveSize(10),
+    backgroundColor: '#00664F',
+    minWidth: getResponsiveSize(24),
+    height: getResponsiveSize(24),
+    borderRadius: getResponsiveSize(12),
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: getResponsiveSize(4),
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 4
+  },
+  cardUnreadText: {
+    color: '#FFFFFF',
+    fontSize: getResponsiveFontSize(11),
+    fontWeight: '700'
+  },
+  groupUnreadBadge: {
+    position: 'absolute',
+    top: -getResponsiveSize(5),
+    right: -getResponsiveSize(5),
+    backgroundColor: '#00664F',
+    minWidth: getResponsiveSize(18),
+    height: getResponsiveSize(18),
+    borderRadius: getResponsiveSize(9),
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: getResponsiveSize(4),
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF'
+  },
+  groupUnreadText: {
+    color: '#FFFFFF',
+    fontSize: getResponsiveFontSize(10),
+    fontWeight: '700'
   },
   emptyState: {
     padding: getResponsiveSize(20),
