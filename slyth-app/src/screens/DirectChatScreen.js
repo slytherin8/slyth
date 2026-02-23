@@ -183,6 +183,11 @@ export default function DirectChatScreen({ route, navigation }) {
           return [...prev, message];
         });
 
+        // Mark as read specifically for new incoming messages
+        if (message.senderId?._id === userId) {
+          markAsRead();
+        }
+
         // Scroll to bottom
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
@@ -192,10 +197,25 @@ export default function DirectChatScreen({ route, navigation }) {
 
     socketService.on('direct_message', handleDirectMessage);
 
+    // Listen for read receipts in direct chat
+    socketService.on('direct_messages_read', (data) => {
+      if (data.readerId === userId) {
+        setMessages(prev => prev.map(msg => {
+          if (msg.senderId._id === currentUserId && !msg.readAt) {
+            return { ...msg, readAt: data.readAt, read: true };
+          }
+          return msg;
+        }));
+      }
+    });
+
     return () => {
       socketService.off('direct_message', handleDirectMessage);
+      socketService.off('direct_messages_read');
     };
-  }, [userId]);
+  }, [userId, currentUserId]);
+
+
 
   const initializeChat = async () => {
     const currentId = await getCurrentUserId();
@@ -694,16 +714,10 @@ export default function DirectChatScreen({ route, navigation }) {
     const renderTicks = () => {
       if (!isMyMessage) return null;
 
-      let iconName = "checkmark-outline";
-      let color = "#667781";
+      const isRead = !!item.readAt || !!item.read;
 
-      if (item.read) {
-        iconName = "checkmark-done-outline";
-        color = "#34B7F1";
-      } else if (item.delivered) {
-        iconName = "checkmark-done-outline";
-        color = "#667781";
-      }
+      let iconName = isRead ? "checkmark-done-outline" : "checkmark-outline";
+      let color = isRead ? "#34B7F1" : "#667781";
 
       return <Ionicons name={iconName} size={16} color={color} style={styles.tickIcon} />;
     };
@@ -723,10 +737,11 @@ export default function DirectChatScreen({ route, navigation }) {
               onPress={() => setShowProfileModal(true)}
             >
               <View style={styles.senderAvatar}>
-                {item.senderId?.profile?.profileImage || item.senderId?.profile?.avatar ? (
+                {item.senderId?.profile?.avatar || item.senderId?.avatar ? (
                   <Image
-                    source={{ uri: item.senderId.profile.profileImage || item.senderId.profile.avatar }}
+                    source={{ uri: item.senderId.profile?.avatar || item.senderId.avatar }}
                     style={styles.avatarImage}
+                    resizeMode="cover"
                   />
                 ) : (
                   <Text style={styles.avatarText}>
@@ -1020,26 +1035,39 @@ export default function DirectChatScreen({ route, navigation }) {
               )}
 
               {selectedMessage && selectedMessage.senderId._id === currentUserId && (
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => {
-                    setShowMessageActions(false);
-                    Alert.alert(
-                      "Delete Message",
-                      "Are you sure you want to delete this message?",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(selectedMessage._id) }
-                      ]
-                    );
-                  }}
-                >
-                  <Image
-                    source={require("../../assets/images/delete.png")}
-                    style={styles.dropdownIcon}
-                  />
-                  <Text style={[styles.dropdownText, styles.deleteText]}>Delete</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={styles.dropdownOption}
+                    onPress={() => {
+                      setShowMessageActions(false);
+                      handleViewInfo(selectedMessage);
+                    }}
+                  >
+                    <Ionicons name="information-circle-outline" size={20} color="#374151" style={{ marginRight: 12 }} />
+                    <Text style={styles.dropdownText}>Info</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.dropdownOption}
+                    onPress={() => {
+                      setShowMessageActions(false);
+                      Alert.alert(
+                        "Delete Message",
+                        "Are you sure you want to delete this message?",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          { text: "Delete", style: "destructive", onPress: () => handleDeleteMessage(selectedMessage._id) }
+                        ]
+                      );
+                    }}
+                  >
+                    <Image
+                      source={require("../../assets/images/delete.png")}
+                      style={styles.dropdownIcon}
+                    />
+                    <Text style={[styles.dropdownText, styles.deleteText]}>Delete</Text>
+                  </TouchableOpacity>
+                </>
               )}
             </View>
           </Pressable>
@@ -1064,10 +1092,12 @@ export default function DirectChatScreen({ route, navigation }) {
               </View>
 
               <View style={styles.infoSection}>
-                <Text style={styles.infoLabel}>Read</Text>
+                <Text style={styles.infoLabel}>Status</Text>
                 <View style={styles.seenItem}>
                   <Text style={styles.seenName}>{userName}</Text>
-                  <Text style={styles.seenTime}>{selectedMessage?.read ? "Read" : "Delivered"}</Text>
+                  <Text style={styles.seenTime}>
+                    {selectedMessage?.readAt ? `Read ${new Date(selectedMessage.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "Delivered"}
+                  </Text>
                 </View>
               </View>
 
@@ -1412,7 +1442,8 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 32,
     height: 32,
-    borderRadius: 16
+    borderRadius: 16,
+    resizeMode: "cover"
   },
   avatarText: {
     fontSize: 14,
