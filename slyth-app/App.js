@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { createStackNavigator } from "@react-navigation/stack";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import notificationService from "./src/services/notificationService";
@@ -60,52 +61,54 @@ export default function App() {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <NavigationContainer ref={navigationRef}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {/* Auth */}
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="AdminSignup" component={AdminSignupScreen} />
-          <Stack.Screen name="DebugAuth" component={DebugAuthScreen} />
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <NavigationContainer ref={navigationRef}>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {/* Auth */}
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="AdminSignup" component={AdminSignupScreen} />
+            <Stack.Screen name="DebugAuth" component={DebugAuthScreen} />
 
-          {/* Admin */}
-          <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
-          <Stack.Screen name="AdminSetPin" component={AdminSetPinScreen} />
-          <Stack.Screen name="AdminEditCompany" component={AdminEditCompanyScreen} />
-          <Stack.Screen name="CreateEmployee" component={CreateEmployeeScreen} />
-          <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-          <Stack.Screen name="EditGroup" component={EditGroupScreen} />
-          <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
-          <Stack.Screen name="GroupDelete" component={GroupDeleteScreen} />
-          <Stack.Screen name="GroupExit" component={GroupExitScreen} />
-          <Stack.Screen name="GroupChat" component={GroupChatScreen} />
-          <Stack.Screen name="DirectChat" component={DirectChatScreen} />
-          <Stack.Screen name="AdminChat" component={AdminChatScreen} />
-          <Stack.Screen name="AdminMeet" component={AdminMeetScreen} />
-          <Stack.Screen name="AdminWork" component={AdminWorkScreen} />
-          <Stack.Screen name="AdminFiles" component={AdminFilesScreen} />
-          <Stack.Screen name="AdminVault" component={AdminVaultScreen} />
-          <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
-          <Stack.Screen name="AdminLogout" component={AdminLogoutScreen} />
-          <Stack.Screen name="EmployeeWorkspace" component={EmployeeWorkspaceScreen} />
-          <Stack.Screen name="ProjectTasks" component={ProjectTasksScreen} />
-          <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-          <Stack.Screen
-            name="Profile"
-            component={ProfileScreen}
-          />
+            {/* Admin */}
+            <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+            <Stack.Screen name="AdminSetPin" component={AdminSetPinScreen} />
+            <Stack.Screen name="AdminEditCompany" component={AdminEditCompanyScreen} />
+            <Stack.Screen name="CreateEmployee" component={CreateEmployeeScreen} />
+            <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+            <Stack.Screen name="EditGroup" component={EditGroupScreen} />
+            <Stack.Screen name="GroupInfo" component={GroupInfoScreen} />
+            <Stack.Screen name="GroupDelete" component={GroupDeleteScreen} />
+            <Stack.Screen name="GroupExit" component={GroupExitScreen} />
+            <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+            <Stack.Screen name="DirectChat" component={DirectChatScreen} />
+            <Stack.Screen name="AdminChat" component={AdminChatScreen} />
+            <Stack.Screen name="AdminMeet" component={AdminMeetScreen} />
+            <Stack.Screen name="AdminWork" component={AdminWorkScreen} />
+            <Stack.Screen name="AdminFiles" component={AdminFilesScreen} />
+            <Stack.Screen name="AdminVault" component={AdminVaultScreen} />
+            <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
+            <Stack.Screen name="AdminLogout" component={AdminLogoutScreen} />
+            <Stack.Screen name="EmployeeWorkspace" component={EmployeeWorkspaceScreen} />
+            <Stack.Screen name="ProjectTasks" component={ProjectTasksScreen} />
+            <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+            />
 
-          {/* Employee */}
-          <Stack.Screen name="EmployeeHome" component={EmployeeHome} />
-          <Stack.Screen name="EmployeeChat" component={EmployeeChatScreen} />
-          <Stack.Screen name="EmployeeMeet" component={EmployeeMeetScreen} />
-          <Stack.Screen name="EmployeeWork" component={EmployeeWorkScreen} />
-          <Stack.Screen name="EmployeeProfile" component={EmployeeProfileScreen} />
-          <Stack.Screen name="EmployeeProfileEdit" component={EmployeeProfileEditScreen} />
-          <Stack.Screen name="EmployeeLogout" component={EmployeeLogoutScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </ErrorBoundary>
+            {/* Employee */}
+            <Stack.Screen name="EmployeeHome" component={EmployeeHome} />
+            <Stack.Screen name="EmployeeChat" component={EmployeeChatScreen} />
+            <Stack.Screen name="EmployeeMeet" component={EmployeeMeetScreen} />
+            <Stack.Screen name="EmployeeWork" component={EmployeeWorkScreen} />
+            <Stack.Screen name="EmployeeProfile" component={EmployeeProfileScreen} />
+            <Stack.Screen name="EmployeeProfileEdit" component={EmployeeProfileEditScreen} />
+            <Stack.Screen name="EmployeeLogout" component={EmployeeLogoutScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
