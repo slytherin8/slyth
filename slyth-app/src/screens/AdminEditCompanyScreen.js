@@ -93,7 +93,7 @@ export default function AdminEditCompanyScreen({ navigation }) {
             });
 
             if (res.ok) {
-                Alert.alert("Success! 🎉", "Company details updated successfully", [
+                Alert.alert("Success", "Company details updated successfully", [
                     { text: "OK", onPress: () => navigation.navigate("AdminDashboard") }
                 ]);
             } else {
