@@ -479,7 +479,7 @@ export default function EmployeeChatScreen({ navigation }) {
               });
 
               if (response.ok) {
-                Alert.alert("Success! 🚪", `You have left "${group.name}" successfully`);
+                Alert.alert("Success", `You have left "${group.name}" successfully`);
                 updateGroups();
               } else {
                 Alert.alert("Leave Group Failed", "Failed to leave group");
@@ -511,7 +511,7 @@ export default function EmployeeChatScreen({ navigation }) {
               });
 
               if (response.ok) {
-                Alert.alert("Success! 🗑️", `Group "${group.name}" deleted successfully`);
+                Alert.alert("Success", `Group "${group.name}" deleted successfully`);
                 updateGroups();
               } else {
                 const data = await response.json();
