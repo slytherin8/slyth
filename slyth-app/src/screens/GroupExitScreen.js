@@ -36,7 +36,7 @@ export default function GroupExitScreen({ route, navigation }) {
             });
 
             if (response.ok) {
-                Alert.alert("Success! 👋", `You have left "${groupName}" successfully`, [
+                Alert.alert("Success", `You have left "${groupName}" successfully`, [
                     { text: "OK", onPress: () => navigation.navigate("EmployeeChat") }
                 ]);
             } else {
