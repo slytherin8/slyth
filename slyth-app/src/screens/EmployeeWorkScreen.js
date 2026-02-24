@@ -206,8 +206,8 @@ const styles = StyleSheet.create({
   folderRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: getResponsiveSize(15),
-    paddingBottom: getResponsiveSize(15),
+    marginBottom: getResponsiveSize(4),
+    paddingVertical: getResponsiveSize(10),
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
@@ -235,7 +235,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     justifyContent: 'center',
-    paddingBottom: getResponsiveSize(15),
   },
   folderName: {
     fontSize: getResponsiveFontSize(13),
