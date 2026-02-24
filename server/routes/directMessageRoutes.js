@@ -236,8 +236,16 @@ router.post("/messages/:userId", auth, upload.single("file"), async (req, res) =
       };
       messageType = messageType === "text" ? "file" : messageType;
     } else if (req.body.fileData) {
-      // Handle web base64 uploads
-      fileDataObject = req.body.fileData;
+      // Handle web base64 uploads or JSON base64
+      const fd = req.body.fileData;
+      if (typeof fd === 'string') {
+        fileDataObject = {
+          name: messageType === "image" ? "image.jpg" : "file",
+          data: fd
+        };
+      } else {
+        fileDataObject = fd;
+      }
     }
 
     const message = await DirectMessage.create({
@@ -333,8 +341,13 @@ router.get("/messages/data/:messageId", auth, async (req, res) => {
       companyId: req.user.companyId
     });
 
-    if (!message || !message.fileData || !message.fileData.data) {
+    if (!message || !message.fileData) {
       return res.status(404).json({ message: "File data not found" });
+    }
+
+    const data = typeof message.fileData === 'string' ? message.fileData : message.fileData.data;
+    if (!data) {
+      return res.status(404).json({ message: "File data is empty" });
     }
 
     // Verify permission (must be sender or receiver)
@@ -342,7 +355,7 @@ router.get("/messages/data/:messageId", auth, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    res.json({ data: message.fileData.data });
+    res.json({ data });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch file data" });
   }
