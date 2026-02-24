@@ -500,7 +500,7 @@ export default function AdminChatScreen({ navigation }) {
               });
 
               if (response.ok) {
-                Alert.alert("Success! 🗑️", `Group "${group.name}" deleted successfully`);
+                Alert.alert("Success", `Group "${group.name}" deleted successfully`);
                 updateGroups();
               } else {
                 Alert.alert("Delete Group Failed", "Failed to delete group");
