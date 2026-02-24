@@ -4,7 +4,7 @@
     "slug": "slyth-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/android-icon-foreground.png",
     "scheme": "slythapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,6 +12,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.slytherin8.slythapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -47,6 +49,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ce5265f7-077d-4143-9ae3-5471679a25be"
+      }
+    },
+    "owner": "bhanu_ub"
   }
 }
