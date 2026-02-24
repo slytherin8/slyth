@@ -19,14 +19,17 @@ class SocketService {
       const userId = payload.id;
 
       this.socket = io(API, {
-        transports: ['websocket'],
-        timeout: 20000,
+        transports: ['polling', 'websocket'], // polling first for reliability on mobile
+        timeout: 30000,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
       });
 
       this.socket.on('connect', () => {
         console.log('Socket connected:', this.socket.id);
         this.isConnected = true;
-        
+
         // Join user's room for receiving messages
         this.socket.emit('join_room', userId);
       });
