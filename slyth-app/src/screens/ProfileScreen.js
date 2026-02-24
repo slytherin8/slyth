@@ -90,7 +90,7 @@ export default function ProfileScreen({ navigation }) {
       }
 
       const homeRoute = profile?.role === "admin" ? "AdminDashboard" : "EmployeeHome";
-      Alert.alert("Success! 🎉", "Profile updated successfully", [
+      Alert.alert("Success", "Profile updated successfully", [
         { text: "OK", onPress: () => navigation.navigate(homeRoute) }
       ]);
       setEditing(false);
