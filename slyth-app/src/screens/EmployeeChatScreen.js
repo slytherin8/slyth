@@ -36,6 +36,28 @@ const getAuthHeaders = async () => {
   };
 };
 
+const decodeJWT = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    if (typeof Buffer !== 'undefined') {
+      const jsonPayload = decodeURIComponent(
+        Buffer.from(base64, 'base64')
+          .toString('binary')
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    }
+    // Fallback for environments without Buffer
+    return JSON.parse(atob(base64));
+  } catch (e) {
+    console.error("JWT Decode Error:", e);
+    return null;
+  }
+};
+
 export default function EmployeeChatScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Groups, 1 = Direct Messages
   const [groups, setGroups] = useState([]);
@@ -48,6 +70,7 @@ export default function EmployeeChatScreen({ navigation }) {
   const [showGroupActions, setShowGroupActions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [company, setCompany] = useState(null);
 
   // Animation values
   const translateX = useRef(new Animated.Value(0)).current;
@@ -132,14 +155,31 @@ export default function EmployeeChatScreen({ navigation }) {
     try {
       const token = await AsyncStorage.getItem("token");
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setCurrentUserId(payload.id);
+        const payload = decodeJWT(token);
+        if (payload && payload.id) {
+          setCurrentUserId(payload.id);
+        }
       }
     } catch (e) {
       console.log("Token decode error:", e);
     }
-    await Promise.all([fetchGroups(), fetchConversations()]);
+    await Promise.all([fetchGroups(), fetchConversations(), fetchCompany()]);
     setLoading(false);
+  };
+
+  const fetchCompany = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API}/api/auth/company`, {
+        headers
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCompany(data);
+      }
+    } catch (err) {
+      console.log("COMPANY FETCH ERROR", err);
+    }
   };
 
   const fetchGroups = async () => {
@@ -362,14 +402,19 @@ export default function EmployeeChatScreen({ navigation }) {
       >
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            {item.user.profile?.avatar ? (
+            {item.user.role === 'admin' && company?.logo ? (
+              <Image
+                source={{ uri: company.logo }}
+                style={styles.avatarImage}
+              />
+            ) : item.user.profile?.avatar ? (
               <Image
                 source={{ uri: item.user.profile.avatar }}
                 style={styles.avatarImage}
               />
             ) : (
               <Text style={styles.avatarText}>
-                {item.user.profile?.name?.charAt(0)?.toUpperCase() || "U"}
+                {item.user.role === 'admin' ? 'A' : (item.user.profile?.name?.charAt(0)?.toUpperCase() || "U")}
               </Text>
             )}
           </View>
@@ -383,7 +428,7 @@ export default function EmployeeChatScreen({ navigation }) {
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]} numberOfLines={1}>
-              {item.user.profile?.name || item.user.name || item.user.displayName || item.user.email?.split('@')[0] || "Employee"}
+              {item.user.role === 'admin' ? 'Admin' : (item.user.profile?.name || item.user.name || item.user.displayName || item.user.email?.split('@')[0] || "Employee")}
             </Text>
             <View style={styles.rightContent}>
               <Text style={styles.roleTag}>{item.user.role === 'admin' ? 'Admin' : 'Employee'}</Text>
