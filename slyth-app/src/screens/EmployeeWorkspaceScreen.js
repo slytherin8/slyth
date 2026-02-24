@@ -262,8 +262,8 @@ const styles = StyleSheet.create({
     folderRowContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: getResponsiveSize(15),
-        paddingBottom: getResponsiveSize(15),
+        marginBottom: getResponsiveSize(4),
+        paddingVertical: getResponsiveSize(10),
         borderBottomWidth: 1,
         borderBottomColor: "#F3F4F6",
         justifyContent: 'space-between',
