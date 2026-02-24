@@ -208,7 +208,7 @@ export default function EmployeeHome({ navigation }) {
             )}
             <View style={styles.companyTextContainer}>
               <Text style={styles.companyName} numberOfLines={1}>{company?.name || "Slytherin"}</Text>
-              <Text style={styles.companySubtitle}>private limited solution</Text>
+
             </View>
           </View>
           <TouchableOpacity
