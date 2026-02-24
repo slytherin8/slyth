@@ -395,9 +395,9 @@ export default function GroupChatScreen({ route, navigation }) {
 
       // Show success message for uploads
       if (messageType === "file") {
-        Alert.alert("Success! 📎", "File sent successfully");
+        Alert.alert("Success", "File sent successfully");
       } else if (messageType === "image") {
-        Alert.alert("Success! 📷", "Photo sent successfully");
+        Alert.alert("Success", "Photo sent successfully");
       }
 
       // Scroll to bottom
@@ -464,7 +464,7 @@ export default function GroupChatScreen({ route, navigation }) {
       if (response.ok) {
         console.log("Delete successful, refreshing messages...");
         await fetchMessages();
-        Alert.alert("Success! 🗑️", "Message deleted successfully");
+        Alert.alert("Success", "Message deleted successfully");
       } else {
         let errorData;
         try {
@@ -485,10 +485,10 @@ export default function GroupChatScreen({ route, navigation }) {
   const handleCopyMessage = (message) => {
     if (Platform.OS === 'web') {
       navigator.clipboard.writeText(message.messageText);
-      Alert.alert("Copied! 📋", "Message copied to clipboard");
+      Alert.alert("Copied", "Message copied to clipboard");
     } else {
       // For mobile, you'd use expo-clipboard
-      Alert.alert("Copied! 📋", "Message copied to clipboard");
+      Alert.alert("Copied", "Message copied to clipboard");
     }
     setShowMessageActions(false);
   };
@@ -742,7 +742,7 @@ export default function GroupChatScreen({ route, navigation }) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        Alert.alert("Success! 📥", "File download started");
+        Alert.alert("Success", "File download started");
       } else {
         // For mobile
         const fileName = fileData.name || 'document.pdf';
