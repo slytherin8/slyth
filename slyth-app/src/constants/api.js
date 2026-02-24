@@ -2,15 +2,8 @@ import { Platform } from 'react-native';
 
 // Get the correct API URL based on platform
 const getApiUrl = () => {
-  if (Platform.OS === 'web') {
-    // For web browsers, localhost works fine
-    return "http://localhost:3000";
-  } else {
-
-    const YOUR_COMPUTER_IP = "10.46.51.219";
-
-    return `http://${YOUR_COMPUTER_IP}:3000`;
-  }
+  // Use the live Render backend URL
+  return "https://slyth.onrender.com";
 };
 
 export const API = getApiUrl();
