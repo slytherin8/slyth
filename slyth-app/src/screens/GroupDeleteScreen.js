@@ -33,7 +33,7 @@ export default function GroupDeleteScreen({ route, navigation }) {
             });
 
             if (response.ok) {
-                Alert.alert("Success! 🗑️", `Group "${groupName}" deleted successfully`);
+                Alert.alert("Success", `Group "${groupName}" deleted successfully`);
                 // Navigate back to Chat List (AdminChat)
                 navigation.navigate("AdminChat");
             } else {
