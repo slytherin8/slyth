@@ -223,8 +223,9 @@ export default function DirectChatScreen({ route, navigation }) {
     fetchMessages();
     fetchUserInfo(); // Fetch the real name/avatar
     markAsRead();
+    fetchCompanyInfo();
     if (route.params.userRole === 'admin') {
-      fetchCompanyInfo();
+      // already called fetchCompanyInfo above, but keeping logic consistent
     }
   };
 
@@ -641,7 +642,7 @@ export default function DirectChatScreen({ route, navigation }) {
       if (!fileData) return;
 
       setLoading(true);
-      let dataToUse = fileData.data;
+      let dataToUse = typeof fileData === 'string' ? fileData : fileData.data;
 
       if (!dataToUse) {
         console.log("Lazy loading file data for message:", message._id);
@@ -737,15 +738,15 @@ export default function DirectChatScreen({ route, navigation }) {
               onPress={() => setShowProfileModal(true)}
             >
               <View style={styles.senderAvatar}>
-                {item.senderId?.profile?.avatar || item.senderId?.avatar ? (
+                {(item.senderId?.role === 'admin' && companyInfo?.logo) || item.senderId?.profile?.avatar || item.senderId?.avatar ? (
                   <Image
-                    source={{ uri: item.senderId.profile?.avatar || item.senderId.avatar }}
+                    source={{ uri: (item.senderId?.role === 'admin' && companyInfo?.logo) || item.senderId.profile?.avatar || item.senderId.avatar }}
                     style={styles.avatarImage}
                     resizeMode="cover"
                   />
                 ) : (
                   <Text style={styles.avatarText}>
-                    {(item.senderId?.profile?.name || item.senderId?.name || "?").charAt(0).toUpperCase()}
+                    {item.senderId?.role === 'admin' ? 'A' : (item.senderId?.profile?.name || item.senderId?.name || "?").charAt(0).toUpperCase()}
                   </Text>
                 )}
               </View>
@@ -785,13 +786,13 @@ export default function DirectChatScreen({ route, navigation }) {
               <TouchableOpacity
                 style={styles.imageContainer}
                 onPress={() => {
-                  const data = loadedImages[item._id] || item.fileData.data;
+                  const data = loadedImages[item._id] || (typeof item.fileData === 'string' ? item.fileData : item.fileData.data);
                   if (data) setFullScreenImage(data);
                   else handleLoadImage(item._id);
                 }}
               >
-                {(loadedImages[item._id] || item.fileData.data) ? (
-                  <Image source={{ uri: loadedImages[item._id] || item.fileData.data }} style={styles.messageImage} />
+                {(loadedImages[item._id] || (typeof item.fileData === 'string' ? item.fileData : item.fileData.data)) ? (
+                  <Image source={{ uri: loadedImages[item._id] || (typeof item.fileData === 'string' ? item.fileData : item.fileData.data) }} style={styles.messageImage} />
                 ) : (
                   <View style={[styles.messageImage, styles.placeholderImage]}>
                     <Ionicons name="image-outline" size={40} color="#94A3B8" />
@@ -820,11 +821,11 @@ export default function DirectChatScreen({ route, navigation }) {
                 />
                 <View style={styles.fileInfo}>
                   <Text style={styles.fileName} numberOfLines={1}>
-                    {item.fileData.name || "Document"}
+                    {(typeof item.fileData === 'object' && item.fileData?.name) || "Document"}
                   </Text>
                   <Text style={styles.fileSize}>
-                    {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : ""}
-                    {(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
+                    {(typeof item.fileData === 'object' && item.fileData?.size) ? `${(item.fileData.size / 1024).toFixed(1)} KB` : "0 KB"}
+                    {" "}{(typeof item.fileData === 'object' && (item.fileData?.type || item.fileData?.name?.split('.').pop()))?.toUpperCase() || ''}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => handleFileDownload(item)}>
