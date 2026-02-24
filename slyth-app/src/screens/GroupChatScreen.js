@@ -161,6 +161,7 @@ export default function GroupChatScreen({ route, navigation }) {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewCaption, setPreviewCaption] = useState("");
   const [fullScreenImage, setFullScreenImage] = useState(null);
+  const [company, setCompany] = useState(null);
   const flatListRef = useRef(null);
 
   useEffect(() => {
@@ -242,9 +243,27 @@ export default function GroupChatScreen({ route, navigation }) {
     }
 
     // Fetch group info
-    await fetchGroupInfo();
+    await Promise.all([
+      fetchGroupInfo(),
+      fetchCompany(),
+    ]);
     fetchMessages();
     markMessagesAsRead();
+  };
+
+  const fetchCompany = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API}/api/auth/company`, {
+        headers
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCompany(data);
+      }
+    } catch (err) {
+      console.log("COMPANY FETCH ERROR", err);
+    }
   };
 
   const fetchGroupInfo = async () => {
@@ -704,7 +723,7 @@ export default function GroupChatScreen({ route, navigation }) {
       if (!fileData) return;
 
       setLoading(true);
-      let dataToUse = fileData.data;
+      let dataToUse = typeof fileData === 'string' ? fileData : fileData.data;
 
       if (!dataToUse) {
         console.log("Lazy loading file data for message:", message._id);
@@ -818,7 +837,13 @@ export default function GroupChatScreen({ route, navigation }) {
           {!isMyMessage && (
             <View style={styles.senderAvatarContainer}>
               <View style={styles.senderAvatar}>
-                {(item.senderId?.profile?.avatar || item.senderId?.avatar || (typeof item.senderId === 'object' && item.senderId?.profile?.avatar)) ? (
+                {item.senderId?.role === 'admin' && company?.logo ? (
+                  <Image
+                    source={{ uri: company.logo }}
+                    style={styles.avatarImage}
+                    resizeMode="cover"
+                  />
+                ) : (item.senderId?.profile?.avatar || item.senderId?.avatar || (typeof item.senderId === 'object' && item.senderId?.profile?.avatar)) ? (
                   <Image
                     source={{ uri: item.senderId.profile?.avatar || item.senderId.avatar || (typeof item.senderId === 'object' && item.senderId?.profile?.avatar) }}
                     style={styles.avatarImage}
@@ -826,7 +851,7 @@ export default function GroupChatScreen({ route, navigation }) {
                   />
                 ) : (
                   <Text style={styles.avatarText}>
-                    {((typeof item.senderId === 'object' ? (item.senderId?.profile?.name || item.senderId?.name) : "") || "?").charAt(0).toUpperCase()}
+                    {item.senderId?.role === 'admin' ? 'A' : ((typeof item.senderId === 'object' ? (item.senderId?.profile?.name || item.senderId?.name) : "") || "?").charAt(0).toUpperCase()}
                   </Text>
                 )}
               </View>
@@ -856,7 +881,7 @@ export default function GroupChatScreen({ route, navigation }) {
             <View style={styles.messageHeader}>
               {!isMyMessage && (
                 <Text style={styles.senderName}>
-                  {item.senderId.profile?.name || item.senderId.name || item.senderId.email || "Unknown"}
+                  {item.senderId?.role === 'admin' ? 'Admin' : (item.senderId.profile?.name || item.senderId.name || item.senderId.email || "Unknown")}
                 </Text>
               )}
             </View>
@@ -874,13 +899,13 @@ export default function GroupChatScreen({ route, navigation }) {
               <TouchableOpacity
                 style={styles.imageContainer}
                 onPress={() => {
-                  const data = loadedImages[item._id] || item.fileData.data;
+                  const data = loadedImages[item._id] || (typeof item.fileData === 'string' ? item.fileData : item.fileData.data);
                   if (data) setFullScreenImage(data);
                   else handleLoadImage(item._id);
                 }}
               >
-                {(loadedImages[item._id] || item.fileData.data) ? (
-                  <Image source={{ uri: loadedImages[item._id] || item.fileData.data }} style={styles.messageImage} />
+                {(loadedImages[item._id] || (typeof item.fileData === 'string' ? item.fileData : item.fileData.data)) ? (
+                  <Image source={{ uri: loadedImages[item._id] || (typeof item.fileData === 'string' ? item.fileData : item.fileData.data) }} style={styles.messageImage} />
                 ) : (
                   <View style={[styles.messageImage, styles.placeholderImage]}>
                     <Ionicons name="image-outline" size={40} color="#94A3B8" />
@@ -909,11 +934,11 @@ export default function GroupChatScreen({ route, navigation }) {
                 />
                 <View style={styles.fileInfo}>
                   <Text style={styles.fileName} numberOfLines={1}>
-                    {item.fileData.name || "Document"}
+                    {(typeof item.fileData === 'object' && item.fileData?.name) || "Document"}
                   </Text>
                   <Text style={styles.fileSize}>
-                    {item.fileData.size ? `${(item.fileData.size / 1024).toFixed(1)} KB` : "0 KB"}
-                    {" "}{(item.fileData.type || item.fileData.name?.split('.').pop())?.toUpperCase()}
+                    {(typeof item.fileData === 'object' && item.fileData?.size) ? `${(item.fileData.size / 1024).toFixed(1)} KB` : "0 KB"}
+                    {" "}{(typeof item.fileData === 'object' && (item.fileData?.type || item.fileData?.name?.split('.').pop()))?.toUpperCase() || ''}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => handleFileDownload(item)}>
