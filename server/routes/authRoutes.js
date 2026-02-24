@@ -57,14 +57,27 @@ router.post("/admin-signup", async (req, res) => {
    LOGIN (ADMIN + EMPLOYEE)
 ===================== */
 router.post("/login", async (req, res) => {
-  const { email, password, role } = req.body;
+  let { email, password, role } = req.body;
+
+  if (email) email = email.trim().toLowerCase();
+  if (role) role = role.trim().toLowerCase();
+
+  console.log(`[LOGIN DEBUG] Attempting login for email: ${email}, role: ${role}`);
 
   const user = await User.findOne({ email, role });
   if (!user) {
+    console.log(`[LOGIN DEBUG] User not found for email: ${email}, role: ${role}`);
+    // Check if user exists with different role
+    const userDifferentRole = await User.findOne({ email });
+    if (userDifferentRole) {
+      console.log(`[LOGIN DEBUG] User found but role mismatch. Expected: ${role}, Actual: ${userDifferentRole.role}`);
+    }
     return res.status(404).json({ message: "Account not found" });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
+  console.log(`[LOGIN DEBUG] Password match: ${isMatch}`);
+
   if (!isMatch) {
     return res.status(401).json({ message: "Invalid credentials" });
   }
