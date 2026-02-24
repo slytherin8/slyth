@@ -68,7 +68,7 @@ export default function ProfileSetupScreen({ navigation }) {
         throw new Error(data.message || "Failed to save profile");
       }
 
-      Alert.alert("Success! 🎉", "Profile updated successfully", [
+      Alert.alert("Success", "Profile updated successfully", [
         { text: "OK", onPress: () => navigation.replace("EmployeeHome") }
       ]);
     } catch (err) {
