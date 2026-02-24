@@ -435,7 +435,15 @@ router.post("/groups/:groupId/messages", auth, upload.single("file"), async (req
       };
       messageType = messageType === "text" ? "file" : messageType;
     } else if (req.body.fileData) {
-      fileDataObject = req.body.fileData;
+      const fd = req.body.fileData;
+      if (typeof fd === 'string') {
+        fileDataObject = {
+          name: messageType === "image" ? "image.jpg" : "file",
+          data: fd
+        };
+      } else {
+        fileDataObject = fd;
+      }
     }
 
     const message = await Message.create({
@@ -808,8 +816,13 @@ router.get("/messages/data/:messageId", auth, async (req, res) => {
     const { messageId } = req.params;
     const message = await Message.findById(messageId);
 
-    if (!message || !message.fileData || !message.fileData.data) {
+    if (!message || !message.fileData) {
       return res.status(404).json({ message: "File data not found" });
+    }
+
+    const data = typeof message.fileData === 'string' ? message.fileData : message.fileData.data;
+    if (!data) {
+      return res.status(404).json({ message: "File data is empty" });
     }
 
     // Verify permission (user must be member of the group)
@@ -823,7 +836,7 @@ router.get("/messages/data/:messageId", auth, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    res.json({ data: message.fileData.data });
+    res.json({ data });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch file data" });
   }
