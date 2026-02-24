@@ -22,6 +22,16 @@ const getResponsiveSize = (size) => {
   return Math.round(size * scale);
 };
 
+const decodeJWT = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch (e) {
+    return null;
+  }
+};
+
 const getResponsiveFontSize = (size) => {
   const scale = width / 375;
   const newSize = size * scale;
@@ -112,10 +122,10 @@ export default function CreateEmployeeScreen({ navigation }) {
 
     // Debug: Check token content
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = decodeJWT(token);
       console.log("Current user from token:", payload);
 
-      if (payload.role !== 'admin') {
+      if (!payload || payload.role !== 'admin') {
         return Alert.alert("Access Denied", "You need admin privileges to create employees.");
       }
     } catch (e) {
