@@ -18,6 +18,14 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
 
+// Fetch with timeout helper
+const fetchWithTimeout = (url, options, timeoutMs = 30000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+};
+
 const { width, height } = Dimensions.get('window');
 
 // Responsive helper functions
@@ -38,6 +46,7 @@ export default function LoginScreen({ navigation }) {
   const [role, setRole] = useState("admin");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Logging in...");
 
   // Error states
   const [emailError, setEmailError] = useState("");
@@ -74,9 +83,17 @@ export default function LoginScreen({ navigation }) {
     }
 
     setLoading(true);
+    setLoadingMessage("Connecting to server...");
     try {
+      // Wake up server first (Render free tier sleeps after 15 min)
+      try {
+        await fetchWithTimeout(`${API}/`, {}, 10000);
+      } catch (_) {
+        // Server is waking up, continue anyway
+      }
+      setLoadingMessage("Logging in...");
       console.log(`🔍 Attempting login to: ${API}/api/auth/login`);
-      const res = await fetch(`${API}/api/auth/login`, {
+      const res = await fetchWithTimeout(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -84,7 +101,7 @@ export default function LoginScreen({ navigation }) {
           password: password.trim(),
           role
         })
-      });
+      }, 30000);
 
       const contentType = res.headers.get("content-type");
       let data = {};
@@ -126,7 +143,14 @@ export default function LoginScreen({ navigation }) {
 
     } catch (error) {
       console.error("Login error:", error);
-      Alert.alert("Connection Error", `Server not reachable at ${API}. Please check your connection.`);
+      if (error.name === 'AbortError') {
+        Alert.alert(
+          "Request Timed Out",
+          "The server is taking too long to respond. It may be waking up from sleep. Please try again in 30 seconds."
+        );
+      } else {
+        Alert.alert("Connection Error", `Could not reach server. Please check your internet connection and try again.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -253,7 +277,10 @@ export default function LoginScreen({ navigation }) {
                   disabled={loading}
                 >
                   {loading ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={[styles.loginButtonText, { fontSize: 13 }]}>{loadingMessage}</Text>
+                    </View>
                   ) : (
                     <Text style={styles.loginButtonText}>Login</Text>
                   )}
