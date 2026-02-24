@@ -365,9 +365,9 @@ export default function DirectChatScreen({ route, navigation }) {
 
       // Show success message for uploads
       if (messageType === "file") {
-        Alert.alert("Success! 📎", "File sent successfully");
+        Alert.alert("Success", "File sent successfully");
       } else if (messageType === "image") {
-        Alert.alert("Success! 📷", "Photo sent successfully");
+        Alert.alert("Success", "Photo sent successfully");
       }
 
       // Scroll to bottom
@@ -405,7 +405,7 @@ export default function DirectChatScreen({ route, navigation }) {
 
       if (response.ok) {
         await fetchMessages();
-        Alert.alert("Success! 🗑️", "Message deleted successfully");
+        Alert.alert("Success", "Message deleted successfully");
       } else {
         const errorData = await response.json();
         Alert.alert("Error", errorData.message || "Failed to delete message");
@@ -661,7 +661,7 @@ export default function DirectChatScreen({ route, navigation }) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        Alert.alert("Success! 📥", "File download started");
+        Alert.alert("Success", "File download started");
       } else {
         // For mobile
         const fileName = fileData.name || 'document.pdf';
