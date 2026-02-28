@@ -188,11 +188,7 @@ export default function EmployeeHome({ navigation }) {
   );
 
   return (
-    <AppLayout
-      navigation={navigation}
-      role="employee"
-      hideHeader={true}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
 
@@ -363,7 +359,7 @@ export default function EmployeeHome({ navigation }) {
           </TouchableOpacity>
         </Modal>
       </View>
-    </AppLayout>
+    </SafeAreaView>
   );
 }
 
