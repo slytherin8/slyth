@@ -101,7 +101,7 @@ export default function DebugAuthScreen({ navigation }) {
 
       const data = await response.json();
       if (response.ok) {
-        Alert.alert("Success", "Test admin created! Email: admin@test.com, Password: Admin123!");
+        Alert.alert("Success", "Test admin created. Email: admin@test.com, Password: Admin123");
       } else {
         Alert.alert("Error", data.message);
       }
