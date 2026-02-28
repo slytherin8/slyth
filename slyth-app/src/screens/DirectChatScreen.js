@@ -419,9 +419,9 @@ export default function DirectChatScreen({ route, navigation }) {
   const handleCopyMessage = (message) => {
     if (Platform.OS === 'web') {
       navigator.clipboard.writeText(message.messageText);
-      Alert.alert("Copied! 📋", "Message copied to clipboard");
+      Alert.alert("Copied", "Message copied to clipboard");
     } else {
-      Alert.alert("Copied! 📋", "Message copied to clipboard");
+      Alert.alert("Copied", "Message copied to clipboard");
     }
     setShowMessageActions(false);
   };
