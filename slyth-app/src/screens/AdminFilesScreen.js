@@ -59,7 +59,7 @@ export default function AdminFilesScreen({ navigation }) {
       } else {
         await vaultService.setPin(pin);
         setHasPin(true);
-        Alert.alert("Success", "Secure PIN Created! Please enter it again to unlock.");
+        Alert.alert("Success", "Secure PIN Created. Please enter it again to unlock.");
         setPin("");
       }
     } catch (err) {
