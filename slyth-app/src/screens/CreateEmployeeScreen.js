@@ -13,14 +13,9 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
+import { wp, hp, fp, rs } from "../utils/responsive";
 
 const { width, height } = Dimensions.get('window');
-
-// Responsive helper functions
-const getResponsiveSize = (size) => {
-  const scale = width / 375;
-  return Math.round(size * scale);
-};
 
 const decodeJWT = (token) => {
   try {
@@ -325,111 +320,111 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: getResponsiveSize(20),
-    paddingVertical: getResponsiveSize(16),
+    paddingHorizontal: rs(20),
+    paddingVertical: rs(16),
     backgroundColor: "#F5F5F5"
   },
   backButton: {
-    padding: getResponsiveSize(8),
+    padding: rs(8),
     backgroundColor: "#E5E7EB",
-    borderRadius: getResponsiveSize(20),
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
+    borderRadius: rs(20),
+    width: rs(40),
+    height: rs(40),
     justifyContent: "center",
     alignItems: "center"
   },
   backIcon: {
-    width: getResponsiveSize(24),
-    height: getResponsiveSize(24),
+    width: rs(24),
+    height: rs(24),
     tintColor: "#374151"
   },
   headerTitle: {
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "600",
     color: "#1F2937",
     fontFamily: "Inter-SemiBold"
   },
   companyLogoContainer: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
+    width: rs(40),
+    height: rs(40),
     justifyContent: "center",
     alignItems: "center"
   },
   companyLogo: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    borderRadius: getResponsiveSize(20)
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20)
   },
   defaultLogo: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    borderRadius: getResponsiveSize(20),
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
     backgroundColor: "#E5F3F0",
     justifyContent: "center",
     alignItems: "center"
   },
   defaultLogoText: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: fp(16),
     fontWeight: "700",
     color: "#00664F",
     fontFamily: "Inter-Bold"
   },
   formContainer: {
     flex: 1,
-    paddingHorizontal: getResponsiveSize(20),
-    paddingTop: getResponsiveSize(40)
+    paddingHorizontal: rs(20),
+    paddingTop: rs(40)
   },
   inputContainer: {
-    marginBottom: getResponsiveSize(24)
+    marginBottom: rs(24)
   },
   inputLabel: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     fontWeight: "500",
     color: "#374151",
     fontFamily: "Inter-Medium",
-    marginBottom: getResponsiveSize(16),
-    marginLeft: getResponsiveSize(4)
+    marginBottom: rs(16),
+    marginLeft: rs(4)
   },
   input: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: getResponsiveSize(28),
-    paddingHorizontal: getResponsiveSize(24),
-    paddingVertical: getResponsiveSize(18),
-    fontSize: getResponsiveFontSize(16),
+    borderRadius: rs(28),
+    paddingHorizontal: rs(24),
+    paddingVertical: rs(18),
+    fontSize: fp(16),
     color: "#1F2937",
     fontFamily: "Inter-Regular",
-    minHeight: getResponsiveSize(56)
+    minHeight: rs(56)
   },
   passwordInputContainer: {
     position: "relative"
   },
   passwordInput: {
-    paddingRight: getResponsiveSize(55)
+    paddingRight: rs(55)
   },
   eyeButton: {
     position: "absolute",
-    right: getResponsiveSize(16),
-    top: getResponsiveSize(18),
-    padding: getResponsiveSize(6)
+    right: rs(16),
+    top: rs(18),
+    padding: rs(6)
   },
   eyeIcon: {
-    width: getResponsiveSize(20),
-    height: getResponsiveSize(20),
+    width: rs(20),
+    height: rs(20),
     tintColor: "#6B7280"
   },
   createButton: {
     backgroundColor: "#00664F",
-    borderRadius: getResponsiveSize(28),
-    paddingVertical: getResponsiveSize(18),
+    borderRadius: rs(28),
+    paddingVertical: rs(18),
     alignItems: "center",
-    marginTop: getResponsiveSize(40),
-    minHeight: getResponsiveSize(56)
+    marginTop: rs(40),
+    minHeight: rs(56)
   },
   createButtonText: {
     color: "#FFFFFF",
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "600",
     fontFamily: "Inter-SemiBold"
   },
@@ -439,9 +434,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: "#EF4444",
-    fontSize: getResponsiveFontSize(12),
-    marginTop: getResponsiveSize(8),
-    marginLeft: getResponsiveSize(4),
+    fontSize: fp(12),
+    marginTop: rs(8),
+    marginLeft: rs(4),
     fontFamily: "Inter-Regular"
   }
 });
