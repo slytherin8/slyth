@@ -22,19 +22,9 @@ import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
 import { useSmartLoader } from "../hooks/useSmartLoader";
 import socketService from "../services/socketService";
+import { wp, hp, fp, rs } from "../utils/responsive";
 
 const { width } = Dimensions.get('window');
-
-// Responsive helper functions
-const getResponsiveSize = (size) => {
-  const scale = width / 375;
-  return Math.round(size * scale);
-};
-
-const getResponsiveFontSize = (size) => {
-  const scale = width / 375;
-  return Math.round(size * scale);
-};
 
 export default function EmployeeHome({ navigation }) {
   const [company, setCompany] = useState(null);
@@ -156,9 +146,9 @@ export default function EmployeeHome({ navigation }) {
         styles.actionCard,
         {
           backgroundColor: item.backgroundColor,
-          width: item.fullWidth ? "100%" : getResponsiveSize(162),
-          height: item.fullWidth ? getResponsiveSize(160) : getResponsiveSize(200),
-          marginBottom: getResponsiveSize(16)
+          width: item.fullWidth ? "100%" : rs(162),
+          height: item.fullWidth ? rs(160) : rs(200),
+          marginBottom: rs(16)
         }
       ]}
       onPress={item.onPress}
@@ -193,7 +183,7 @@ export default function EmployeeHome({ navigation }) {
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
 
         {/* Custom Header */}
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, getResponsiveSize(15)) }]}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, rs(15)) }]}>
           <View style={styles.companyInfo}>
             {company?.logo ? (
               <Image source={{ uri: company.logo }} style={styles.companyLogo} />
@@ -376,8 +366,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(15),
+    paddingHorizontal: rs(20),
+    paddingBottom: rs(15),
     backgroundColor: "#FFFFFF"
   },
   companyInfo: {
@@ -386,56 +376,56 @@ const styles = StyleSheet.create({
     flex: 1
   },
   companyLogo: {
-    width: getResponsiveSize(54),
-    height: getResponsiveSize(54),
-    borderRadius: getResponsiveSize(27),
+    width: rs(54),
+    height: rs(54),
+    borderRadius: rs(27),
     backgroundColor: "#E5F3F0"
   },
   defaultLogo: {
-    width: getResponsiveSize(54),
-    height: getResponsiveSize(54),
-    borderRadius: getResponsiveSize(27),
+    width: rs(54),
+    height: rs(54),
+    borderRadius: rs(27),
     backgroundColor: "#E5F3F0",
     justifyContent: "center",
     alignItems: "center"
   },
   defaultLogoText: {
-    fontSize: getResponsiveFontSize(20),
+    fontSize: fp(20),
     fontWeight: "700",
     color: "#00664F"
   },
   companyTextContainer: {
-    marginLeft: getResponsiveSize(12),
+    marginLeft: rs(12),
     flex: 1
   },
   companyName: {
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "700",
     color: "#1F2937"
   },
   companySubtitle: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     color: "#6B7280",
     marginTop: -2
   },
   headerMenu: {
-    padding: getResponsiveSize(10),
-    marginRight: -getResponsiveSize(10)
+    padding: rs(10),
+    marginRight: -rs(10)
   },
   menuIconImage: {
-    width: getResponsiveSize(24),
-    height: getResponsiveSize(24),
+    width: rs(24),
+    height: rs(24),
     tintColor: "#9CA3AF"
   },
   scrollView: {
     flex: 1
   },
   scrollContent: {
-    paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(130)
+    paddingHorizontal: rs(20),
+    paddingBottom: rs(130)
   },
   cardsGrid: {
-    marginTop: getResponsiveSize(10)
+    marginTop: rs(10)
   },
   row: {
     flexDirection: "row",
@@ -443,8 +433,8 @@ const styles = StyleSheet.create({
     width: "100%"
   },
   actionCard: {
-    borderRadius: getResponsiveSize(20),
-    padding: getResponsiveSize(16),
+    borderRadius: rs(20),
+    padding: rs(16),
     overflow: "hidden"
   },
   cardContent: {
@@ -457,49 +447,49 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: getResponsiveSize(10)
+    paddingHorizontal: rs(10)
   },
   cardImage: {
     width: "100%",
     height: "100%"
   },
   squareCardImage: {
-    width: getResponsiveSize(110),
-    height: getResponsiveSize(110),
-    marginTop: getResponsiveSize(10)
+    width: rs(110),
+    height: rs(110),
+    marginTop: rs(10)
   },
   fullWidthCardImage: {
-    width: getResponsiveSize(170),
-    height: getResponsiveSize(110)
+    width: rs(170),
+    height: rs(110)
   },
   cardTitle: {
-    fontSize: getResponsiveFontSize(15),
+    fontSize: fp(15),
     fontWeight: "600",
     color: "#FFFFFF",
     alignSelf: "flex-start",
-    marginBottom: getResponsiveSize(5)
+    marginBottom: rs(5)
   },
   fullWidthCardTitle: {
     flex: 1,
-    fontSize: getResponsiveFontSize(18),
-    marginLeft: getResponsiveSize(15),
+    fontSize: fp(18),
+    marginLeft: rs(15),
     marginTop: 0,
     alignSelf: "center"
   },
   recentSection: {
-    marginTop: getResponsiveSize(20)
+    marginTop: rs(20)
   },
   sectionTitle: {
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "700",
     color: "#1F2937",
-    marginBottom: getResponsiveSize(15)
+    marginBottom: rs(15)
   },
   groupItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: getResponsiveSize(12),
+    paddingVertical: rs(12),
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6"
   },
@@ -509,9 +499,9 @@ const styles = StyleSheet.create({
     flex: 1
   },
   groupImageContainer: {
-    width: getResponsiveSize(54),
-    height: getResponsiveSize(54),
-    borderRadius: getResponsiveSize(27),
+    width: rs(54),
+    height: rs(54),
+    borderRadius: rs(27),
     backgroundColor: "#F3F4F6", // Light gray for avatar background
     justifyContent: "center",
     alignItems: "center",
@@ -523,49 +513,49 @@ const styles = StyleSheet.create({
     resizeMode: "cover"
   },
   groupInitials: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: fp(16),
     fontWeight: "700",
     color: "#6B7280"
   },
   groupImage: {
-    width: getResponsiveSize(34),
-    height: getResponsiveSize(34),
+    width: rs(34),
+    height: rs(34),
     resizeMode: "contain"
   },
   groupText: {
-    marginLeft: getResponsiveSize(15),
+    marginLeft: rs(15),
     flex: 1
   },
   groupName: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: fp(16),
     fontWeight: "700",
     color: "#1F2937"
   },
   groupDesc: {
-    fontSize: getResponsiveFontSize(12),
+    fontSize: fp(12),
     color: "#9CA3AF",
     marginTop: 2
   },
   groupMenu: {
-    padding: getResponsiveSize(10),
-    marginRight: -getResponsiveSize(10)
+    padding: rs(10),
+    marginRight: -rs(10)
   },
   groupMenuIconImage: {
-    width: getResponsiveSize(20),
-    height: getResponsiveSize(20),
+    width: rs(20),
+    height: rs(20),
     tintColor: "#9CA3AF"
   },
   cardUnreadBadge: {
     position: 'absolute',
-    top: getResponsiveSize(10),
-    right: getResponsiveSize(10),
+    top: rs(10),
+    right: rs(10),
     backgroundColor: '#00664F',
-    minWidth: getResponsiveSize(24),
-    height: getResponsiveSize(24),
-    borderRadius: getResponsiveSize(12),
+    minWidth: rs(24),
+    height: rs(24),
+    borderRadius: rs(12),
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: getResponsiveSize(4),
+    paddingHorizontal: rs(4),
     borderWidth: 2,
     borderColor: '#FFFFFF',
     shadowColor: "#000",
@@ -576,30 +566,30 @@ const styles = StyleSheet.create({
   },
   cardUnreadText: {
     color: '#FFFFFF',
-    fontSize: getResponsiveFontSize(11),
+    fontSize: fp(11),
     fontWeight: '700'
   },
   groupUnreadBadge: {
     position: 'absolute',
-    top: -getResponsiveSize(5),
-    right: -getResponsiveSize(5),
+    top: -rs(5),
+    right: -rs(5),
     backgroundColor: '#00664F',
-    minWidth: getResponsiveSize(18),
-    height: getResponsiveSize(18),
-    borderRadius: getResponsiveSize(9),
+    minWidth: rs(18),
+    height: rs(18),
+    borderRadius: rs(9),
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: getResponsiveSize(4),
+    paddingHorizontal: rs(4),
     borderWidth: 1.5,
     borderColor: '#FFFFFF'
   },
   groupUnreadText: {
     color: '#FFFFFF',
-    fontSize: getResponsiveFontSize(10),
+    fontSize: fp(10),
     fontWeight: '700'
   },
   emptyState: {
-    padding: getResponsiveSize(20),
+    padding: rs(20),
     alignItems: "center"
   },
   emptyText: {
@@ -612,59 +602,59 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: getResponsiveSize(25),
-    borderTopRightRadius: getResponsiveSize(25),
-    paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(40),
-    paddingTop: getResponsiveSize(10)
+    borderTopLeftRadius: rs(25),
+    borderTopRightRadius: rs(25),
+    paddingHorizontal: rs(20),
+    paddingBottom: rs(40),
+    paddingTop: rs(10)
   },
   sheetHandle: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(5),
+    width: rs(40),
+    height: rs(5),
     backgroundColor: "#E5E7EB",
-    borderRadius: getResponsiveSize(3),
+    borderRadius: rs(3),
     alignSelf: "center",
-    marginBottom: getResponsiveSize(20)
+    marginBottom: rs(20)
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: getResponsiveSize(15),
+    paddingVertical: rs(15),
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
   menuIconContainer: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    borderRadius: getResponsiveSize(20),
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
     backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: getResponsiveSize(15)
+    marginRight: rs(15)
   },
   menuIcon: {
-    width: getResponsiveSize(20),
-    height: getResponsiveSize(20),
+    width: rs(20),
+    height: rs(20),
     tintColor: "#6B7280"
   },
   menuItemText: {
     flex: 1,
-    fontSize: getResponsiveSize(16),
+    fontSize: rs(16),
     color: "#111827",
     fontWeight: "500"
   },
   chevronIcon: {
-    width: getResponsiveSize(16),
-    height: getResponsiveSize(16),
+    width: rs(16),
+    height: rs(16),
     tintColor: "#9CA3AF"
   },
   cancelButton: {
-    marginTop: getResponsiveSize(15),
-    paddingVertical: getResponsiveSize(15),
+    marginTop: rs(15),
+    paddingVertical: rs(15),
     alignItems: "center"
   },
   cancelButtonText: {
-    fontSize: getResponsiveSize(16),
+    fontSize: rs(16),
     color: "#6B7280",
     fontWeight: "600"
   }
