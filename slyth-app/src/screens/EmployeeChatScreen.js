@@ -458,7 +458,7 @@ export default function EmployeeChatScreen({ navigation }) {
   };
 
   const handleMuteGroup = (group) => {
-    Alert.alert("Feature Coming Soon", "Mute notifications feature will be available soon!");
+    Alert.alert("Feature Coming Soon", "Mute notifications feature will be available soon.");
   };
 
   const handleLeaveGroup = (group) => {
