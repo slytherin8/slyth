@@ -17,20 +17,9 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from "expo-image-picker";
 import { API } from "../constants/api";
+import { wp, hp, fp, rs } from "../utils/responsive";
 
 const { width, height } = Dimensions.get('window');
-
-// Responsive helper functions
-const getResponsiveSize = (size) => {
-  const scale = width / 375; // Base width (iPhone X)
-  return Math.round(size * scale);
-};
-
-const getResponsiveFontSize = (size) => {
-  const scale = width / 375;
-  const newSize = size * scale;
-  return Math.max(newSize, size * 0.85); // Minimum 85% of original size
-};
 
 export default function AdminSignupScreen({ navigation }) {
   const [companyName, setCompanyName] = useState("");
@@ -331,21 +320,21 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: getResponsiveSize(32),
-    borderTopRightRadius: getResponsiveSize(32),
-    paddingHorizontal: Math.max(width * 0.06, 20),
-    paddingTop: getResponsiveSize(32),
-    paddingBottom: getResponsiveSize(40),
+    borderTopLeftRadius: rs(32),
+    borderTopRightRadius: rs(32),
+    paddingHorizontal: wp(20),
+    paddingTop: rs(32),
+    paddingBottom: rs(40),
     flex: 1
   },
   cardTitle: {
-    fontSize: getResponsiveFontSize(26),
+    fontSize: fp(26),
     fontWeight: "600",
     textAlign: "center",
     color: "#1F2937",
-    marginBottom: getResponsiveSize(32),
+    marginBottom: rs(32),
     fontFamily: "System",
-    lineHeight: getResponsiveFontSize(32)
+    lineHeight: fp(32)
   },
 
   titleAccent: {
@@ -354,91 +343,91 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: getResponsiveSize(32)
+    marginBottom: rs(32)
   },
   logoPlaceholder: {
-    width: getResponsiveSize(80),
-    height: getResponsiveSize(80),
-    borderRadius: getResponsiveSize(40),
+    width: rs(80),
+    height: rs(80),
+    borderRadius: rs(40),
     backgroundColor: "#E5F3F0",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: getResponsiveSize(8)
+    marginBottom: rs(8)
   },
   logoPlaceholderText: {
-    fontSize: getResponsiveFontSize(32),
+    fontSize: fp(32),
     fontWeight: "700",
     color: "#00664F"
   },
   logoPreview: {
-    width: getResponsiveSize(80),
-    height: getResponsiveSize(80),
-    borderRadius: getResponsiveSize(40),
-    marginBottom: getResponsiveSize(8)
+    width: rs(80),
+    height: rs(80),
+    borderRadius: rs(40),
+    marginBottom: rs(8)
   },
   logoSelectText: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     color: "#6B7280",
     fontFamily: "System"
   },
   inputContainer: {
     position: "relative",
-    marginBottom: getResponsiveSize(18)
+    marginBottom: rs(18)
   },
   input: {
     backgroundColor: "#F9FAFB",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: getResponsiveSize(18),
-    paddingHorizontal: getResponsiveSize(20),
-    paddingVertical: getResponsiveSize(16),
-    fontSize: getResponsiveFontSize(16),
+    borderRadius: rs(18),
+    paddingHorizontal: rs(20),
+    paddingVertical: rs(16),
+    fontSize: fp(16),
     color: "#1F2937",
     fontFamily: "System",
-    minHeight: getResponsiveSize(50)
+    minHeight: rs(50)
   },
   passwordInput: {
-    paddingRight: getResponsiveSize(55)
+    paddingRight: rs(55)
   },
   eyeButton: {
     position: "absolute",
-    right: getResponsiveSize(16),
-    top: getResponsiveSize(15),
-    padding: getResponsiveSize(6)
+    right: rs(16),
+    top: rs(15),
+    padding: rs(6)
   },
   eyeIcon: {
-    width: getResponsiveSize(20),
-    height: getResponsiveSize(20),
+    width: rs(20),
+    height: rs(20),
     tintColor: "#6B7280"
   },
   createButton: {
     backgroundColor: "#00664F",
-    borderRadius: getResponsiveSize(28),
-    paddingVertical: getResponsiveSize(18),
+    borderRadius: rs(28),
+    paddingVertical: rs(18),
     alignItems: "center",
-    marginTop: getResponsiveSize(12),
-    marginBottom: getResponsiveSize(24),
-    minHeight: getResponsiveSize(56)
+    marginTop: rs(12),
+    marginBottom: rs(24),
+    minHeight: rs(56)
   },
   createButtonDisabled: {
     backgroundColor: "#9CA3AF"
   },
   createButtonText: {
     color: "#FFFFFF",
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "700",
     fontFamily: "System"
   },
   footer: {
     alignItems: "center",
-    paddingTop: getResponsiveSize(8)
+    paddingTop: rs(8)
   },
   footerText: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     color: "#6B7280",
     fontFamily: "System",
     textAlign: "center",
-    lineHeight: getResponsiveFontSize(20)
+    lineHeight: fp(20)
   },
   loginLink: {
     color: "#00664F",
@@ -450,9 +439,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: "#EF4444",
-    fontSize: getResponsiveFontSize(12),
-    marginTop: getResponsiveSize(4),
-    marginLeft: getResponsiveSize(4),
+    fontSize: fp(12),
+    marginTop: rs(4),
+    marginLeft: rs(4),
     fontFamily: "System"
   }
 });
