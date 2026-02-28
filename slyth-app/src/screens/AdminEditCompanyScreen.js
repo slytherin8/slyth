@@ -52,7 +52,7 @@ export default function AdminEditCompanyScreen({ navigation }) {
     const pickLogo = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to update the logo!');
+            Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to update the logo.');
             return;
         }
 
