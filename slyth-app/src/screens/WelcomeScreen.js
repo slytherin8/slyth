@@ -4,25 +4,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Dimensions,
   StatusBar,
   Platform
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-
-const { width, height } = Dimensions.get('window');
-
-// Responsive helper functions
-const getResponsiveSize = (size) => {
-  const scale = width / 375; // Base width (iPhone X)
-  return Math.round(size * scale);
-};
-
-const getResponsiveFontSize = (size) => {
-  const scale = width / 375;
-  const newSize = size * scale;
-  return Math.max(newSize, size * 0.85); // Minimum 85% of original size
-};
+import { wp, hp, fp, rs, DEVICE_WIDTH, DEVICE_HEIGHT, isSmallDevice } from '../utils/responsive';
 
 export default function WelcomeScreen({ navigation }) {
   return (
@@ -73,64 +59,64 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingTop: Math.max(height * 0.02, 20), // Reduced top padding to move image higher
+    paddingTop: hp(20),
   },
   illustrationContainer: {
     flex: 1,
-    justifyContent: 'flex-start', // Changed from 'center' to 'flex-start'
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingHorizontal: Math.max(width * 0.05, 20),
-    paddingTop: Math.max(height * 0.05, 30), // Added top padding to position image higher
-    minHeight: height * 0.5, // Increased minimum height
+    paddingHorizontal: wp(20),
+    paddingTop: hp(30),
+    minHeight: hp(400),
   },
   handImage: {
-    width: Math.min(width * 1.0, 950), // Increased to full width and larger maxWidth
-    height: Math.min(width * 1.0, height * 0.65), // Increased height ratio
-    maxWidth: 950, // Increased from 800
-    maxHeight: 950, // Increased from 900
+    width: isSmallDevice() ? DEVICE_WIDTH * 0.9 : DEVICE_WIDTH * 0.95,
+    height: isSmallDevice() ? hp(300) : hp(400),
+    maxWidth: 950,
+    maxHeight: 950,
   },
   bottomCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: getResponsiveSize(32),
-    borderTopRightRadius: getResponsiveSize(32),
-    paddingHorizontal: Math.max(width * 0.06, 24),
-    paddingTop: getResponsiveSize(36),
-    paddingBottom: Math.max(getResponsiveSize(50), 50), // Increased bottom padding
-    minHeight: height * 0.4, // Increased minimum height for more space
+    borderTopLeftRadius: rs(32),
+    borderTopRightRadius: rs(32),
+    paddingHorizontal: wp(24),
+    paddingTop: hp(36),
+    paddingBottom: hp(50),
+    minHeight: isSmallDevice() ? hp(320) : hp(350),
   },
   title: {
-    fontSize: getResponsiveFontSize(28),
+    fontSize: fp(28),
     fontWeight: '700',
     color: '#1F2937',
     textAlign: 'left',
-    marginBottom: getResponsiveSize(16),
+    marginBottom: hp(16),
     fontFamily: 'System',
-    lineHeight: getResponsiveFontSize(34),
+    lineHeight: fp(34),
   },
   titleAccent: {
     color: '#00664F',
   },
   subtitle: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: fp(16),
     color: '#6B7280',
     textAlign: 'left',
-    marginBottom: getResponsiveSize(32),
-    lineHeight: getResponsiveFontSize(24),
+    marginBottom: hp(32),
+    lineHeight: fp(24),
     fontFamily: 'System',
   },
   getStartedButton: {
     backgroundColor: '#00664F',
-    paddingVertical: getResponsiveSize(18),
-    paddingHorizontal: getResponsiveSize(32),
-    borderRadius: getResponsiveSize(16),
+    paddingVertical: hp(18),
+    paddingHorizontal: wp(32),
+    borderRadius: rs(16),
     alignItems: 'center',
-    minHeight: getResponsiveSize(56),
+    minHeight: hp(56),
     justifyContent: 'center',
-    marginTop: getResponsiveSize(8), // Added margin top for better spacing
+    marginTop: hp(8),
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: '600',
     fontFamily: 'System',
   },
