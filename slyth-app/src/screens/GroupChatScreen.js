@@ -1319,7 +1319,7 @@ export default function GroupChatScreen({ route, navigation }) {
                     style={styles.bottomSheetOption}
                     onPress={() => {
                       setShowGroupMenu(false);
-                      Alert.alert("Feature Coming Soon", "Mute notifications feature will be available soon!");
+                      Alert.alert("Feature Coming Soon", "Mute notifications feature will be available soon.");
                     }}
                   >
                     <View style={styles.bottomSheetIconContainer}>
