@@ -17,6 +17,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from "../utils/storage";
 import { API } from "../constants/api";
+import { wp, hp, fp, rs } from "../utils/responsive";
 
 // Fetch with timeout helper
 const fetchWithTimeout = (url, options, timeoutMs = 30000) => {
@@ -27,18 +28,6 @@ const fetchWithTimeout = (url, options, timeoutMs = 30000) => {
 };
 
 const { width, height } = Dimensions.get('window');
-
-// Responsive helper functions
-const getResponsiveSize = (size) => {
-  const scale = width / 375; // Base width (iPhone X)
-  return Math.round(size * scale);
-};
-
-const getResponsiveFontSize = (size) => {
-  const scale = width / 375;
-  const newSize = size * scale;
-  return Math.max(newSize, size * 0.85); // Minimum 85% of original size
-};
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -336,8 +325,8 @@ const styles = StyleSheet.create({
   cardContainer: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: getResponsiveSize(32),
-    borderTopRightRadius: getResponsiveSize(32),
+    borderTopLeftRadius: rs(32),
+    borderTopRightRadius: rs(32),
     overflow: "hidden"
   },
   scrollView: {
@@ -345,21 +334,21 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: Math.max(width * 0.06, 20),
-    paddingTop: getResponsiveSize(32),
-    paddingBottom: getResponsiveSize(40)
+    paddingHorizontal: wp(20),
+    paddingTop: rs(32),
+    paddingBottom: rs(40)
   },
   cardContent: {
     // Wrapper for content inside scrollview if needed
   },
   cardTitle: {
-    fontSize: getResponsiveFontSize(26),
+    fontSize: fp(26),
     fontWeight: "600",
     textAlign: "center",
     color: "#1F2937",
-    marginBottom: getResponsiveSize(28),
+    marginBottom: rs(28),
     fontFamily: "System",
-    lineHeight: getResponsiveFontSize(32)
+    lineHeight: fp(32)
   },
   roleHighlight: {
     color: "#00664F",
@@ -368,15 +357,15 @@ const styles = StyleSheet.create({
   roleToggleContainer: {
     flexDirection: "row",
     backgroundColor: "#F3F4F6",
-    borderRadius: getResponsiveSize(28),
-    padding: getResponsiveSize(6),
-    marginBottom: getResponsiveSize(28)
+    borderRadius: rs(28),
+    padding: rs(6),
+    marginBottom: rs(28)
   },
   roleButton: {
     flex: 1,
-    paddingVertical: getResponsiveSize(14),
-    paddingHorizontal: getResponsiveSize(20),
-    borderRadius: getResponsiveSize(22),
+    paddingVertical: rs(14),
+    paddingHorizontal: rs(20),
+    borderRadius: rs(22),
     alignItems: "center"
   },
   roleButtonActive: {
@@ -386,7 +375,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent"
   },
   roleButtonText: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: fp(16),
     fontWeight: "600",
     fontFamily: "System"
   },
@@ -398,62 +387,62 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: "relative",
-    marginBottom: getResponsiveSize(18)
+    marginBottom: rs(18)
   },
   input: {
     backgroundColor: "#F9FAFB",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: getResponsiveSize(18),
-    paddingHorizontal: getResponsiveSize(20),
-    paddingVertical: getResponsiveSize(16),
-    fontSize: getResponsiveFontSize(16),
+    borderRadius: rs(18),
+    paddingHorizontal: rs(20),
+    paddingVertical: rs(16),
+    fontSize: fp(16),
     color: "#1F2937",
     fontFamily: "System",
-    minHeight: getResponsiveSize(50)
+    minHeight: rs(50)
   },
   passwordInput: {
-    paddingRight: getResponsiveSize(55)
+    paddingRight: rs(55)
   },
   eyeButton: {
     position: "absolute",
-    right: getResponsiveSize(16),
-    top: getResponsiveSize(15),
-    padding: getResponsiveSize(6)
+    right: rs(16),
+    top: rs(15),
+    padding: rs(6)
   },
   eyeIcon: {
-    width: getResponsiveSize(20),
-    height: getResponsiveSize(20),
+    width: rs(20),
+    height: rs(20),
     tintColor: "#6B7280"
   },
   loginButton: {
     backgroundColor: "#00664F",
-    borderRadius: getResponsiveSize(28),
-    paddingVertical: getResponsiveSize(18),
+    borderRadius: rs(28),
+    paddingVertical: rs(18),
     alignItems: "center",
-    marginTop: getResponsiveSize(12),
-    marginBottom: getResponsiveSize(24),
-    minHeight: getResponsiveSize(56)
+    marginTop: rs(12),
+    marginBottom: rs(24),
+    minHeight: rs(56)
   },
   loginButtonDisabled: {
     backgroundColor: "#9CA3AF"
   },
   loginButtonText: {
     color: "#FFFFFF",
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "700",
     fontFamily: "System"
   },
   footer: {
     alignItems: "center",
-    paddingTop: getResponsiveSize(8)
+    paddingTop: rs(8)
   },
   footerText: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     color: "#6B7280",
     fontFamily: "System",
     textAlign: "center",
-    lineHeight: getResponsiveFontSize(20)
+    lineHeight: fp(20)
   },
   signupLink: {
     color: "#00664F",
@@ -465,9 +454,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: "#EF4444",
-    fontSize: getResponsiveFontSize(12),
-    marginTop: getResponsiveSize(4),
-    marginLeft: getResponsiveSize(4),
+    fontSize: fp(12),
+    marginTop: rs(4),
+    marginLeft: rs(4),
     fontFamily: "System"
   }
 });
