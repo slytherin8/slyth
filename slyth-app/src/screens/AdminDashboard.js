@@ -20,20 +20,9 @@ import api from "../services/api";
 import { API } from "../constants/api";
 import { useSmartLoader } from "../hooks/useSmartLoader";
 import AppLayout from "../components/AppLayout";
+import { wp, hp, fp, rs } from "../utils/responsive";
 
 const { width, height } = Dimensions.get('window');
-
-// Responsive helper functions
-const getResponsiveSize = (size) => {
-  const scale = width / 375;
-  return Math.round(size * scale);
-};
-
-const getResponsiveFontSize = (size) => {
-  const scale = width / 375;
-  const newSize = size * scale;
-  return Math.max(newSize, size * 0.85);
-};
 
 export default function AdminDashboard({ navigation }) {
   const [employees, setEmployees] = useState([]);
@@ -187,9 +176,9 @@ export default function AdminDashboard({ navigation }) {
         styles.featureCard,
         {
           backgroundColor: item.backgroundColor,
-          height: getResponsiveSize(item.height),
-          width: getResponsiveSize(168), // Slightly reduced width to accommodate gaps
-          marginTop: item.id === 2 ? getResponsiveSize(35) : 0 // Move red card (Group Chats) down more
+          height: rs(item.height),
+          width: rs(168), // Slightly reduced width to accommodate gaps
+          marginTop: item.id === 2 ? rs(35) : 0 // Move red card (Group Chats) down more
         }
       ]}
       onPress={item.onPress}
@@ -370,8 +359,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: getResponsiveSize(20),
-    paddingVertical: getResponsiveSize(16),
+    paddingHorizontal: rs(20),
+    paddingVertical: rs(16),
     backgroundColor: "#FFFFFF"
   },
   companyInfo: {
@@ -380,22 +369,22 @@ const styles = StyleSheet.create({
     flex: 1
   },
   companyLogo: {
-    width: getResponsiveSize(50),
-    height: getResponsiveSize(50),
-    borderRadius: getResponsiveSize(25),
-    marginRight: getResponsiveSize(12)
+    width: rs(50),
+    height: rs(50),
+    borderRadius: rs(25),
+    marginRight: rs(12)
   },
   defaultLogo: {
-    width: getResponsiveSize(50),
-    height: getResponsiveSize(50),
-    borderRadius: getResponsiveSize(25),
+    width: rs(50),
+    height: rs(50),
+    borderRadius: rs(25),
     backgroundColor: "#E5F3F0",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: getResponsiveSize(12)
+    marginRight: rs(12)
   },
   defaultLogoText: {
-    fontSize: getResponsiveFontSize(20),
+    fontSize: fp(20),
     fontWeight: "700",
     color: "#00664F",
     fontFamily: "Inter-Bold"
@@ -404,23 +393,23 @@ const styles = StyleSheet.create({
     flex: 1
   },
   companyName: {
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "700",
     color: "#1F2937",
-    marginBottom: getResponsiveSize(2),
+    marginBottom: rs(2),
     fontFamily: "Inter-Bold"
   },
   companySubtitle: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     color: "#6B7280",
     fontFamily: "Inter-Regular"
   },
   menuButton: {
-    padding: getResponsiveSize(8)
+    padding: rs(8)
   },
   menuIcon: {
-    width: getResponsiveSize(20),
-    height: getResponsiveSize(20),
+    width: rs(20),
+    height: rs(20),
     tintColor: "#6B7280"
   },
   content: {
@@ -428,24 +417,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB"
   },
   cardsContainer: {
-    paddingHorizontal: getResponsiveSize(20),
-    paddingTop: getResponsiveSize(20)
+    paddingHorizontal: rs(20),
+    paddingTop: rs(20)
   },
   cardsGrid: {
-    paddingBottom: getResponsiveSize(10)
+    paddingBottom: rs(10)
   },
   cardRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: getResponsiveSize(20), // Increased gap between rows
+    marginBottom: rs(20), // Increased gap between rows
     alignItems: "flex-start" // Align cards to top when heights differ
   },
   featureCard: {
-    borderRadius: getResponsiveSize(16),
-    padding: getResponsiveSize(16),
+    borderRadius: rs(16),
+    padding: rs(16),
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginHorizontal: getResponsiveSize(4) // Add horizontal gap between cards
+    marginHorizontal: rs(4) // Add horizontal gap between cards
     // width and height now set dynamically in renderFeatureCard
   },
   cardImageContainer: {
@@ -455,65 +444,65 @@ const styles = StyleSheet.create({
     width: "100%"
   },
   cardImage: {
-    width: getResponsiveSize(100), // Increased from 80 to 100
-    height: getResponsiveSize(100) // Increased from 80 to 100
+    width: rs(100), // Increased from 80 to 100
+    height: rs(100) // Increased from 80 to 100
   },
   cardTitle: {
-    fontSize: getResponsiveFontSize(18), // Changed to 18px as specified
+    fontSize: fp(18), // Changed to 18px as specified
     fontWeight: "500", // Changed to 500 (Medium) as specified
     color: "#FFFFFF",
     textAlign: "left",
-    marginTop: getResponsiveSize(8),
+    marginTop: rs(8),
     fontFamily: "Inter-Medium" // Changed to Inter-Medium for weight 500
   },
   employeeSection: {
-    paddingHorizontal: getResponsiveSize(20),
-    paddingTop: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(140)
+    paddingHorizontal: rs(20),
+    paddingTop: rs(20),
+    paddingBottom: rs(140)
   },
   employeeHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: getResponsiveSize(16)
+    marginBottom: rs(16)
   },
   sectionTitle: {
-    fontSize: getResponsiveFontSize(20),
+    fontSize: fp(20),
     fontWeight: "700",
     color: "#1F2937",
     fontFamily: "Inter-Bold"
   },
   addButton: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    borderRadius: getResponsiveSize(20),
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
     backgroundColor: "#00664F",
     justifyContent: "center",
     alignItems: "center"
   },
   addButtonText: {
-    fontSize: getResponsiveFontSize(20),
+    fontSize: fp(20),
     color: "#FFFFFF",
     fontWeight: "600",
     fontFamily: "Inter-SemiBold"
   },
   employeeList: {
     backgroundColor: "#FFFFFF",
-    borderRadius: getResponsiveSize(12),
-    paddingVertical: getResponsiveSize(8)
+    borderRadius: rs(12),
+    paddingVertical: rs(8)
   },
   employeeItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: getResponsiveSize(16),
-    paddingVertical: getResponsiveSize(16),
+    paddingHorizontal: rs(16),
+    paddingVertical: rs(16),
     backgroundColor: "transparent"
   },
   employeeUnderline: {
     height: 1,
     backgroundColor: "#E5E7EB",
-    marginHorizontal: getResponsiveSize(16)
+    marginHorizontal: rs(16)
   },
   employeeLeft: {
     flexDirection: "row",
@@ -521,22 +510,22 @@ const styles = StyleSheet.create({
     flex: 1
   },
   employeeAvatar: {
-    width: getResponsiveSize(50),
-    height: getResponsiveSize(50),
-    borderRadius: getResponsiveSize(25),
+    width: rs(50),
+    height: rs(50),
+    borderRadius: rs(25),
     backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: getResponsiveSize(12)
+    marginRight: rs(12)
   },
   avatarImage: {
-    width: getResponsiveSize(50),
-    height: getResponsiveSize(50),
-    borderRadius: getResponsiveSize(25),
+    width: rs(50),
+    height: rs(50),
+    borderRadius: rs(25),
     resizeMode: 'cover'
   },
   avatarText: {
-    fontSize: getResponsiveFontSize(18),
+    fontSize: fp(18),
     fontWeight: "600",
     color: "#6B7280",
     fontFamily: "Inter-SemiBold"
@@ -545,45 +534,45 @@ const styles = StyleSheet.create({
     flex: 1
   },
   employeeName: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: fp(16),
     fontWeight: "600",
     color: "#1F2937",
-    marginBottom: getResponsiveSize(2),
+    marginBottom: rs(2),
     fontFamily: "Inter-SemiBold"
   },
   employeeEmail: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     color: "#6B7280",
     fontFamily: "Inter-Regular"
   },
   arrowIcon: {
-    width: getResponsiveSize(16),
-    height: getResponsiveSize(16),
+    width: rs(16),
+    height: rs(16),
     tintColor: "#9CA3AF"
   },
   deleteButton: {
-    padding: getResponsiveSize(12),
+    padding: rs(12),
     backgroundColor: "#FEF2F2",
-    borderRadius: getResponsiveSize(8)
+    borderRadius: rs(8)
   },
   deleteIcon: {
-    width: getResponsiveSize(24),
-    height: getResponsiveSize(24),
+    width: rs(24),
+    height: rs(24),
     tintColor: "#EF4444"
   },
   emptyState: {
     alignItems: "center",
-    paddingVertical: getResponsiveSize(40)
+    paddingVertical: rs(40)
   },
   emptyText: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: fp(16),
     fontWeight: "600",
     color: "#6B7280",
-    marginBottom: getResponsiveSize(4),
+    marginBottom: rs(4),
     fontFamily: "Inter-SemiBold"
   },
   emptySubtext: {
-    fontSize: getResponsiveFontSize(14),
+    fontSize: fp(14),
     color: "#9CA3AF",
     textAlign: "center",
     fontFamily: "Inter-Regular"
@@ -595,59 +584,59 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: getResponsiveSize(25),
-    borderTopRightRadius: getResponsiveSize(25),
-    paddingHorizontal: getResponsiveSize(20),
-    paddingBottom: getResponsiveSize(40),
-    paddingTop: getResponsiveSize(10)
+    borderTopLeftRadius: rs(25),
+    borderTopRightRadius: rs(25),
+    paddingHorizontal: rs(20),
+    paddingBottom: rs(40),
+    paddingTop: rs(10)
   },
   sheetHandle: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(5),
+    width: rs(40),
+    height: rs(5),
     backgroundColor: "#E5E7EB",
-    borderRadius: getResponsiveSize(3),
+    borderRadius: rs(3),
     alignSelf: "center",
-    marginBottom: getResponsiveSize(20)
+    marginBottom: rs(20)
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: getResponsiveSize(15),
+    paddingVertical: rs(15),
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
   menuIconContainer: {
-    width: getResponsiveSize(40),
-    height: getResponsiveSize(40),
-    borderRadius: getResponsiveSize(20),
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
     justifyContent: "center",
     alignItems: "center",
-    marginRight: getResponsiveSize(15)
+    marginRight: rs(15)
   },
   menuIconImage: {
-    width: getResponsiveSize(20),
-    height: getResponsiveSize(20),
+    width: rs(20),
+    height: rs(20),
     tintColor: "#6B7280"
   },
   menuItemText: {
     flex: 1,
-    fontSize: getResponsiveSize(16),
+    fontSize: rs(16),
     color: "#111827",
     fontWeight: "500",
     fontFamily: "Inter-Medium"
   },
   chevronIcon: {
-    width: getResponsiveSize(16),
-    height: getResponsiveSize(16),
+    width: rs(16),
+    height: rs(16),
     tintColor: "#9CA3AF"
   },
   cancelButton: {
-    marginTop: getResponsiveSize(15),
-    paddingVertical: getResponsiveSize(15),
+    marginTop: rs(15),
+    paddingVertical: rs(15),
     alignItems: "center"
   },
   cancelButtonText: {
-    fontSize: getResponsiveSize(16),
+    fontSize: rs(16),
     color: "#6B7280",
     fontWeight: "600",
     fontFamily: "Inter-SemiBold"
