@@ -54,7 +54,7 @@ export default function EmployeeProfileEditScreen({ navigation }) {
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+            Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work.');
             return;
         }
 
